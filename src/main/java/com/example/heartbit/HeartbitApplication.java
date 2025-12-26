@@ -9,5 +9,5 @@ public class HeartbitApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(HeartbitApplication.class, args);
 	}
-
+		ㅇㅇㅇ
 }
