@@ -31,6 +31,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:4.0.0'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
+
+	implementation 'org.postgresql:postgresql:42.7.4'
+//	implementation 'org.flywaydb:flyway-core'
+
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.h2database:h2'
 	runtimeOnly 'org.postgresql:postgresql'
