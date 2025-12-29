@@ -44,7 +44,7 @@ public class Trade {
     private Order sellOrder;
 
     @Builder
-    public Trade trade(Timestamp tradeTime, BigDecimal tradePrice, BigDecimal tradeCount, BigDecimal tradeClosePrice, Order buyOrder, Order sellOrder ) {
+    public Trade (Timestamp tradeTime, BigDecimal tradePrice, BigDecimal tradeCount, BigDecimal tradeClosePrice, Order buyOrder, Order sellOrder ) {
         this.tradeTime = tradeTime;
         this.tradePrice = tradePrice;
         this.tradeCount = tradeCount;
