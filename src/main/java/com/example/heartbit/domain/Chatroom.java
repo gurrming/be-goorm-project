@@ -25,7 +25,7 @@ public class Chatroom {
     private Long chatroomId;
 
     // FK: category_id -> Category 엔티티
-    @ManyToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
