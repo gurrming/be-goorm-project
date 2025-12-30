@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface InterestRepository extends JpaRepository<Interest, Long> {
 
-    List<Interest> findByMembertId(Long membertId);
-    boolean existsByMembertIdAndCategoryId(Long membertId, Long categoryId);
-    void deleteByMembertIdAndCategoryId(Long membertId, Long categoryId);
+    List<Interest> findByMemberId(Long memberId);
+    boolean existsByMemberIdAndCategoryId(Long memberId, Long categoryId);
+    void deleteByMemberIdAndCategoryId(Long memberId, Long categoryId);
 }
