@@ -1,4 +1,4 @@
 package com.example.heartbit.repository;
 
-public class ChatroomRepository {
+public interface ChatroomRepository {
 }
