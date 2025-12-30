@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
@@ -23,7 +23,7 @@ public class Trade {
 
     @CreationTimestamp
     @Column(name = "trade_time",  nullable = false, updatable = false)
-    private Timestamp tradeTime;
+    private LocalDateTime tradeTime;
 
     @Column(name = "trade_price", nullable = false, precision = 18, scale = 4)
     private BigDecimal tradePrice;
