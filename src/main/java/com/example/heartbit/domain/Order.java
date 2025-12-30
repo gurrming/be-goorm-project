@@ -21,14 +21,14 @@ public class Order {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "order_id")
-    private Long ordersId;
+    private Long orderId;
 
 
     @Column(name = "order_price", precision = 18, scale = 4)
-    private BigDecimal ordersPrice;
+    private BigDecimal orderPrice;
 
     @Column(name = "order_count", precision = 18, scale = 4)
-    private BigDecimal ordersCount;
+    private BigDecimal orderCount;
 
     @Column(name = "remaining_count", nullable = false, precision = 18, scale = 4)
     private BigDecimal remainingCount;
@@ -55,11 +55,11 @@ public class Order {
 
 
     @Builder
-    public Order(BigDecimal ordersPrice, BigDecimal ordersCount, BigDecimal remainingCount,
+    public Order(BigDecimal orderPrice, BigDecimal orderCount, BigDecimal remainingCount,
                  OrderType orderType, OrderStatus orderStatus, Member member, Category category) {
-        this.ordersPrice = ordersPrice;
-        this.ordersCount = ordersCount;
-        this.remainingCount = (remainingCount != null) ? remainingCount : ordersCount;
+        this.orderPrice = orderPrice;
+        this.orderCount = orderCount;
+        this.remainingCount = (remainingCount != null) ? remainingCount : orderCount;
         this.orderType = orderType;
         this.orderStatus = (orderStatus != null) ? orderStatus : OrderStatus.OPEN;
         this.member = member;
