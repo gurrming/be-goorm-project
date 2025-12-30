@@ -19,28 +19,28 @@ public class Order {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "orders_id")
+    @Column(name = "order_id")
     private Long ordersId;
 
-    @Column(name = "orders_price", precision = 18, scale = 4)
+    @Column(name = "order_price", precision = 18, scale = 4)
     private BigDecimal ordersPrice;
 
-    @Column(name = "orders_count", precision = 18, scale = 4)
+    @Column(name = "order_count", precision = 18, scale = 4)
     private BigDecimal ordersCount;
 
     @Column(name = "remaining_count", nullable = false, precision = 18, scale = 4)
     private BigDecimal remainingCount;
 
     @CreationTimestamp
-    @Column(name = "orders_time")
+    @Column(name = "order_time")
     private LocalDateTime ordersTime;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "orders_type", nullable = false, length = 10)
+    @Column(name = "order_type", nullable = false, length = 10)
     private OrderType orderType;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "orders_status", nullable = false, length = 10)
+    @Column(name = "order_status", nullable = false, length = 10)
     private OrderStatus orderStatus;
 
     @ManyToOne(fetch = FetchType.LAZY)

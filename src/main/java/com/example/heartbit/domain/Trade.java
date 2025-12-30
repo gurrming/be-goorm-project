@@ -44,14 +44,25 @@ public class Trade {
     private Order sellOrder;
 
     @Builder
-    public Trade (Timestamp tradeTime, BigDecimal tradePrice, BigDecimal tradeCount, BigDecimal tradeClosePrice, Order buyOrder, Order sellOrder ) {
-        this.tradeTime = tradeTime;
+    public Trade (BigDecimal tradePrice, BigDecimal tradeCount, BigDecimal tradeClosePrice, Order buyOrder, Order sellOrder ) {
         this.tradePrice = tradePrice;
         this.tradeCount = tradeCount;
         this.tradeClosePrice = tradeClosePrice;
         this.buyOrder = buyOrder;
         this.sellOrder = sellOrder;
+        validateOrderTypes();
     }
 
+    public void validateOrderTypes() {
+        if (buyOrder == null || sellOrder == null) {
+            throw new IllegalStateException("buyOrder, sellOrder 필수");
+        }
+        if (buyOrder.getOrderType() != OrderType.BUY) {
+            throw new IllegalArgumentException("buyOrder BUY 주문");
+        }
+        if (sellOrder.getOrderType() != OrderType.SELL) {
+            throw new IllegalArgumentException("sellOrder SELL 주문");
+        }
+    }
 
 }
