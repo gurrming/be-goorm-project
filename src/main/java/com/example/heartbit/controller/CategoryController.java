@@ -1,0 +1,32 @@
+package com.example.heartbit.controller;
+
+import com.example.heartbit.dto.CategoryDto;
+import com.example.heartbit.service.CategoryService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+/**
+ * 종목 조회 API 컨트롤러
+ * - 전체 종목 리스트 조회
+ */
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api")
+@Tag(name = "종목", description = "투자 가능한 종목(카테고리) 조회 API")
+public class CategoryController {
+
+    private final CategoryService categoryService;
+
+    @GetMapping("/categories")
+    @Operation(
+            summary = "전체 종목 조회",
+            description = "모든 투자 가능 종목 목록을 조회합니다."
+    )
+    public List<CategoryDto> getCategories() {
+        return categoryService.getCategories();
+    }
+}

@@ -14,10 +14,10 @@ public class AssetResponse {
     private BigDecimal assetCash;
     private BigDecimal totalAsset;
 
-    public static AssetResponse from(Asset asset) {
+    public static AssetResponse from(Asset asset, BigDecimal totalEvaluateAmount) {
         return AssetResponse.builder()
                 .assetCash(asset.getAssetCash())
-                .totalAsset(asset.getTotalAsset())
+                .totalAsset(asset.getAssetCash().add(totalEvaluateAmount))
                 .build();
     }
 

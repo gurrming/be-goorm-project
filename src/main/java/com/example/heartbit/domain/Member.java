@@ -2,6 +2,7 @@ package com.example.heartbit.domain;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -24,4 +25,12 @@ public class Member {
 
     @Column(name = "member_nickname", length = 20)
     private String memberNickname;
+
+    @Builder
+    private Member(String memberEmail, String memberPassword, String memberNickname) {
+        this.memberEmail = memberEmail;
+        this.memberPassword = memberPassword;
+        this.memberNickname = memberNickname;
+    }
+
 }

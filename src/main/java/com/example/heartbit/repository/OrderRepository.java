@@ -28,4 +28,5 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             Long memberId, OrderStatus status, Pageable pageable
     );
 
+    List<Order> findByMember_MemberId(Long memberId);
 }
