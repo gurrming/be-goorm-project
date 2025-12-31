@@ -16,15 +16,15 @@ import java.util.Optional;
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
     // 미체결 주문 내역들(OPEN, PARTIAL)
-    List<Order> findByMemberIdAndOrdersStatusIn(Long memberId, Collection<OrderStatus> statuses);
+    List<Order> findByMember_MemberIdAndOrderStatusIn(Long memberId, Collection<OrderStatus> statuses);
 
     // 특정 종목의 매수/매도 현황 조회(호가 테이블 생성시)
-    List<Order> findByCategoryIdAndOrdersTypeAndOrdersStatusIn(
+    List<Order> findByCategory_CategoryIdAndOrderTypeAndOrderStatusIn(
             Long categoryId, OrderType type, Collection<OrderStatus> statuses
     );
 
     // 체결 완료된 최근 내역들(FILLED - 시간 기준 최신순으로)
-    Page<Order> findByMemberIdAndOrdersStatusOrderByOrdersTimeDesc(
+    Page<Order> findByMember_MemberIdAndOrderStatusOrderByOrdersTimeDesc(
             Long memberId, OrderStatus status, Pageable pageable
     );
 
