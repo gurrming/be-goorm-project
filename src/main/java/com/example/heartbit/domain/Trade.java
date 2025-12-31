@@ -25,13 +25,13 @@ public class Trade {
     @Column(name = "trade_time",  nullable = false, updatable = false)
     private LocalDateTime tradeTime;
 
-    @Column(name = "trade_price", nullable = false, precision = 18, scale = 4)
+    @Column(name = "trade_price", nullable = false, precision = 18, scale = 8)
     private BigDecimal tradePrice;
 
-    @Column(name = "trade_count", nullable = false, precision = 18, scale = 4)
+    @Column(name = "trade_count", nullable = false, precision = 18, scale = 8)
     private BigDecimal tradeCount;
 
-    @Column(name = "trade_close", precision = 18, scale = 4)
+    @Column(name = "trade_close", precision = 18, scale = 8)
     private BigDecimal tradeClosePrice;
 
 

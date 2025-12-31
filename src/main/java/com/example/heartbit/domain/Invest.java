@@ -17,10 +17,10 @@ public class Invest {
     @Column(name = "invest_id")
     private Long investId;
 
-    @Column(name = "invest_count", precision = 18, scale = 4)
+    @Column(name = "invest_count", precision = 18, scale = 8)
     private BigDecimal investCount;
 
-    @Column(name = "invest_price", precision = 18, scale = 4)
+    @Column(name = "invest_price", precision = 18, scale = 8)
     private BigDecimal investPrice;
 
     @ManyToOne(fetch = FetchType.LAZY)
