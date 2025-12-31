@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface TradeRepository extends JpaRepository<Trade, Long> {
 
-    List<Trade> findByTradeBuyIdOrTradeSellId(Long buyOrderId, Long sellOrderId);
+    List<Trade> findByBuyOrder_OrderIdOrSellOrder_OrderId(Long buyOrderId, Long sellOrderId);
     Page<Trade> findAllByOrderByTradeTimeDesc(Pageable pageable);
 
     @Query("""

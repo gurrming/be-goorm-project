@@ -24,7 +24,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     );
 
     // 체결 완료된 최근 내역들(FILLED - 시간 기준 최신순으로)
-    Page<Order> findByMember_MemberIdAndOrderStatusOrderByOrdersTimeDesc(
+    Page<Order> findByMember_MemberIdAndOrderStatusOrderByOrderTimeDesc(
             Long memberId, OrderStatus status, Pageable pageable
     );
 
