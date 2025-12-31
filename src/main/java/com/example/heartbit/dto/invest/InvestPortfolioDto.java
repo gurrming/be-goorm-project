@@ -3,6 +3,7 @@ package com.example.heartbit.dto.invest;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Getter
@@ -11,5 +12,8 @@ public class InvestPortfolioDto {
 
     private InvestSummaryDto summary;
     private List<InvestAssetDto> assets;
+
+    public InvestPortfolioDto(BigDecimal zero) {
+    }
 }
 
