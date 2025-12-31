@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 @Getter
 @NoArgsConstructor
 public class AssetCreateRequest {
+
     @NotNull(message = "사용자 ID는 필수입니다.")
     private Long memberId;
 

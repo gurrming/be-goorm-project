@@ -1,39 +1,57 @@
 package com.example.heartbit.dto;
 
+import com.example.heartbit.domain.Order;
+import com.example.heartbit.domain.OrderStatus;
+import com.example.heartbit.domain.OrderType;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.format.DateTimeFormatter;
+
 @Getter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class OrderResponse {
     private Long orderId;
-    private String categoryName; // "ETH", "BTC" 등 종목명
-    private OrderType orderType;  // BUY, SELL
-    private OrderStatus orderStatus; // OPEN, PARTIAL, FILLED, CANCELLED
+    private String categoryName;
+    private OrderType orderType;
+    private OrderStatus orderStatus;
 
-    private BigDecimal price;      // 주문 가격
-    private BigDecimal totalCount; // 전체 주문 수량
-    private BigDecimal remainingCount; // 남은 수량 (미체결 수량)
-    private BigDecimal executedCount;  // 체결된 수량 (total - remaining)
+    private BigDecimal orderPrice;
+    private BigDecimal orderCount; // 전체 주문 수량
+    private BigDecimal remainingCount; // 남은 수량
+    private BigDecimal executedCount;  // 체결된 수량
 
-    private BigDecimal totalAmount;    // 총 주문 금액 (price * totalCount)
-    private String orderTime;          // 주문 시간 (포맷팅된 문자열)
+    private BigDecimal totalAmount;
+    private String orderTime;
 
-    // Entity -> DTO 변환 정적 메서드
     public static OrderResponse from(Order order) {
-        // 체결된 수량 계산
-        BigDecimal executed = order.getOrdersCount().subtract(order.getRemainingCount());
+
+        BigDecimal total = order.getOrderCount();
+        BigDecimal remaining = order.getRemainingCount();
+        BigDecimal executed = total.subtract(remaining);
+
+        BigDecimal totalAmount = order.getOrderPrice().multiply(total);
+
+        String formattedTime = order.getOrderTime() != null
+                ? order.getOrderTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                : "";
 
         return OrderResponse.builder()
-                .orderId(order.getOrdersId())
-                .categoryName(order.getCategory().getName()) // Category 엔티티에 name 필드가 있다고 가정
+                .orderId(order.getOrderId())
+                .categoryName(order.getCategory() != null ? order.getCategory().getCategoryName() : "알 수 없음")
                 .orderType(order.getOrderType())
                 .orderStatus(order.getOrderStatus())
-                .price(order.getOrdersPrice())
-                .totalCount(order.getOrdersCount())
-                .remainingCount(order.getRemainingCount())
+                .orderPrice(order.getOrderPrice())
+                .orderCount(total)
+                .remainingCount(remaining)
                 .executedCount(executed)
-                .totalAmount(order.getOrdersPrice().multiply(order.getOrdersCount()))
-                .orderTime(order.getOrdersTime().toString())
+                .totalAmount(totalAmount)
+                .orderTime(formattedTime)
                 .build();
     }
 }

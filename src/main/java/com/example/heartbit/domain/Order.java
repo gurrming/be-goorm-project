@@ -34,8 +34,8 @@ public class Order {
     private BigDecimal remainingCount;
 
     @CreationTimestamp
-    @Column(name = "order_time")
-    private LocalDateTime ordersTime;
+    @Column(name = "order_time", updatable = false)
+    private LocalDateTime orderTime;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "order_type", nullable = false, length = 10)
