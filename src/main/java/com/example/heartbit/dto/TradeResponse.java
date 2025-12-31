@@ -47,8 +47,8 @@ public class TradeResponse {
                 .tradePrice(trade.getTradePrice())
                 .tradeCount(trade.getTradeCount())
                 .tradeClosePrice(trade.getTradeClosePrice())
-                .buyOrderId(trade.getBuyOrder().getOrdersId())
-                .sellOrderId(trade.getSellOrder().getOrdersId())
+                .buyOrderId(trade.getBuyOrder().getOrderId())
+                .sellOrderId(trade.getSellOrder().getOrderId())
                 .build();
     }
 }
