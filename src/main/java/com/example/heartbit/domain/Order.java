@@ -30,7 +30,7 @@ public class Order {
     @Column(name = "order_count", precision = 18, scale = 8)
     private BigDecimal orderCount;
 
-    @Column(name = "remaining_count", nullable = false, precision = 18, scale = 4)
+    @Column(name = "remaining_count", nullable = false, precision = 18, scale = 8)
     private BigDecimal remainingCount;
 
     @CreationTimestamp
