@@ -8,11 +8,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface TradeRepository extends JpaRepository<Trade, Long> {
 
     List<Trade> findByBuyOrder_OrderIdOrSellOrder_OrderId(Long buyOrderId, Long sellOrderId);
-    Page<Trade> findAllByOrderByTradeTimeDesc(Pageable pageable);
+    // Page<Trade> findAllByOrderByTradeTimeDesc(Pageable pageable);
+    List<Trade> findTopByCategory_CategoryIdOrderByTradeTimeDesc(Long categoryId);
 
     @Query("""
         SELECT t
@@ -24,4 +26,5 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
     """)
     Page<Trade> findTradeByMemberId(@Param("memberId") Long memberId, Pageable pageable);
 
+    Optional<Trade> findByCategory_CategoryIdOrderByTradeDateDesc(Long categoryId);
 }

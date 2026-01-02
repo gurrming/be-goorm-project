@@ -1,10 +1,11 @@
 package com.example.heartbit.service;
 
-import com.example.heartbit.domain.Order;
-import com.example.heartbit.domain.OrderStatus;
-import com.example.heartbit.dto.OrderRequest;
-import com.example.heartbit.dto.OrderResponse;
+import com.example.heartbit.domain.*;
+import com.example.heartbit.dto.order.OrderBookResponse;
+import com.example.heartbit.dto.order.OrderRequest;
+import com.example.heartbit.dto.order.OrderResponse;
 import com.example.heartbit.repository.OrderRepository;
+import com.example.heartbit.repository.TradeRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -12,14 +13,19 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class OrderService {
+
     private final OrderRepository orderRepository;
+    private final TradeRepository tradeRepository;
 
     // 멤버별 주문 입력값
     @Transactional
@@ -28,7 +34,7 @@ public class OrderService {
         // 매칭엔진과 연결
 
         return OrderResponse.builder()
-                .orderId(1L)
+                .orderId(request.getMemberId())
                 .orderStatus(OrderStatus.OPEN)
                 .build();
     }
@@ -86,5 +92,56 @@ public class OrderService {
         }
     }
 
+    // 추가
+    // 호가창 - 매수 매도 목록
+    public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType) {
 
+        // 종가 가져오기
+        BigDecimal lastClosingPrice = tradeRepository.findByCategory_CategoryIdOrderByTradeDateDesc(categoryId)
+                .map(Trade::getTradeClosePrice)
+                .orElse(BigDecimal.ZERO);
+
+        List<OrderStatus> activeStatuses = List.of(OrderStatus.OPEN, OrderStatus.PARTIAL);
+
+        // 주문 목록 조회 (작성한 정렬 순서대로 가져옴)
+        List<Order> orders = (orderType == OrderType.BUY)
+                ? orderRepository.findByCategory_CategoryIdAndOrderTypeAndOrderStatusInOrderByOrderPriceDescOrderTimeAsc(categoryId, orderType, activeStatuses)
+                : orderRepository.findByCategory_CategoryIdAndOrderTypeAndOrderStatusInOrderByOrderPriceAscOrderTimeAsc(categoryId, orderType, activeStatuses);
+
+        // 가격별 잔량(remainingCount) 합산
+        Map<BigDecimal, BigDecimal> priceGroupMap = orders.stream()
+                .collect(Collectors.groupingBy(Order::getOrderPrice,
+                        Collectors.reducing(BigDecimal.ZERO, Order::getRemainingCount, BigDecimal::add)
+                ));
+
+        // DTO 변환 및 등락률 계산
+        return priceGroupMap.entrySet().stream()
+                .map(entry -> {
+                    BigDecimal currentPrice = entry.getKey();
+                    double changeRate = 0.0;
+
+                    // 전일 종가가 0이 아닐 때만 계산 (0 나누기 방지)
+                    if (lastClosingPrice != null && lastClosingPrice.compareTo(BigDecimal.ZERO) > 0) {
+                        changeRate = currentPrice.subtract(lastClosingPrice)
+                                .divide(lastClosingPrice, 4, RoundingMode.HALF_UP)
+                                .multiply(BigDecimal.valueOf(100))
+                                .doubleValue();
+                    }
+
+                    return OrderBookResponse.builder()
+                            .orderPrice(currentPrice)
+                            .totalRemainingCount(entry.getValue())
+                            .changeRate(changeRate)
+                            .build();
+                })
+
+                .sorted((o1, o2) -> {
+                    if (orderType == OrderType.BUY) {
+                        return o2.getOrderPrice().compareTo(o1.getOrderPrice()); // 매수: 높은 가격순
+                    } else {
+                        return o1.getOrderPrice().compareTo(o2.getOrderPrice()); // 매도: 낮은 가격순
+                    }
+                })
+                .collect(Collectors.toList());
+    }
 }

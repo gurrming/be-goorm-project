@@ -48,5 +48,6 @@ public class TradeController {
     public ResponseEntity<List<TradeResponse>> tradeMy(@RequestParam Long memberId) {
         return ResponseEntity.ok(tradeService.getMyTrade(memberId));
     }
+
 }
 

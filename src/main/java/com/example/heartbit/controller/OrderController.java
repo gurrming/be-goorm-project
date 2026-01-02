@@ -1,7 +1,9 @@
 package com.example.heartbit.controller;
 
-import com.example.heartbit.dto.OrderRequest;
-import com.example.heartbit.dto.OrderResponse;
+import com.example.heartbit.domain.OrderType;
+import com.example.heartbit.dto.order.OrderBookResponse;
+import com.example.heartbit.dto.order.OrderRequest;
+import com.example.heartbit.dto.order.OrderResponse;
 import com.example.heartbit.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,6 +28,15 @@ public class OrderController {
     public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody OrderRequest request) {
         OrderResponse response = orderService.createOrder(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    // 추가
+    // 호가창 - orderType별 주문 리스트
+    @Operation(summary = "호가창 목록 조회", description = "종목에 대한 매수/매도 잔량 합계를 조회합니다.")
+    @GetMapping
+    public ResponseEntity<List<OrderBookResponse>> orderList(@RequestParam Long categoryId, @RequestParam OrderType orderType) {
+        List<OrderBookResponse> responses = orderService.getOrderBook(categoryId, orderType);
+        return ResponseEntity.ok(responses);
     }
 
     @Operation(summary = "개인 주문 내역 조회", description = "특정 사용자가 넣은 모든 주문 내역을 조회합니다.")

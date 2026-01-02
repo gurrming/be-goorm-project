@@ -1,4 +1,4 @@
-package com.example.heartbit.dto;
+package com.example.heartbit.dto.order;
 
 import com.example.heartbit.domain.Category;
 import com.example.heartbit.domain.Member;

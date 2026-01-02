@@ -33,6 +33,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     List<Order> findByMember_MemberIdOrderByOrderTimeDesc(Long memberId);
 
+    List<Order> findByOrder_OrOrderType(OrderType orderType);
+
     // 만료 시간(expirationTime) 이전에 생성되었고, 상태가 미체결인 주문 조회
     @Query("""
         SELECT o 
@@ -42,4 +44,12 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         """)
     List<Order> findExpiredOrders(@Param("expirationTime") LocalDateTime expirationTime);
 
+    // 추가
+    // 매수 호가 가격 내림차순(DESC), 먼저 주문한 순(ASC)
+    List<Order> findByCategory_CategoryIdAndOrderTypeAndOrderStatusInOrderByOrderPriceDescOrderTimeAsc(
+            Long categoryId, OrderType orderType, List<OrderStatus> statuses);
+
+    // 매도 호가 가격 오름차순(ASC), 먼저 주문한 순(ASC)
+    List<Order> findByCategory_CategoryIdAndOrderTypeAndOrderStatusInOrderByOrderPriceAscOrderTimeAsc(
+            Long categoryId, OrderType orderType, List<OrderStatus> statuses);
 }
