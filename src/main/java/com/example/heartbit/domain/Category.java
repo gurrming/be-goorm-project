@@ -6,6 +6,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "category")
 @Getter
@@ -21,6 +23,9 @@ public class Category {
 
     @Column(name = "category_delete")
     private Boolean categoryDelete;
+
+    // 현재가 (임시)
+    private BigDecimal price;
 }
 
 

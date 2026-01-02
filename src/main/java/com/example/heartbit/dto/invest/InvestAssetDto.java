@@ -13,7 +13,7 @@ public class InvestAssetDto {
     private String categoryName;
 
     private BigDecimal quantity;          // 보유수량
-    private BigDecimal averageBuyPrice;   // 매수평균가
+    private BigDecimal avgBuyPrice;   // 매수평균가
     private BigDecimal buyAmount;          // 매수금액
     private BigDecimal evaluateAmount;     // 평가금액
     private BigDecimal profit;             // 평가손익
