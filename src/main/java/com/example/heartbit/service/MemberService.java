@@ -3,6 +3,7 @@ package com.example.heartbit.service;
 import com.example.heartbit.dto.MemberRequestDto;
 import com.example.heartbit.dto.MemberResponseDto;
 import com.example.heartbit.repository.MemberRepository;
+import com.example.heartbit.domain.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +51,17 @@ public class MemberService {
                 memberRequestDto.getMemberEmail(),
                 "로그아웃됨"
         );
+    }
+    /**
+     * 임시 로그인 사용자 반환
+     * ❗ 실제 인증/인가 구현 전까지 사용
+     */
+    public Member getCurrentMember() {
+        return Member.builder()
+                .memberEmail("test@test.com")
+                .memberNickname("TEST_USER")
+                .memberPassword("TEMP") // null 싫으면 임시값
+                .build();
     }
 
 }
