@@ -75,6 +75,16 @@ public class Order {
         }
     }
 
+    // 주문 취소
+    public void cancel() {
+        if (this.orderStatus == OrderStatus.FILLED) {
+            throw new IllegalStateException("이미 체결된 주문은 취소할 수 없습니다.");
+        }
+        this.orderStatus = OrderStatus.CANCELLED;
+    }
+
+
+
 
 
 }
