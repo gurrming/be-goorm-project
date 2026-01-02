@@ -6,8 +6,11 @@ import com.example.heartbit.domain.OrderType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -28,5 +31,15 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             Long memberId, OrderStatus status, Pageable pageable
     );
 
-    List<Order> findByMember_MemberId(Long memberId);
+    List<Order> findByMember_MemberIdOrderByOrderTimeDesc(Long memberId);
+
+    // 만료 시간(expirationTime) 이전에 생성되었고, 상태가 미체결인 주문 조회
+    @Query("""
+        SELECT o 
+        FROM Order o 
+        WHERE o.orderTime <= :expirationTime
+        AND o.orderStatus = 'OPEN' OR o.orderStatus = 'PARTIAL'
+        """)
+    List<Order> findExpiredOrders(@Param("expirationTime") LocalDateTime expirationTime);
+
 }
