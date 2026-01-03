@@ -6,10 +6,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
-@Getter
-@NoArgsConstructor // 생성자 자동생성
-@AllArgsConstructor
-@Builder
 public class MemberRequestDto {
     public record Signup(
             @NotBlank String memberEmail,
