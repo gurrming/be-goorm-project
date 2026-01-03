@@ -34,7 +34,6 @@ public class Trade {
     @Column(name = "trade_close", precision = 18, scale = 8)
     private BigDecimal tradeClosePrice;
 
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trade_buy_id", nullable = false)
     private Order buyOrder;
