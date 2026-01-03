@@ -5,13 +5,18 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
-@Getter
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
 public class MemberResponseDto {
-    private Long memberId;
-    private String memberEmail;
-    private String memberNickname;
-    // 비밀번호 안넣기
+
+    @Builder
+    public record MemberTokenDTO(
+            String accessToken,
+            String refreshToken
+    ){}
+
+    @Builder
+    public record MemberInfo(
+            String memberNickname
+    ){}
+
 }
