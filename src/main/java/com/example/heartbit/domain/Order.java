@@ -23,7 +23,6 @@ public class Order {
     @Column(name = "order_id")
     private Long orderId;
 
-
     @Column(name = "order_price", precision = 18, scale = 8)
     private BigDecimal orderPrice;
 
@@ -82,9 +81,5 @@ public class Order {
         }
         this.orderStatus = OrderStatus.CANCELLED;
     }
-
-
-
-
 
 }
