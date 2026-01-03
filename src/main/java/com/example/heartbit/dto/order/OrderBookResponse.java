@@ -14,6 +14,5 @@ public class OrderBookResponse {
     private BigDecimal orderPrice;
     // 해당 가격의 총 잔량 합계
     private BigDecimal totalRemainingCount;
-    // 전일 종가 대비 등락률(%)
-    private Double changeRate;
+
 }

@@ -4,6 +4,8 @@ import com.example.heartbit.domain.*;
 import com.example.heartbit.dto.order.OrderBookResponse;
 import com.example.heartbit.dto.order.OrderRequest;
 import com.example.heartbit.dto.order.OrderResponse;
+import com.example.heartbit.repository.CategoryRepository;
+import com.example.heartbit.repository.MemberRepository;
 import com.example.heartbit.repository.OrderRepository;
 import com.example.heartbit.repository.TradeRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -25,18 +27,27 @@ import java.util.stream.Collectors;
 public class OrderService {
 
     private final OrderRepository orderRepository;
-    private final TradeRepository tradeRepository;
+    private final MemberRepository memberRepository;
+    private final CategoryRepository categoryRepository;
 
     // 멤버별 주문 입력값
     @Transactional
     public OrderResponse createOrder(@Valid OrderRequest request) {
+        // 주문 생성
+        Member member = memberRepository.findById(request.getMemberId()).orElseThrow();
+        Category category = categoryRepository.findById(request.getCategoryId()).orElseThrow();
 
-        // 매칭엔진과 연결
+        // 직접 빌더를 쓰지 않고, Request에게 생성을 맡깁니다.
+        Order order = request.toEntity(member, category);
 
-        return OrderResponse.builder()
-                .orderId(request.getMemberId())
-                .orderStatus(OrderStatus.OPEN)
-                .build();
+        // 2. DB에 주문 저장
+        Order savedOrder = orderRepository.save(order);
+
+        // 3. 매칭 엔진과 연결 (체결 프로세스 시작)
+        // matchingEngine.process(savedOrder);
+
+        // 4. 저장된 결과를 Response DTO로 변환하여 반환
+        return OrderResponse.from(savedOrder);
     }
 
     // 멤버별 주문 리스트
@@ -96,11 +107,6 @@ public class OrderService {
     // 호가창 - 매수 매도 목록
     public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType) {
 
-        // 종가 가져오기
-        BigDecimal lastClosingPrice = tradeRepository.findByCategory_CategoryIdOrderByTradeDateDesc(categoryId)
-                .map(Trade::getTradeClosePrice)
-                .orElse(BigDecimal.ZERO);
-
         List<OrderStatus> activeStatuses = List.of(OrderStatus.OPEN, OrderStatus.PARTIAL);
 
         // 주문 목록 조회 (작성한 정렬 순서대로 가져옴)
@@ -114,27 +120,14 @@ public class OrderService {
                         Collectors.reducing(BigDecimal.ZERO, Order::getRemainingCount, BigDecimal::add)
                 ));
 
-        // DTO 변환 및 등락률 계산
+        // 3. DTO 변환 (가격과 총 수량 정보만 포함)
         return priceGroupMap.entrySet().stream()
-                .map(entry -> {
-                    BigDecimal currentPrice = entry.getKey();
-                    double changeRate = 0.0;
+                .map(entry -> OrderBookResponse.builder()
+                        .orderPrice(entry.getKey())
+                        .totalRemainingCount(entry.getValue())
+                        .build())
 
-                    // 전일 종가가 0이 아닐 때만 계산 (0 나누기 방지)
-                    if (lastClosingPrice != null && lastClosingPrice.compareTo(BigDecimal.ZERO) > 0) {
-                        changeRate = currentPrice.subtract(lastClosingPrice)
-                                .divide(lastClosingPrice, 4, RoundingMode.HALF_UP)
-                                .multiply(BigDecimal.valueOf(100))
-                                .doubleValue();
-                    }
-
-                    return OrderBookResponse.builder()
-                            .orderPrice(currentPrice)
-                            .totalRemainingCount(entry.getValue())
-                            .changeRate(changeRate)
-                            .build();
-                })
-
+                // 4. 가격 정렬 (매수는 높은 가격순, 매도는 낮은 가격순)
                 .sorted((o1, o2) -> {
                     if (orderType == OrderType.BUY) {
                         return o2.getOrderPrice().compareTo(o1.getOrderPrice()); // 매수: 높은 가격순

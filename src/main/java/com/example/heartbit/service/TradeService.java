@@ -42,4 +42,9 @@ public class TradeService {
     public List<TradeResponse> getMyTrade(Long memberId) {
         return null;
     }
+
+    // 하루에 체결된 고가, 저가
+
+    //거래량, 거래대금
+
 }

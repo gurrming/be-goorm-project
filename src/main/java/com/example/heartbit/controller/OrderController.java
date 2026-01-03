@@ -30,10 +30,9 @@ public class OrderController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    // 추가
     // 호가창 - orderType별 주문 리스트
     @Operation(summary = "호가창 목록 조회", description = "종목에 대한 매수/매도 잔량 합계를 조회합니다.")
-    @GetMapping
+    @GetMapping("/orderbook")
     public ResponseEntity<List<OrderBookResponse>> orderList(@RequestParam Long categoryId, @RequestParam OrderType orderType) {
         List<OrderBookResponse> responses = orderService.getOrderBook(categoryId, orderType);
         return ResponseEntity.ok(responses);
