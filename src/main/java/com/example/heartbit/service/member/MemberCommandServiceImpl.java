@@ -2,6 +2,7 @@ package com.example.heartbit.service.member;
 
 import com.example.heartbit.domain.Member;
 import com.example.heartbit.dto.MemberRequestDto;
+import com.example.heartbit.dto.MemberResponseDto;
 import com.example.heartbit.global.jwt.JwtTokenProvider;
 import com.example.heartbit.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,13 +30,18 @@ public class MemberCommandServiceImpl implements MemberCommandService{
         memberRepository.save(member);
     }
 
-    public String login (MemberRequestDto.Login request){
+    public MemberResponseDto.MemberTokenDTO login (MemberRequestDto.Login request){
         Member member = memberRepository.findByMemberEmail(request.memberEmail())
                 .orElseThrow(()-> new IllegalArgumentException("Email 또는 비밀번호가 일치하지 않습니다."));
         if(!passwordEncoder.matches(request.getPassword(),member.getMemberPassword())){
             throw new IllegalArgumentException("Email 또는 비밀번호가 일치하지 않습니다.");
         }
 
-        return jwtTokenProvider.createToken(String.valueOf(member.getMemberId()));
+        String memberId = String.valueOf(member.getMemberId());
+        String accessToken = jwtTokenProvider.createAccessToken(memberId);
+        String refreshToken = jwtTokenProvider.createRefreshToken(memberId);
+        String memberNickname = member.getMemberNickname();
+
+        return new MemberResponseDto.MemberTokenDTO(accessToken,refreshToken, memberNickname);
     }
 }
