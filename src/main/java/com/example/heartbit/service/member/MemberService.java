@@ -1,4 +1,4 @@
-package com.example.heartbit.service;
+package com.example.heartbit.service.member;
 
 import com.example.heartbit.dto.MemberRequestDto;
 import com.example.heartbit.dto.MemberResponseDto;
@@ -14,11 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class MemberService {
 
     private final MemberRepository memberRepository;
-
-//    @Transactional
-//    public MemberResponseDto signup(MemberRequestDto memberRequestDto){
-//        return memberRepository.save(memberRequestDto);
-//    }
 
     // 완전 임시
     @Transactional
