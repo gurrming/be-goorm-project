@@ -24,8 +24,5 @@ public class Category {
     @Column(name = "category_delete")
     private Boolean categoryDelete;
 
-    // 현재가 (임시)
-    private BigDecimal price;
 }
-
 

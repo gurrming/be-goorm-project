@@ -45,8 +45,18 @@ public class TradeController {
     // 4) 내 체결 내역
     @GetMapping("/my")
     @Operation(summary = "개인 체결 내역", description = "멤버 ID를 통해 개인별 체결 리스트를 조회합니다.")
-    public ResponseEntity<List<TradeResponse>> tradeMy(@RequestParam Long memberId) {
-        return ResponseEntity.ok(tradeService.getMyTrade(memberId));
+    public ResponseEntity<List<TradeResponse>> tradeMy(
+            @RequestParam Long memberId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        // 서비스에서 Pageable을 사용하도록 수정했으므로 파라미터를 맞춰줍니다.
+        return ResponseEntity.ok(tradeService.getMyTrade(memberId, page, size));
+    }
+
+    @Operation(summary = "차트 초기 데이터 조회", description = "최근 15분간의 체결 내역을 차트 렌더링용으로 조회합니다.")
+    @GetMapping("/chart")
+    public ResponseEntity<List<TradeResponse>> getChartData(@RequestParam Long categoryId) {
+        return ResponseEntity.ok(tradeService.getTradesForChart(categoryId));
     }
 }
 
