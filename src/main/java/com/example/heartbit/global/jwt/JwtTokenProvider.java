@@ -19,7 +19,10 @@ public class JwtTokenProvider {
     private String secretKey;
 
     @Value("${jwt.expiration-time}")
-    private long expirationTime;
+    private long accessTokenExpirationTime;
+
+    @Value("${jwt.refresh-token-expiration-time}")
+    private long refreshTokenExpirationTime;
 
 
     private Key getSignInKey(){
@@ -27,7 +30,15 @@ public class JwtTokenProvider {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String createToken(String id){
+    public String createAccessToken(String id){
+        return createToken(id, accessTokenExpirationTime);
+    }
+
+    public String createRefreshToken(String id){
+        return createToken(id, refreshTokenExpirationTime);
+    }
+
+    public String createToken(String id, long expirationTime){
         Claims claims = Jwts.claims().setSubject(id);
         Date now = new Date();
         Date validity = new Date(now.getTime()+expirationTime);
