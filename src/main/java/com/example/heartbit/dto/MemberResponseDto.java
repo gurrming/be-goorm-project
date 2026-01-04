@@ -11,7 +11,8 @@ public class MemberResponseDto {
     @Builder
     public record MemberTokenDTO(
             String accessToken,
-            String refreshToken
+            String refreshToken,
+            String memberNickname
     ){}
 
     @Builder
