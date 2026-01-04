@@ -36,6 +36,14 @@ public class JwtTokenProvider {
                 .setExpiration(validity).signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
+    public String getSubject(String token){
+        return Jwts.parserBuilder()
+                .setSigningKey(getSignInKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .getSubject();
+    }
 
     public boolean validateToken(String token){
         try{
