@@ -31,9 +31,9 @@ public class MemberCommandServiceImpl implements MemberCommandService{
 
     public String login (MemberRequestDto.Login request){
         Member member = memberRepository.findByMemberEmail(request.memberEmail())
-                .orElseThrow(()-> new IllegalArgumentException("ID 또는 비밀번호가 일치하지 않습니다."));
+                .orElseThrow(()-> new IllegalArgumentException("Email 또는 비밀번호가 일치하지 않습니다."));
         if(!passwordEncoder.matches(request.getPassword(),member.getMemberPassword())){
-            throw new IllegalArgumentException("ID 또는 비밀번호가 일치하지 않습니다.");
+            throw new IllegalArgumentException("Email 또는 비밀번호가 일치하지 않습니다.");
         }
 
         return jwtTokenProvider.createToken(String.valueOf(member.getMemberId()));
