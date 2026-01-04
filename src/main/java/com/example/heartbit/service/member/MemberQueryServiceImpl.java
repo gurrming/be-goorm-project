@@ -24,7 +24,7 @@ public class MemberQueryServiceImpl implements MemberQueryService{
 
     @Override
     public Member getMemberByMemberId(Long memberId){
-        return memberRepository.findByMemberId(memberId)
+        return memberRepository.findById(memberId)
                 .orElseThrow(()-> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + memberId));
     }
 
