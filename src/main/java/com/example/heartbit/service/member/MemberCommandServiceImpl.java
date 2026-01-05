@@ -42,6 +42,6 @@ public class MemberCommandServiceImpl implements MemberCommandService{
         String refreshToken = jwtTokenProvider.createRefreshToken(memberId);
         String memberNickname = member.getMemberNickname();
 
-        return new MemberResponseDto.MemberTokenDTO(accessToken,refreshToken, memberNickname);
+        return new MemberResponseDto.MemberTokenDTO(member.getMemberId(),accessToken,refreshToken, memberNickname);
     }
 }
