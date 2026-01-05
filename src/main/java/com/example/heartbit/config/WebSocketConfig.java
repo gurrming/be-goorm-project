@@ -16,7 +16,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        //채널 구독으로 "/topic" ,서버 -> 클라이언트
+        // 채널 구독으로 "/topic" ,서버 -> 클라이언트
         config.enableSimpleBroker("/topic");
         // 클라이언트 -> 서버
         config.setApplicationDestinationPrefixes("/app");

@@ -119,15 +119,17 @@ public class TradeService {
         ticker.put("low", dailyLow.toPlainString());
         ticker.put("volume", accVolume.setScale(8, RoundingMode.HALF_UP).toPlainString());
         ticker.put("amount", accAmount.setScale(0, RoundingMode.HALF_UP).toPlainString());
-        ticker.put("intensity", intensity.setScale(2, RoundingMode.HALF_UP).toPlainString());
+
         messagingTemplate.convertAndSend("/topic/ticker", (Object)ticker);
 
         // 실시간 체결 내역 (왼쪽 하단 리스트)
         Map<String, Object> tradeList = new HashMap<>();
         tradeList.put("price", request.getTradePrice().toPlainString());
         tradeList.put("count", request.getTradeCount().toPlainString());
+        tradeList.put("openPrice", this.openPrice.toPlainString());
         tradeList.put("type", isBuyTaker ? "BUY" : "SELL");
         tradeList.put("time", request.getTradeTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
+        tradeList.put("intensity", intensity.setScale(2, RoundingMode.HALF_UP).toPlainString());
         messagingTemplate.convertAndSend("/topic/trades", (Object)tradeList);
 
         // 오더북 현재가 테두리용
@@ -141,6 +143,7 @@ public class TradeService {
         candle.put("l", candleLow.toPlainString());
         candle.put("c", request.getTradePrice().toPlainString());
         messagingTemplate.convertAndSend("/topic/charts", (Object)candle);
+
     }
 
     // 차트용 15분 데이터
