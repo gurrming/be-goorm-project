@@ -64,7 +64,8 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(
                 Arrays.asList(
                         "http://localhost:8080",
-                        "http://localhost:5173"
+                        "http://localhost:5173",
+                        "https://d1z2afuae81hvp.cloudfront.net"
                 ));
         configuration.setAllowedMethods(Arrays.asList("*"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
