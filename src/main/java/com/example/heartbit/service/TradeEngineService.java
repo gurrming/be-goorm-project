@@ -66,7 +66,7 @@ public class TradeEngineService {
                         .tradePrice(tradePrice)
                         .tradeCount(tradeCount)
                         //.tradeTime(tradeTime)
-                        //.isBuyTaker(isBuyTaker)
+                        //.takerType(takerType)
                         .build();
                 tradeList.add(trade);
                 // 주문 객체 수량 차감
@@ -108,7 +108,7 @@ public class TradeEngineService {
             // 더 늦게 생성된 주문이 Taker
             lastIsBuyTaker = lastTrade.getBuyOrder().getOrderTime().isAfter(lastTrade.getSellOrder().getOrderTime());
         }
-        final boolean finalIsBuyTaker = lastIsBuyTaker;
+        final String finalIsTaker = lastIsBuyTaker ? "BUY" : "SELL";
         // dto로 반환
         return trades.stream()
                 .map(trade -> TradeResponse.builder()
@@ -118,7 +118,7 @@ public class TradeEngineService {
                         .tradeCount(trade.getTradeCount())
                         .tradeTime(trade.getTradeTime())
                         .tradeClosePrice(trade.getTradeClosePrice())
-                        //.isBuyTaker(finalIsBuyTaker)
+                        //.takerType(finalIsTaker)
                         .build())
                 .toList();
     }
