@@ -19,9 +19,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -146,15 +144,46 @@ public class TradeService {
 
     }
 
-    // 차트용 15분 데이터
-    public List<TradeResponse> getTradesForChart(Long categoryId) {
+
+    public List<Map<String, Object>> getInitialCandles(Long categoryId) {
+        // 15분 전부터의 체결 내역 조회 (Asc: 시간순)
         LocalDateTime fifteenMinutesAgo = LocalDateTime.now().minusMinutes(15);
-        return tradeRepository.findByTradeTimeAfterOrderByTradeTimeAsc(fifteenMinutesAgo).stream()
-                .map(TradeResponse::fromEntity)
-                .collect(Collectors.toList());
+        List<Trade> trades = tradeRepository.findByTradeTimeAfterOrderByTradeTimeAsc(fifteenMinutesAgo);
+
+        if (trades.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 분 단위로 그룹화 (TreeMap을 사용하여 시간순 정렬 보장)
+        Map<LocalDateTime, List<Trade>> groupedTrades = trades.stream()
+                .collect(Collectors.groupingBy(
+                        t -> t.getTradeTime().withSecond(0).withNano(0),
+                        TreeMap::new,
+                        Collectors.toList()
+                ));
+
+        // OHLC 데이터로 변환
+        return groupedTrades.entrySet().stream().map(entry -> {
+            LocalDateTime minute = entry.getKey();
+            List<Trade> minuteTrades = entry.getValue();
+
+            BigDecimal open = minuteTrades.get(0).getTradePrice();
+            BigDecimal close = minuteTrades.get(minuteTrades.size() - 1).getTradePrice();
+            BigDecimal high = minuteTrades.stream().map(Trade::getTradePrice).max(BigDecimal::compareTo).get();
+            BigDecimal low = minuteTrades.stream().map(Trade::getTradePrice).min(BigDecimal::compareTo).get();
+
+            Map<String, Object> candle = new HashMap<>();
+            // 프론트엔드 차트 라이브러리와 규격 맞춤 (t, o, h, l, c)
+            candle.put("t", minute.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
+            candle.put("o", open.toPlainString());
+            candle.put("h", high.toPlainString());
+            candle.put("l", low.toPlainString());
+            candle.put("c", close.toPlainString());
+            return candle;
+        }).collect(Collectors.toList());
     }
 
-    // 종목별 최신 리스트 (limit개)
+    // 종목별 최신 리스트 (최근 체결 내역 가져오기)
     public List<TradeResponse> getTradeList(Long categoryId, int limit) {
         Pageable pageable = PageRequest.of(0, limit);
         return tradeRepository.findTopTradesByCategory(categoryId, pageable).stream()
