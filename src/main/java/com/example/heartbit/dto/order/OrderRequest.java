@@ -1,9 +1,6 @@
 package com.example.heartbit.dto.order;
 
-import com.example.heartbit.domain.Category;
-import com.example.heartbit.domain.Member;
-import com.example.heartbit.domain.Order;
-import com.example.heartbit.domain.OrderType;
+import com.example.heartbit.domain.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -11,14 +8,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Getter
 @NoArgsConstructor
-@AllArgsConstructor // JSON 데이터를 객체로 변환할 때 필요할 수 있음
+@AllArgsConstructor
 public class OrderRequest {
 
-    @NotNull(message = "회원 ID는 필수입니다.")
     private Long memberId;
 
     @NotNull(message = "카테고리 ID는 필수입니다.")
@@ -33,18 +28,22 @@ public class OrderRequest {
     private BigDecimal orderCount;
 
     @NotNull(message = "주문 타입(BUY/SELL)은 필수입니다.")
-    private OrderType type;
+    private OrderType orderType;
 
+    @NotNull(message = "BOT 여부는 필수입니다.")
+    private Boolean isBot;
+
+    // DTO → Entity 변환
     public Order toEntity(Member member, Category category) {
         return Order.builder()
                 .orderPrice(this.orderPrice)
                 .orderCount(this.orderCount)
-                .orderType(this.type)
+                .remainingCount(this.orderCount)
+                .orderType(this.orderType)
+                .orderStatus(OrderStatus.OPEN)
+                .isBot(this.isBot)
                 .member(member)
                 .category(category)
                 .build();
     }
-
-
-
 }

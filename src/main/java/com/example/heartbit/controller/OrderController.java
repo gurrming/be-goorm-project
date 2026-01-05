@@ -9,12 +9,13 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j   // ✅ 추가
 @RestController
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
@@ -23,39 +24,64 @@ public class OrderController {
 
     private final OrderService orderService;
 
-    @Operation(summary = "신규 주문 생성", description = "종목에 대해 매수 또는 매도 주문을 넣습니다.")
+    @Operation(summary = "신규 주문 생성")
     @PostMapping
-    public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody OrderRequest request) {
-        OrderResponse response = orderService.createOrder(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    public ResponseEntity<OrderResponse> createOrder(
+            @Valid @RequestBody OrderRequest request
+    ) {
+        // ✅ 요청값 확인용 로그 (핵심)
+        log.info(
+                "CREATE ORDER | isBot={} | memberId={} | categoryId={} | type={} | price={} | count={}",
+                request.getIsBot(),
+                request.getMemberId(),
+                request.getCategoryId(),
+                request.getOrderType(),
+                request.getOrderPrice(),
+                request.getOrderCount()
+        );
+
+        OrderResponse response =
+                OrderResponse.from(orderService.createOrder(request));
+
+        return ResponseEntity.ok(response);
     }
 
-    // 호가창 - orderType별 주문 리스트
-    @Operation(summary = "호가창 목록 조회", description = "종목에 대한 매수/매도 잔량 합계를 조회합니다.")
+    @Operation(summary = "호가창 조회")
     @GetMapping("/orderbook")
-    public ResponseEntity<List<OrderBookResponse>> orderList(@RequestParam Long categoryId, @RequestParam OrderType orderType) {
-        List<OrderBookResponse> responses = orderService.getOrderBook(categoryId, orderType);
-        return ResponseEntity.ok(responses);
+    public ResponseEntity<List<OrderBookResponse>> orderBook(
+            @RequestParam Long categoryId,
+            @RequestParam OrderType orderType
+    ) {
+        return ResponseEntity.ok(
+                orderService.getOrderBook(categoryId, orderType)
+        );
     }
 
-    @Operation(summary = "개인 주문 내역 조회", description = "특정 사용자가 넣은 모든 주문 내역을 조회합니다.")
+    @Operation(summary = "회원 주문 조회")
     @GetMapping
-    public ResponseEntity<List<OrderResponse>> getMyOrders(@RequestParam Long memberId) {
-        List<OrderResponse> responses = orderService.getOrderByMember(memberId);
-        return ResponseEntity.ok(responses);
+    public ResponseEntity<List<OrderResponse>> getMyOrders(
+            @RequestParam Long memberId
+    ) {
+        return ResponseEntity.ok(
+                orderService.getOrderByMember(memberId)
+        );
     }
 
-    @Operation(summary = "전체 취소", description = "아직 체결되지 않은 전체 주문들을 취소합니다.")
-    @PatchMapping("/cancel-all")
-    public ResponseEntity<Void> cancelAllOrders(@RequestParam Long memberId) {
-        orderService.cancelAllOrders(memberId);
+    @Operation(summary = "주문 취소")
+    @PatchMapping("/{orderId}/cancel")
+    public ResponseEntity<Void> cancelOrder(
+            @PathVariable Long orderId
+    ) {
+        orderService.cancelOrder(orderId);
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "주문 취소", description = "아직 체결되지 않은 주문을 취소합니다.")
-    @PatchMapping("/{orderId}/cancel")
-    public ResponseEntity<Void> cancelOrder(@PathVariable Long orderId) {
-        orderService.cancelOrder(orderId);
+    @Operation(summary = "전체 주문 취소")
+    @PatchMapping("/cancel-all")
+    public ResponseEntity<Void> cancelAllOrders(
+            @RequestParam Long memberId
+    ) {
+        orderService.cancelAllOrders(memberId);
         return ResponseEntity.noContent().build();
     }
 }
