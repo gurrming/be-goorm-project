@@ -25,7 +25,7 @@ public class Category {
     private Boolean categoryDelete;
 
     // 현재가 (임시)
-    private BigDecimal price;
+    // private BigDecimal price;
 }
 
 

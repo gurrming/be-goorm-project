@@ -25,7 +25,7 @@ public class Chatroom {
     private Long chatroomId;
 
     // FK: category_id -> Category 엔티티
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
@@ -39,5 +39,13 @@ public class Chatroom {
 
     @Column(name = "chatroom_content", length = 500)
     private String chatroomContent;
+
+    public Chatroom(Category category, Member member, String chatroomContent) {
+        this.category = category;
+        this.member = member;
+        this.chatroomContent = chatroomContent;
+        this.chatroomTime = LocalDateTime.now();
+    }
+
 
 }

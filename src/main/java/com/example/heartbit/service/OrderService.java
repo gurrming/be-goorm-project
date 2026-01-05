@@ -1,10 +1,13 @@
 package com.example.heartbit.service;
 
-import com.example.heartbit.domain.Order;
-import com.example.heartbit.domain.OrderStatus;
-import com.example.heartbit.dto.OrderRequest;
-import com.example.heartbit.dto.OrderResponse;
+import com.example.heartbit.domain.*;
+import com.example.heartbit.dto.order.OrderBookResponse;
+import com.example.heartbit.dto.order.OrderRequest;
+import com.example.heartbit.dto.order.OrderResponse;
+import com.example.heartbit.repository.CategoryRepository;
+import com.example.heartbit.repository.MemberRepository;
 import com.example.heartbit.repository.OrderRepository;
+import com.example.heartbit.repository.TradeRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -12,25 +15,39 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class OrderService {
+
     private final OrderRepository orderRepository;
+    private final MemberRepository memberRepository;
+    private final CategoryRepository categoryRepository;
 
     // 멤버별 주문 입력값
     @Transactional
     public OrderResponse createOrder(@Valid OrderRequest request) {
+        // 주문 생성
+        Member member = memberRepository.findById(request.getMemberId()).orElseThrow();
+        Category category = categoryRepository.findById(request.getCategoryId()).orElseThrow();
 
-        // 매칭엔진과 연결
+        // 직접 빌더를 쓰지 않고, Request에게 생성을 맡깁니다.
+        Order order = request.toEntity(member, category);
 
-        return OrderResponse.builder()
-                .orderId(1L)
-                .orderStatus(OrderStatus.OPEN)
-                .build();
+        // 2. DB에 주문 저장
+        Order savedOrder = orderRepository.save(order);
+
+        // 3. 매칭 엔진과 연결 (체결 프로세스 시작)
+        // matchingEngine.process(savedOrder);
+
+        // 4. 저장된 결과를 Response DTO로 변환하여 반환
+        return OrderResponse.from(savedOrder);
     }
 
     // 멤버별 주문 리스트
@@ -86,5 +103,38 @@ public class OrderService {
         }
     }
 
+    // 추가
+    // 호가창 - 매수 매도 목록
+    public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType) {
 
+        List<OrderStatus> activeStatuses = List.of(OrderStatus.OPEN, OrderStatus.PARTIAL);
+
+        // 주문 목록 조회 (작성한 정렬 순서대로 가져옴)
+        List<Order> orders = (orderType == OrderType.BUY)
+                ? orderRepository.findByCategory_CategoryIdAndOrderTypeAndOrderStatusInOrderByOrderPriceDescOrderTimeAsc(categoryId, orderType, activeStatuses)
+                : orderRepository.findByCategory_CategoryIdAndOrderTypeAndOrderStatusInOrderByOrderPriceAscOrderTimeAsc(categoryId, orderType, activeStatuses);
+
+        // 가격별 잔량(remainingCount) 합산
+        Map<BigDecimal, BigDecimal> priceGroupMap = orders.stream()
+                .collect(Collectors.groupingBy(Order::getOrderPrice,
+                        Collectors.reducing(BigDecimal.ZERO, Order::getRemainingCount, BigDecimal::add)
+                ));
+
+        // 3. DTO 변환 (가격과 총 수량 정보만 포함)
+        return priceGroupMap.entrySet().stream()
+                .map(entry -> OrderBookResponse.builder()
+                        .orderPrice(entry.getKey())
+                        .totalRemainingCount(entry.getValue())
+                        .build())
+
+                // 4. 가격 정렬 (매수는 높은 가격순, 매도는 낮은 가격순)
+                .sorted((o1, o2) -> {
+                    if (orderType == OrderType.BUY) {
+                        return o2.getOrderPrice().compareTo(o1.getOrderPrice()); // 매수: 높은 가격순
+                    } else {
+                        return o1.getOrderPrice().compareTo(o2.getOrderPrice()); // 매도: 낮은 가격순
+                    }
+                })
+                .collect(Collectors.toList());
+    }
 }
