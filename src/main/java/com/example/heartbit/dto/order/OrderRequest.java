@@ -1,4 +1,4 @@
-package com.example.heartbit.dto;
+package com.example.heartbit.dto.order;
 
 import com.example.heartbit.domain.Category;
 import com.example.heartbit.domain.Member;
@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Getter
 @NoArgsConstructor
@@ -43,4 +44,7 @@ public class OrderRequest {
                 .category(category)
                 .build();
     }
+
+
+
 }
