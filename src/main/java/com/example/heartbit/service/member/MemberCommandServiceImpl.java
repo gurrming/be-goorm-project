@@ -5,6 +5,7 @@ import com.example.heartbit.dto.MemberRequestDto;
 import com.example.heartbit.dto.MemberResponseDto;
 import com.example.heartbit.global.jwt.JwtTokenProvider;
 import com.example.heartbit.repository.MemberRepository;
+import com.example.heartbit.service.AssetService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ public class MemberCommandServiceImpl implements MemberCommandService{
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final AssetService assetService;
 
     @Override
     public void signup(MemberRequestDto.Signup request){
@@ -28,6 +30,8 @@ public class MemberCommandServiceImpl implements MemberCommandService{
         Member member = Member.builder().memberEmail(request.email())
                 .memberPassword(encodedPassword).memberNickname(request.nickname()).build();
         memberRepository.save(member);
+
+        assetService.createInitialAsset(member);
     }
 
     public MemberResponseDto.MemberTokenDTO login (MemberRequestDto.Login request){
