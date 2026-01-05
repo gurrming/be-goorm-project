@@ -1,0 +1,97 @@
+package com.example.heartbit.service;
+
+import com.example.heartbit.domain.Order;
+import com.example.heartbit.domain.OrderType;
+import com.example.heartbit.domain.Trade;
+import com.example.heartbit.dto.TradeResponse;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.util.*;
+
+@Service
+public class TradeEngineService {
+
+    // 매수 매도 값을 key-value쌍으로 우선순위 큐
+    private final Map<BigDecimal, PriorityQueue<Order>> buyOrderBook = new HashMap<>();
+    private final Map<BigDecimal, PriorityQueue<Order>> sellOrderBook = new HashMap<>();
+
+    // 가격들마다의 수량의 순서를 관리하는 우선순위 큐
+    private final PriorityQueue<BigDecimal> buyPrices = new PriorityQueue<>(Comparator.reverseOrder());
+    private final PriorityQueue<BigDecimal> sellPrices = new PriorityQueue<>();
+
+    // 추가된 호가창
+    public List<Trade> processOrder(Order newOrder) {
+        addOrderToBook(newOrder);
+        return match();
+    }
+
+    // 주문된 가격이 있는지 확인하고 없으면 호가창에 추가
+    private void addOrderToBook(Order order) {
+        BigDecimal price = order.getOrderPrice();
+        if (order.getOrderType() == OrderType.BUY) {
+            buyOrderBook.computeIfAbsent(price, key -> new PriorityQueue<>(Comparator.comparing(Order::getOrderId)))
+                    .add(order);
+            if (!buyPrices.contains(price)) buyPrices.add(price);
+        } else {
+            sellOrderBook.computeIfAbsent(price, key -> new PriorityQueue<>(Comparator.comparing(Order::getOrderId)))
+                    .add(order);
+            if (!sellPrices.contains(price)) sellPrices.add(price);
+        }
+    }
+
+    // 매칭
+    public List<Trade> match() {
+
+        List<Trade> tradeList = new ArrayList<>();
+
+        while (!buyOrderBook.isEmpty() && !sellOrderBook.isEmpty()) {
+            BigDecimal nowBuyPrice = buyPrices.peek();
+            BigDecimal nowSellPrice = sellPrices.peek();
+
+            // 매수가 더 높은 경우에도 체결
+            if (nowBuyPrice.compareTo(nowSellPrice) >= 0) {
+                // 해당하는 주문의 큐
+                PriorityQueue<Order> buyOrders = buyOrderBook.get(nowBuyPrice);
+                PriorityQueue<Order> sellOrders = sellOrderBook.get(nowSellPrice);
+
+                Order buy = buyOrders.peek();
+                Order sell = sellOrders.peek();
+                // 체결 수량 결정
+                BigDecimal tradeCount = buy.getRemainingCount().min(sell.getRemainingCount());
+                // 체결 가격 결정
+                BigDecimal tradePrice = sell.getOrderPrice();
+                // Trade 객체 생성
+                Trade trade = Trade.builder()
+                        .buyOrder(buy)
+                        .sellOrder(sell)
+                        .tradePrice(tradePrice)
+                        .tradeCount(tradeCount)
+                        // tradeTime
+                        // isBuyTaker
+                        .build();
+                tradeList.add(trade);
+                // 주문 객체 수량 차감
+                buy.updateRemainingCount(tradeCount);
+                sell.updateRemainingCount(tradeCount);
+
+                // 수량이 0이 된 주문은 해당 가격 큐에서 제거
+                if (buy.getRemainingCount().compareTo(BigDecimal.ZERO) == 0) buyOrders.poll();
+                if (sell.getRemainingCount().compareTo(BigDecimal.ZERO) == 0) sellOrders.poll();
+
+                // 해당 가격 큐에서도 제거
+                if (buyOrders.isEmpty()) {
+                    buyOrderBook.remove(nowBuyPrice);
+                    buyPrices.poll();
+                }
+                if (sellOrders.isEmpty()) {
+                    sellOrderBook.remove(nowSellPrice);
+                    sellPrices.poll();
+                }
+            } else {
+                break;
+            }
+        }
+        return tradeList;
+    }
+}
