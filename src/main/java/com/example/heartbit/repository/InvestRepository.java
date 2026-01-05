@@ -21,6 +21,8 @@ public interface InvestRepository extends JpaRepository<Invest, Long>{
     // 회원 + 종목 체결 내역 조회
     List<Invest> findByMemberAndCategory(Member member, Category category);
 
+    List<Invest> findByMember_MemberId(Long memberId);
+
     // 회원 + 종목 기준 보유 수량 합계
     @Query("""
         SELECT SUM(i.investCount) 

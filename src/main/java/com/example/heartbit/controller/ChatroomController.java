@@ -26,11 +26,11 @@ public class ChatroomController {
     }
 
     // 채팅쓰기
-    @Operation(summary = "채팅 작성", description = "해당 채팅방에 작성한 채팅내용을 입력합니다.")
-    @PostMapping
-    public ChatroomResponseDto writeChatroom(@RequestBody ChatroomRequestDto requestDto) {
-        return chatroomService.writeChat(requestDto);
-    }
+//    @Operation(summary = "채팅 작성", description = "해당 채팅방에 작성한 채팅내용을 입력합니다.")
+//    @PostMapping
+//    public ChatroomResponseDto writeChatroom(@RequestBody ChatroomRequestDto requestDto) {
+//        return chatroomService.writeChat(requestDto);
+//    }
 
 
 }
