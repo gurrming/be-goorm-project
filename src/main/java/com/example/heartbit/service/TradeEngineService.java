@@ -7,6 +7,7 @@ import com.example.heartbit.dto.TradeResponse;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -20,11 +21,6 @@ public class TradeEngineService {
     private final PriorityQueue<BigDecimal> buyPrices = new PriorityQueue<>(Comparator.reverseOrder());
     private final PriorityQueue<BigDecimal> sellPrices = new PriorityQueue<>();
 
-    // 추가된 호가창
-    public List<Trade> processOrder(Order newOrder) {
-        addOrderToBook(newOrder);
-        return match();
-    }
 
     // 주문된 가격이 있는지 확인하고 없으면 호가창에 추가
     private void addOrderToBook(Order order) {
@@ -41,9 +37,10 @@ public class TradeEngineService {
     }
 
     // 매칭
-    public List<Trade> match() {
+    public List<Trade> match(Order newOrder) {
 
         List<Trade> tradeList = new ArrayList<>();
+
 
         while (!buyOrderBook.isEmpty() && !sellOrderBook.isEmpty()) {
             BigDecimal nowBuyPrice = buyPrices.peek();
@@ -61,14 +58,15 @@ public class TradeEngineService {
                 BigDecimal tradeCount = buy.getRemainingCount().min(sell.getRemainingCount());
                 // 체결 가격 결정
                 BigDecimal tradePrice = sell.getOrderPrice();
+
                 // Trade 객체 생성
                 Trade trade = Trade.builder()
                         .buyOrder(buy)
                         .sellOrder(sell)
                         .tradePrice(tradePrice)
                         .tradeCount(tradeCount)
-                        // tradeTime
-                        // isBuyTaker
+                        //.tradeTime(tradeTime)
+                        //.isBuyTaker(isBuyTaker)
                         .build();
                 tradeList.add(trade);
                 // 주문 객체 수량 차감
@@ -93,5 +91,35 @@ public class TradeEngineService {
             }
         }
         return tradeList;
+    }
+
+    // 주문 값 dto로 반환
+    public List<TradeResponse> processOrder(Order newOrder) {
+        // 호가창에 새로운 주문 등록
+        addOrderToBook(newOrder);
+        // 매칭 된 값
+        List<Trade> trades = match(newOrder);
+
+        boolean lastIsBuyTaker = (newOrder.getOrderType() == OrderType.BUY);
+
+        if (!trades.isEmpty()) {
+            // 마지막 체결
+            Trade lastTrade = trades.get(trades.size() - 1);
+            // 더 늦게 생성된 주문이 Taker
+            lastIsBuyTaker = lastTrade.getBuyOrder().getOrderTime().isAfter(lastTrade.getSellOrder().getOrderTime());
+        }
+        final boolean finalIsBuyTaker = lastIsBuyTaker;
+        // dto로 반환
+        return trades.stream()
+                .map(trade -> TradeResponse.builder()
+                        .buyOrderId(trade.getBuyOrder().getOrderId())
+                        .sellOrderId(trade.getSellOrder().getOrderId())
+                        .tradePrice(trade.getTradePrice())
+                        .tradeCount(trade.getTradeCount())
+                        .tradeTime(trade.getTradeTime())
+                        .tradeClosePrice(trade.getTradeClosePrice())
+                        //.isBuyTaker(finalIsBuyTaker)
+                        .build())
+                .toList();
     }
 }
