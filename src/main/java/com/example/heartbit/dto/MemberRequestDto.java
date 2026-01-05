@@ -10,7 +10,6 @@ import lombok.AllArgsConstructor;
 
 public class MemberRequestDto {
     public record Signup(
-
             @Email @NotBlank
             @Schema(description = "이메일", example = "test@example.com")
             String email,
