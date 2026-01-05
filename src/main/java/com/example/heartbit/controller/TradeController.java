@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -27,7 +28,7 @@ public class TradeController {
         return ResponseEntity.ok(trades);
     }
 
-    // 2) 종목별 최근 체결 1건 (현재가)
+    // 2) 종목별 최근 체결 1건 (현재가) - 웹소켓으로 실시간 데이터 뿌리기 전에 초기 데이터용
     @Operation(summary = "종목별 최근 체결 내역 1개", description = "종목 ID를 통해 종목별 가장 최근에 체결 된 내역 1건을 조회합니다.")
     @GetMapping("/recent")
     public ResponseEntity<TradeResponse> tradeRecent(@RequestParam Long categoryId) {
@@ -45,8 +46,18 @@ public class TradeController {
     // 4) 내 체결 내역
     @GetMapping("/my")
     @Operation(summary = "개인 체결 내역", description = "멤버 ID를 통해 개인별 체결 리스트를 조회합니다.")
-    public ResponseEntity<List<TradeResponse>> tradeMy(@RequestParam Long memberId) {
-        return ResponseEntity.ok(tradeService.getMyTrade(memberId));
+    public ResponseEntity<List<TradeResponse>> tradeMy(
+            @RequestParam Long memberId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        // 서비스에서 Pageable을 사용하도록 수정했으므로 파라미터를 맞춰줍니다.
+        return ResponseEntity.ok(tradeService.getMyTrade(memberId, page, size));
+    }
+
+    @Operation(summary = "차트 초기 데이터 조회", description = "최근 15분간의 체결 내역을 차트 렌더링용으로 조회합니다.")
+    @GetMapping("/chart")
+    public ResponseEntity<List<Map<String, Object>>> getChartData(@RequestParam Long categoryId) {
+        return ResponseEntity.ok(tradeService.getInitialCandles(categoryId));
     }
 
 }
