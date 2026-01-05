@@ -16,6 +16,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/member")
 @RequiredArgsConstructor
@@ -34,7 +37,7 @@ public class MemberController {
 
     @Operation(summary = "로그인", description = "입력된 정보로 로그인 처리합니다.(토큰을 쿠키에 저장)")
     @PostMapping("/login")
-    public ResponseEntity<String> login(@Valid @RequestBody MemberRequestDto.Login requestDto, HttpServletResponse response) {
+    public ResponseEntity<Map<String, Object>> login(@Valid @RequestBody MemberRequestDto.Login requestDto, HttpServletResponse response) {
         MemberResponseDto.MemberTokenDTO tokenDTO = memberCommandService.login(requestDto);
 
         Cookie accessCookie = new Cookie("accessToken", tokenDTO.accessToken());
@@ -50,7 +53,11 @@ public class MemberController {
         response.addCookie(accessCookie);
         response.addCookie(refreshCookie);
 
-        return ResponseEntity.ok("로그인 성공");
+        Map<String, Object> responseBody = new HashMap<>();
+        responseBody.put("message", "로그인 성공");
+        responseBody.put("data", tokenDTO);
+
+        return ResponseEntity.ok(responseBody);
     }
 
     @Operation(summary = "로그아웃", description = "현재 로그인된 사용자의 세션/인증 정보를 종료합니다.(쿠키 삭제)")

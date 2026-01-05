@@ -10,6 +10,7 @@ public class MemberResponseDto {
 
     @Builder
     public record MemberTokenDTO(
+            Long memberId,
             String accessToken,
             String refreshToken,
             String memberNickname
