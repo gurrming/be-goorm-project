@@ -2,7 +2,6 @@ package com.example.heartbit.controller;
 
 import com.example.heartbit.dto.AssetResponse;
 import com.example.heartbit.service.AssetService;
-import com.example.heartbit.service.MemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
