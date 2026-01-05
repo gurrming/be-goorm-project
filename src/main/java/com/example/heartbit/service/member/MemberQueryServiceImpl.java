@@ -6,6 +6,8 @@ import com.example.heartbit.repository.MemberRepository;
 import com.example.heartbit.domain.Member;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +36,16 @@ public class MemberQueryServiceImpl implements MemberQueryService{
         return MemberResponseDto.MemberInfo.builder()
                 .memberNickname(member.getMemberNickname())
                 .build();
+    }
+
+    @Override
+    public Member getCurrentMember(){
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if(authentication==null || authentication.getName()==null || authentication.getName().equals("anonymousUser")){
+            throw new IllegalArgumentException("인증된 사용자가 없습니다.");
+        }
+        Long memberId = Long.parseLong(authentication.getName());
+        return getMemberByMemberId(memberId);
     }
 
 }
