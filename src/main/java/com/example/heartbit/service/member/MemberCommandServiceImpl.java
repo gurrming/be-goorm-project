@@ -21,19 +21,19 @@ public class MemberCommandServiceImpl implements MemberCommandService{
 
     @Override
     public void signup(MemberRequestDto.Signup request){
-        if(memberRepository.existsByMemberEmail(request.getEmail())){
+        if(memberRepository.existsByMemberEmail(request.email())){
             throw new IllegalArgumentException("이미 사용 중인 이메일 입니다.");
         }
-        String encodedPassword = passwordEncoder.encode(request.getPassword());
-        Member member = Member.builder().memberEmail(request.getEmail())
-                .memberPassword(encodedPassword).memberNickname(request.getNickname()).build();
+        String encodedPassword = passwordEncoder.encode(request.password());
+        Member member = Member.builder().memberEmail(request.email())
+                .memberPassword(encodedPassword).memberNickname(request.nickname()).build();
         memberRepository.save(member);
     }
 
     public MemberResponseDto.MemberTokenDTO login (MemberRequestDto.Login request){
-        Member member = memberRepository.findByMemberEmail(request.memberEmail())
+        Member member = memberRepository.findByMemberEmail(request.email())
                 .orElseThrow(()-> new IllegalArgumentException("Email 또는 비밀번호가 일치하지 않습니다."));
-        if(!passwordEncoder.matches(request.getPassword(),member.getMemberPassword())){
+        if(!passwordEncoder.matches(request.password(),member.getMemberPassword())){
             throw new IllegalArgumentException("Email 또는 비밀번호가 일치하지 않습니다.");
         }
 

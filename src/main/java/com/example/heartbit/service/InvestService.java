@@ -7,6 +7,7 @@ import com.example.heartbit.dto.invest.InvestPortfolioDto;
 import com.example.heartbit.dto.invest.InvestSummaryDto;
 import com.example.heartbit.repository.CategoryRepository;
 import com.example.heartbit.repository.InvestRepository;
+import com.example.heartbit.service.member.MemberQueryServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -27,7 +28,7 @@ public class InvestService {
     private final CategoryRepository categoryRepository;
 
     // 로그인 사용자 조회
-    private final MemberService memberService;
+    private final MemberQueryServiceImpl memberService;
 
     public InvestPortfolioDto getPortfolio() {
 

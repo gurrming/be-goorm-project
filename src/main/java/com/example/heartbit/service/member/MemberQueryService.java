@@ -10,4 +10,5 @@ public interface MemberQueryService {
     boolean isMemberExist(Long memberId);
 
     MemberResponseDto.MemberInfo getMemberInfo(Long memberId);
+    Member getCurrentMember();
 }

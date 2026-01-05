@@ -1,5 +1,6 @@
 package com.example.heartbit.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Builder;
 import lombok.Getter;
@@ -8,28 +9,14 @@ import lombok.AllArgsConstructor;
 
 public class MemberRequestDto {
     public record Signup(
-            @NotBlank String memberEmail,
-            @NotBlank String memberPassword,
-            @NotBlank String memberNickname
-    ){
-        public String getEmail() {
-            return memberEmail;
-        }
-        public String getPassword(){
-            return memberPassword;
-        }
-        public String getNickname(){
-            return memberNickname;
-        }
-    }
+            @Email @NotBlank String email,
+            @NotBlank String password,
+            @NotBlank String nickname
+    ){ }
 
     public record Login(
-            @NotBlank String memberEmail,
-            @NotBlank String memberPassword
-    ){
-        public String getPassword(){
-            return memberPassword;
-        }
-    }
+            @NotBlank String email,
+            @NotBlank String password
+    ){ }
 
 }
