@@ -10,6 +10,7 @@ import com.example.heartbit.repository.MemberRepository;
 import com.example.heartbit.repository.OrderRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -32,29 +33,6 @@ public class OrderService {
     // 주문 생성
     // =========================
     @Transactional
-    public OrderResponse createOrder(OrderRequest request) {
-
-        // 카테고리 조회
-        Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new EntityNotFoundException("Category not found"));
-
-        // 회원 조회 (BOT이면 member는 null)
-        Member member = null;
-        if (!Boolean.TRUE.equals(request.getIsBot())) {
-            if (request.getMemberId() == null) {
-                throw new IllegalArgumentException("USER 주문에는 memberId가 필요합니다.");
-            }
-            member = memberRepository.findById(request.getMemberId())
-                    .orElseThrow(() -> new EntityNotFoundException("Member not found"));
-        }
-
-        // ✅ Order 엔티티 생성
-        Order order = request.toEntity(member, category);
-
-        // ✅ 저장
-        Order savedOrder = orderRepository.save(order);
-
-        // ✅ Response 반환
     public OrderResponse createOrder(@Valid OrderRequest request) {
         // 주문 생성 및 저장
         Member member = memberRepository.findById(request.getMemberId()).orElseThrow();
