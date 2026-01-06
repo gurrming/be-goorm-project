@@ -1,6 +1,7 @@
 package com.example.heartbit.service;
 
 import com.example.heartbit.domain.*;
+import com.example.heartbit.dto.TradeResponse;
 import com.example.heartbit.dto.order.OrderBookResponse;
 import com.example.heartbit.dto.order.OrderRequest;
 import com.example.heartbit.dto.order.OrderResponse;
@@ -33,20 +34,21 @@ public class OrderService {
     // 멤버별 주문 입력값
     @Transactional
     public OrderResponse createOrder(@Valid OrderRequest request) {
-        // 주문 생성
+        // 주문 생성 및 저장
         Member member = memberRepository.findById(request.getMemberId()).orElseThrow();
         Category category = categoryRepository.findById(request.getCategoryId()).orElseThrow();
-
-        // 직접 빌더를 쓰지 않고, Request에게 생성을 맡깁니다.
         Order order = request.toEntity(member, category);
-
-        // 2. DB에 주문 저장
         Order savedOrder = orderRepository.save(order);
 
-        // 3. 매칭 엔진과 연결 (체결 프로세스 시작)
-        // matchingEngine.process(savedOrder);
+//        // 매칭 엔진 호출
+//        List<TradeResponse> tradeResults = tradeEngineService.processOrder(savedOrder);
+//
+//        // 체결 결과 DB 반영
+//        if (!tradeResults.isEmpty()) {
+//            processTradeResults(tradeResults);
+//        }
 
-        // 4. 저장된 결과를 Response DTO로 변환하여 반환
+        // 결과 반환
         return OrderResponse.from(savedOrder);
     }
 
