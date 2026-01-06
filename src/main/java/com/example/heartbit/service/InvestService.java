@@ -2,6 +2,7 @@ package com.example.heartbit.service;
 
 import com.example.heartbit.domain.Category;
 import com.example.heartbit.domain.Member;
+import com.example.heartbit.domain.Trade;
 import com.example.heartbit.dto.invest.InvestAssetDto;
 import com.example.heartbit.dto.invest.InvestPortfolioDto;
 import com.example.heartbit.dto.invest.InvestSummaryDto;
@@ -9,6 +10,7 @@ import com.example.heartbit.repository.CategoryRepository;
 import com.example.heartbit.repository.InvestRepository;
 import com.example.heartbit.service.member.MemberQueryServiceImpl;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -29,6 +31,8 @@ public class InvestService {
 
     // 로그인 사용자 조회
     private final MemberQueryServiceImpl memberService;
+
+    private final TradeService tradeService;
 
     public InvestPortfolioDto getPortfolio() {
 
@@ -68,28 +72,30 @@ public class InvestService {
 
             // 5-4 현재가
             // 현재는 Category에 가격이 있다고 가정
-//            BigDecimal currentPrice = category.getPrice();
+            BigDecimal currentPrice = tradeService.getRecentTrade(category.getCategoryId()) != null ?
+                    tradeService.getRecentTrade(category.getCategoryId()).getTradePrice() :
+                    BigDecimal.ZERO;
 
             // 5-5 평가 금액 = 현재가 × 수량
-//            BigDecimal evaluateAmount = currentPrice.multiply(quantity);
+            BigDecimal evaluateAmount = currentPrice.multiply(quantity);
 
             // 5-6 평가 손익 = 평가 금액 - 매수 금액
-//            BigDecimal profit = evaluateAmount.subtract(buyAmount);
+            BigDecimal profit = evaluateAmount.subtract(buyAmount);
 
             // 5-7 전체 합계 누적
             totalBuyAmount = totalBuyAmount.add(buyAmount);
-//            totalEvaluateAmount = totalEvaluateAmount.add(evaluateAmount);
+            totalEvaluateAmount = totalEvaluateAmount.add(evaluateAmount);
 
-//            // 5-8 종목별 투자 현황 DTO 생성
-//            assets.add(new InvestAssetDto(
-//                    category.getCategoryId(),
-//                    category.getCategoryName(),
-//                    quantity,
-//                    avgBuyPrice,
-//                    buyAmount,
-//                    evaluateAmount,
-//                    profit
-//            ));
+            // 5-8 종목별 투자 현황 DTO 생성
+            assets.add(new InvestAssetDto(
+                    category.getCategoryId(),
+                    category.getCategoryName(),
+                    quantity,
+                    avgBuyPrice,
+                    buyAmount,
+                    evaluateAmount,
+                    profit
+            ));
         }
 
         // 6 총 평가 손익 = 총 평가 금액 - 총 매수 금액
