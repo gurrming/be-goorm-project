@@ -26,6 +26,7 @@ public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
     private final String[] allowedUrls = {"/api/member/signup", "/api/member/login",
             "/v3/api-docs/**",
+            "/api/orders/**",
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/swagger-resources/**",
