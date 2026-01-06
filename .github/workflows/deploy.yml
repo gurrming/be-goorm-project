@@ -36,7 +36,8 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository }}/backend:latest
+          tags: ghcr.io/niceome/be-goorm-project/backend:latest
+
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
