@@ -25,6 +25,9 @@ public class Trade {
     @Column(name = "trade_time",  nullable = false, updatable = false)
     private LocalDateTime tradeTime;
 
+    @Column(name = "trade_takerType")
+    private String takerType;
+
     @Column(name = "trade_price", nullable = false, precision = 18, scale = 8)
     private BigDecimal tradePrice;
 
@@ -42,9 +45,12 @@ public class Trade {
     @JoinColumn(name = "trade_sell_id", nullable = false)
     private Order sellOrder;
 
+
     @Builder
-    public Trade (BigDecimal tradePrice, BigDecimal tradeCount, BigDecimal tradeClosePrice, Order buyOrder, Order sellOrder ) {
+    public Trade (BigDecimal tradePrice, LocalDateTime tradeTime, String takerType, BigDecimal tradeCount, BigDecimal tradeClosePrice, Order buyOrder, Order sellOrder ) {
         this.tradePrice = tradePrice;
+        this.tradeTime = tradeTime;
+        this.takerType = takerType;
         this.tradeCount = tradeCount;
         this.tradeClosePrice = tradeClosePrice;
         this.buyOrder = buyOrder;

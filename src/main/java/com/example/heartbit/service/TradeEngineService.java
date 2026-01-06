@@ -3,6 +3,7 @@ package com.example.heartbit.service;
 import com.example.heartbit.domain.Order;
 import com.example.heartbit.domain.OrderType;
 import com.example.heartbit.domain.Trade;
+import com.example.heartbit.dto.TradeRequest;
 import com.example.heartbit.dto.TradeResponse;
 import org.springframework.stereotype.Service;
 
@@ -64,7 +65,7 @@ public class TradeEngineService {
                         .sellOrder(sell)
                         .tradePrice(tradePrice)
                         .tradeCount(tradeCount)
-                        .tradeTime(tradeTime)
+                        .tradeTime(LocalDateTime.now())
                         .takerType(takerType)
                         .build();
                 tradeList.add(trade);
