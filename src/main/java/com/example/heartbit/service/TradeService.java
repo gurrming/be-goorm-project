@@ -73,7 +73,7 @@ public class TradeService {
                 .tradePrice(request.getTradePrice())
                 .tradeCount(request.getTradeCount())
                 .tradeTime(request.getTradeTime())
-                .takerType(request.getTakerType())
+                //.takerType(request.getTakerType())
                 .build();
         tradeRepository.save(trade);
         BigDecimal price = request.getTradePrice();
