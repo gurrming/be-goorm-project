@@ -1,7 +1,7 @@
 package com.example.heartbit.controller;
 
-import com.example.heartbit.dto.ChatroomRequestDto;
-import com.example.heartbit.dto.ChatroomResponseDto;
+import com.example.heartbit.dto.ChatRequestDto;
+import com.example.heartbit.dto.ChatResponseDto;
 import com.example.heartbit.service.ChatroomService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -26,34 +26,34 @@ public class ChatroomWsController {
         if (incoming.getMemberId() == null) {
             throw new IllegalArgumentException("memberId는 필수입니다.");
         }
-        if (incoming.getChatroomContent() == null || incoming.getChatroomContent().isBlank()) {
-            throw new IllegalArgumentException("chatroomContent는 비어있을 수 없습니다.");
+        if (incoming.getChatContent() == null || incoming.getChatContent().isBlank()) {
+            throw new IllegalArgumentException("chatContent는 비어있을 수 없습니다.");
         }
 
         // DB 저장
-        ChatroomRequestDto requestDto = new ChatroomRequestDto(
+        ChatRequestDto requestDto = new ChatRequestDto(
                 categoryId,
-                incoming.getChatroomContent(),
+                incoming.getChatContent(),
                 incoming.getMemberId()
         );
 
-        ChatroomResponseDto saved = chatroomService.writeChat(requestDto);
+        ChatResponseDto saved = chatroomService.writeChat(requestDto);
 
-        // 서버 -> 클라이언트 브로드캐스트: /topic/chat/{categoryId}
+        // 서버 -> 클라이언트 : /topic/chat/{categoryId}
         messagingTemplate.convertAndSend("/topic/chat/" + categoryId, saved);
     }
 
-    // 채팅 수신 (DTO로)
+    // 채팅 수신 (DTO)
     public static class IncomingMessage {
         private Long memberId;
-        private String chatroomContent;
+        private String chatContent;
 
         public IncomingMessage() {}
 
         public Long getMemberId() { return memberId; }
         public void setMemberId(Long memberId) { this.memberId = memberId; }
 
-        public String getChatroomContent() { return chatroomContent; }
-        public void setChatroomContent(String chatroomContent) { this.chatroomContent = chatroomContent; }
+        public String getChatContent() { return chatContent; }
+        public void setChatContent(String chatContent) { this.chatContent = chatContent; }
     }
 }
