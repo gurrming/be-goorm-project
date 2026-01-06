@@ -1,17 +1,16 @@
 pluginManagement {
     repositories {
         gradlePluginPortal()
-        google() // 추가
+        google()
         mavenCentral()
     }
 }
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        google() // 추가
+        google()
         mavenCentral()
     }
 }
 
 rootProject.name = 'heartbit'
-
