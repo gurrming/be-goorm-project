@@ -23,19 +23,18 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '25'
+          java-version: '25' # Java 25보다는 안정적인 LTS 버전인 21을 권장합니다.
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # (선택) 원인 확정용
-      - name: Debug Maven access
+      # 403 Forbidden 에러 해결을 위한 User-Agent 설정 추가
+      - name: Setup User-Agent for Gradle
         run: |
-          curl -I https://repo.maven.apache.org/maven2/ | head -n 20
-          curl -I https://plugins.gradle.org/m2/ | head -n 20
+          echo "systemProp.http.userAgent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" >> gradle.properties
 
       - name: Build (Gradle)
-        run: ./gradlew clean build -x test
+        run: ./gradlew clean build -x test --no-daemon
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -49,7 +48,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/gurrming/be-goorm-project/backend:latest
+          tags: ghcr.io/${{ github.repository_owner }}/be-goorm-project/backend:latest
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
