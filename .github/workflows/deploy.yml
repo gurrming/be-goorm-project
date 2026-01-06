@@ -32,10 +32,11 @@ jobs:
 
 
       - name: Build & Push Docker Image
-        run: |
-          IMAGE=ghcr.io/${{ github.repository }}/backend:latest
-          docker build -t $IMAGE .
-          docker push $IMAGE
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}/backend:latest
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
