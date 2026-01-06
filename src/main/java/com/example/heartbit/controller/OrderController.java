@@ -40,8 +40,7 @@ public class OrderController {
                 request.getOrderCount()
         );
 
-        OrderResponse response =
-                OrderResponse.from(orderService.createOrder(request));
+        OrderResponse response = orderService.createOrder(request);
 
         return ResponseEntity.ok(response);
     }
