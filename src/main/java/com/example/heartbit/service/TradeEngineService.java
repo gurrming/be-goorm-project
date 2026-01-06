@@ -3,7 +3,9 @@ package com.example.heartbit.service;
 import com.example.heartbit.domain.Order;
 import com.example.heartbit.domain.OrderType;
 import com.example.heartbit.domain.Trade;
+import com.example.heartbit.dto.TradeRequest;
 import com.example.heartbit.dto.TradeResponse;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -36,11 +38,14 @@ public class TradeEngineService {
         }
     }
 
+    /// TODO:
+    ///     1. 여러개의 종목을 매칭하는것으로 바꿔보자
+    ///     2. 테스트를 충분히해보자
+    ///     3. Order 부분 확인 및 uid도 확인 필요!(수정될거같음)
     // 매칭
-    public List<Trade> match(Order newOrder) {
+    public List<TradeRequest> match(Order newOrder) {
 
-        List<Trade> tradeList = new ArrayList<>();
-
+        List<TradeRequest> tradeList = new ArrayList<>();
 
         while (!buyOrderBook.isEmpty() && !sellOrderBook.isEmpty()) {
             BigDecimal nowBuyPrice = buyPrices.peek();
@@ -57,16 +62,17 @@ public class TradeEngineService {
 
                 BigDecimal tradeCount = buy.getRemainingCount().min(sell.getRemainingCount());
                 BigDecimal tradePrice = sell.getOrderPrice();
-
+                LocalDateTime tradeTime = LocalDateTime.now();
+                String takerType = (newOrder.getOrderType() == OrderType.BUY) ? "BUY" : "SELL"; // 타입 결정
                 // Trade 객체 생성
-                Trade trade = Trade.builder()
-                        .buyOrder(buy)
-                        .sellOrder(sell)
-                        .tradePrice(tradePrice)
-                        .tradeCount(tradeCount)
-                        .tradeTime(tradeTime)
-                        .takerType(takerType)
-                        .build();
+                TradeRequest trade = new TradeRequest(
+                        tradePrice,
+                        tradeCount,
+                        buy.getOrderId(),
+                        sell.getOrderId(),
+                        tradeTime,
+                        takerType
+                );
                 tradeList.add(trade);
 
                 buy.updateRemainingCount(tradeCount);
@@ -97,27 +103,17 @@ public class TradeEngineService {
         // 호가창에 새로운 주문 등록
         addOrderToBook(newOrder);
         // 매칭 된 값
-        List<Trade> trades = match(newOrder);
+        List<TradeRequest> tradeRequests = match(newOrder);
 
-        boolean lastIsBuyTaker = (newOrder.getOrderType() == OrderType.BUY);
-
-        if (!trades.isEmpty()) {
-            // 마지막 체결
-            Trade lastTrade = trades.get(trades.size() - 1);
-            // 더 늦게 생성된 주문이 Taker
-            lastIsBuyTaker = lastTrade.getBuyOrder().getOrderTime().isAfter(lastTrade.getSellOrder().getOrderTime());
-        }
-        final String finalIsTaker = lastIsBuyTaker ? "BUY" : "SELL";
         // dto로 반환
-        return trades.stream()
-                .map(trade -> TradeResponse.builder()
-                        .buyOrderId(trade.getBuyOrder().getOrderId())
-                        .sellOrderId(trade.getSellOrder().getOrderId())
-                        .tradePrice(trade.getTradePrice())
-                        .tradeCount(trade.getTradeCount())
-                        .tradeTime(trade.getTradeTime())
-                        .tradeClosePrice(trade.getTradeClosePrice())
-                        .takerType(finalIsTaker)
+        return tradeRequests.stream()
+                .map(request -> TradeResponse.builder()
+                        .buyOrderId(request.getBuyOrderId())
+                        .sellOrderId(request.getSellOrderId())
+                        .tradePrice(request.getTradePrice())
+                        .tradeCount(request.getTradeCount())
+                        .tradeTime(request.getTradeTime())
+                        .takerType(request.getTakerType())
                         .build())
                 .toList();
     }

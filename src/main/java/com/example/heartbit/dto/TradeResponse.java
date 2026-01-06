@@ -20,6 +20,8 @@ public class TradeResponse {
 
     private Long buyOrderId;
     private Long sellOrderId;
+    // 추가
+    private String takerType;
 
     @Builder
     private TradeResponse(
@@ -29,7 +31,8 @@ public class TradeResponse {
             BigDecimal tradeCount,
             BigDecimal tradeClosePrice,
             Long buyOrderId,
-            Long sellOrderId
+            Long sellOrderId,
+            String takerType
     ) {
         this.tradeId = tradeId;
         this.tradeTime = tradeTime;
@@ -38,6 +41,7 @@ public class TradeResponse {
         this.tradeClosePrice = tradeClosePrice;
         this.buyOrderId = buyOrderId;
         this.sellOrderId = sellOrderId;
+        this.takerType = takerType;
     }
 
     public static TradeResponse fromEntity(Trade trade) {
