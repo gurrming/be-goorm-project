@@ -12,6 +12,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +29,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final MemberRepository memberRepository;
     private final CategoryRepository categoryRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     // =========================
     // 주문 생성
@@ -39,6 +41,8 @@ public class OrderService {
         Category category = categoryRepository.findById(request.getCategoryId()).orElseThrow();
         Order order = request.toEntity(member, category);
         Order savedOrder = orderRepository.save(order);
+
+        sendOrderBookUpdate(request.getCategoryId());
 
 //        // 매칭 엔진 호출
 //        List<TradeResponse> tradeResults = tradeEngineService.processOrder(savedOrder);
@@ -83,6 +87,24 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("Order not found"));
         order.cancel();
+
+        sendOrderBookUpdate(order.getCategory().getCategoryId());
+    }
+
+    public void sendOrderBookUpdate(Long categoryId) {
+        // 최신 매수/매도 호가 데이터를 가져옴
+        List<OrderBookResponse> buyOrderBook = getOrderBook(categoryId, OrderType.BUY);
+        List<OrderBookResponse> sellOrderBook = getOrderBook(categoryId, OrderType.SELL);
+
+        // /topic/orderbook/{categoryId} 채널로 구독자 전원에게 전송
+        Map<String, Object> payload = Map.of(
+                "categoryId", categoryId,
+                "buySide", buyOrderBook,
+                "sellSide", sellOrderBook,
+                "serverTime", LocalDateTime.now().toString()
+        );
+        String destination = "/topic/orderbook/" + categoryId;
+        messagingTemplate.convertAndSend(destination, (Object) payload);
     }
 
     // =========================
