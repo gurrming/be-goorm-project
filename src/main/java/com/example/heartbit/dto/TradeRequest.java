@@ -1,12 +1,14 @@
 package com.example.heartbit.dto;
 
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+@AllArgsConstructor
 @Getter
 @NoArgsConstructor
 public class TradeRequest {
@@ -19,10 +21,9 @@ public class TradeRequest {
     private Long buyOrderId;
     @NotNull
     private Long sellOrderId;
-
     @NotNull
     private LocalDateTime tradeTime;
-
     @NotNull
     private String takerType;
+
 }
