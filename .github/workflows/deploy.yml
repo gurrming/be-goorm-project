@@ -16,7 +16,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ✅ Gradle 캐시/성능 개선: Build 전에 위치
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
@@ -25,6 +24,15 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # (선택) 원인 확정용
+      - name: Debug Maven access
+        run: |
+          curl -I https://repo.maven.apache.org/maven2/ | head -n 20
+          curl -I https://plugins.gradle.org/m2/ | head -n 20
 
       - name: Build (Gradle)
         run: ./gradlew clean build -x test
@@ -41,7 +49,6 @@ jobs:
         with:
           context: .
           push: true
-          # ✅ 제일 중요: 패키지 경로를 GitHub 패키지 화면에 나온 그대로
           tags: ghcr.io/gurrming/be-goorm-project/backend:latest
 
       - name: Deploy via SSH
