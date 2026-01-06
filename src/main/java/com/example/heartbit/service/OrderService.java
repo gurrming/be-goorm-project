@@ -12,6 +12,7 @@ import com.example.heartbit.repository.TradeRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final MemberRepository memberRepository;
     private final CategoryRepository categoryRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     private final TradeEngineService tradeEngineService;
     private final AssetService assetService;
@@ -69,6 +71,7 @@ public class OrderService {
                 assetService.refundCash(sellOrder.getMember().getMemberId(), tradePrice);
             }
         }
+        sendOrderBookUpdate(request.getCategoryId());
         return OrderResponse.from(newOrder);
     }
 
@@ -78,6 +81,23 @@ public class OrderService {
                 .map(OrderResponse::from)
                 .collect(Collectors.toList());
     }
+
+    public void sendOrderBookUpdate(Long categoryId) {
+        // 최신 매수/매도 호가 데이터를 가져옴
+        List<OrderBookResponse> buyOrderBook = getOrderBook(categoryId, OrderType.BUY);
+        List<OrderBookResponse> sellOrderBook = getOrderBook(categoryId, OrderType.SELL);
+
+        // /topic/orderbook/{categoryId} 채널로 구독자 전원에게 전송
+        Map<String, Object> payload = Map.of(
+                "categoryId", categoryId,
+                "buySide", buyOrderBook,
+                "sellSide", sellOrderBook,
+                "serverTime", LocalDateTime.now().toString()
+        );
+        String destination = "/topic/orderbook/" + categoryId;
+        messagingTemplate.convertAndSend(destination, (Object) payload);
+    }
+
 
     // 주문 취소
     private void processCancel(Order order) {
@@ -107,6 +127,7 @@ public class OrderService {
                 .orElseThrow(() -> new EntityNotFoundException("Order not found"));
         //상태를 cancelled로 변경해줘야하는 로직 구현해야함.
         processCancel(order);
+        sendOrderBookUpdate(order.getCategory().getCategoryId());
     }
 
     // 24시간 안에 체결되지 않으면 자동 취소
