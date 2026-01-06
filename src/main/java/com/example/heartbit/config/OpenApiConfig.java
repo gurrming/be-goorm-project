@@ -22,6 +22,8 @@ public class OpenApiConfig {
                 .bearerFormat("JWT")
         );
         return new OpenAPI()
+                .components(components)
+                .addSecurityItem(securityRequirement)
                 .info(new Info()
                         .title("heartbit API 명세서")
                         .description("heartbit API 문서입니다.")
