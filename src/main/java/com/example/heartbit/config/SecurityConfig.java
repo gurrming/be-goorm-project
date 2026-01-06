@@ -41,6 +41,9 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(allowedUrls).permitAll()
+
+                        // 로그인 안해도 채팅내역 볼 수 있게 해줌
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/chatroom/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(AbstractHttpConfigurer::disable)

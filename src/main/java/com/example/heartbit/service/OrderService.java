@@ -1,6 +1,7 @@
 package com.example.heartbit.service;
 
 import com.example.heartbit.domain.*;
+import com.example.heartbit.dto.TradeResponse;
 import com.example.heartbit.dto.order.OrderBookResponse;
 import com.example.heartbit.dto.order.OrderRequest;
 import com.example.heartbit.dto.order.OrderResponse;
@@ -54,6 +55,22 @@ public class OrderService {
         Order savedOrder = orderRepository.save(order);
 
         // ✅ Response 반환
+    public OrderResponse createOrder(@Valid OrderRequest request) {
+        // 주문 생성 및 저장
+        Member member = memberRepository.findById(request.getMemberId()).orElseThrow();
+        Category category = categoryRepository.findById(request.getCategoryId()).orElseThrow();
+        Order order = request.toEntity(member, category);
+        Order savedOrder = orderRepository.save(order);
+
+//        // 매칭 엔진 호출
+//        List<TradeResponse> tradeResults = tradeEngineService.processOrder(savedOrder);
+//
+//        // 체결 결과 DB 반영
+//        if (!tradeResults.isEmpty()) {
+//            processTradeResults(tradeResults);
+//        }
+
+        // 결과 반환
         return OrderResponse.from(savedOrder);
     }
 

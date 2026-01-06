@@ -69,6 +69,13 @@ public class TradeService {
      */
     @Transactional
     public void processTrade(TradeRequest request) {
+        Trade trade = Trade.builder()
+                .tradePrice(request.getTradePrice())
+                .tradeCount(request.getTradeCount())
+                .tradeTime(request.getTradeTime())
+                //.takerType(request.getTakerType())
+                .build();
+        tradeRepository.save(trade);
         BigDecimal price = request.getTradePrice();
         BigDecimal count = request.getTradeCount();
 
