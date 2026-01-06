@@ -42,9 +42,11 @@ public class Trade {
     @JoinColumn(name = "trade_sell_id", nullable = false)
     private Order sellOrder;
 
+
     @Builder
-    public Trade (BigDecimal tradePrice, BigDecimal tradeCount, BigDecimal tradeClosePrice, Order buyOrder, Order sellOrder ) {
+    public Trade (BigDecimal tradePrice, LocalDateTime tradeTime, BigDecimal tradeCount, BigDecimal tradeClosePrice, Order buyOrder, Order sellOrder ) {
         this.tradePrice = tradePrice;
+        this.tradeTime = tradeTime;
         this.tradeCount = tradeCount;
         this.tradeClosePrice = tradeClosePrice;
         this.buyOrder = buyOrder;
