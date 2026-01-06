@@ -13,16 +13,16 @@ import java.util.*;
 @Service
 public class TradeEngineService {
 
-    // 매수 매도 값을 key-value쌍으로 우선순위 큐
+    // 매수 매도 값
     private final Map<BigDecimal, PriorityQueue<Order>> buyOrderBook = new HashMap<>();
     private final Map<BigDecimal, PriorityQueue<Order>> sellOrderBook = new HashMap<>();
 
-    // 가격들마다의 수량의 순서를 관리하는 우선순위 큐
+    // 가격들마다의 수량의 순서를 관리
     private final PriorityQueue<BigDecimal> buyPrices = new PriorityQueue<>(Comparator.reverseOrder());
     private final PriorityQueue<BigDecimal> sellPrices = new PriorityQueue<>();
 
 
-    // 주문된 가격이 있는지 확인하고 없으면 호가창에 추가
+    // 주문된 가격이 있는지 확인 후 호가창에 추가
     private void addOrderToBook(Order order) {
         BigDecimal price = order.getOrderPrice();
         if (order.getOrderType() == OrderType.BUY) {
@@ -54,9 +54,8 @@ public class TradeEngineService {
 
                 Order buy = buyOrders.peek();
                 Order sell = sellOrders.peek();
-                // 체결 수량 결정
+
                 BigDecimal tradeCount = buy.getRemainingCount().min(sell.getRemainingCount());
-                // 체결 가격 결정
                 BigDecimal tradePrice = sell.getOrderPrice();
 
                 // Trade 객체 생성
@@ -65,19 +64,19 @@ public class TradeEngineService {
                         .sellOrder(sell)
                         .tradePrice(tradePrice)
                         .tradeCount(tradeCount)
-                        //.tradeTime(tradeTime)
-                        //.takerType(takerType)
+                        .tradeTime(tradeTime)
+                        .takerType(takerType)
                         .build();
                 tradeList.add(trade);
-                // 주문 객체 수량 차감
+
                 buy.updateRemainingCount(tradeCount);
                 sell.updateRemainingCount(tradeCount);
 
-                // 수량이 0이 된 주문은 해당 가격 큐에서 제거
+                // 수량이 0이 된 주문은 제거
                 if (buy.getRemainingCount().compareTo(BigDecimal.ZERO) == 0) buyOrders.poll();
                 if (sell.getRemainingCount().compareTo(BigDecimal.ZERO) == 0) sellOrders.poll();
 
-                // 해당 가격 큐에서도 제거
+                // 해당 가격에서도 제거
                 if (buyOrders.isEmpty()) {
                     buyOrderBook.remove(nowBuyPrice);
                     buyPrices.poll();
@@ -118,7 +117,7 @@ public class TradeEngineService {
                         .tradeCount(trade.getTradeCount())
                         .tradeTime(trade.getTradeTime())
                         .tradeClosePrice(trade.getTradeClosePrice())
-                        //.takerType(finalIsTaker)
+                        .takerType(finalIsTaker)
                         .build())
                 .toList();
     }
