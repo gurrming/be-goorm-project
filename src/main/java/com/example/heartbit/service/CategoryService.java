@@ -28,7 +28,8 @@ public class CategoryService {
                 .filter(category -> !Boolean.TRUE.equals(category.getCategoryDelete()))
                 .map(category -> new CategoryDto(
                         category.getCategoryId(),
-                        category.getCategoryName()
+                        category.getCategoryName(),
+                        category.getSymbol()
                 ))
                 .toList();
     }
@@ -43,7 +44,8 @@ public class CategoryService {
 
         return new CategoryDto(
                 category.getCategoryId(),
-                category.getCategoryName()
+                category.getCategoryName(),
+                category.getSymbol()
         );
     }
 }

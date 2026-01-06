@@ -1,5 +1,6 @@
 package com.example.heartbit.dto.order;
 
+import com.example.heartbit.domain.Category;
 import com.example.heartbit.domain.Order;
 import com.example.heartbit.domain.OrderStatus;
 import com.example.heartbit.domain.OrderType;
@@ -16,15 +17,23 @@ import java.time.format.DateTimeFormatter;
 @AllArgsConstructor
 @NoArgsConstructor
 public class OrderResponse {
+
     private Long orderId;
+
+    // 기준값
+    private Long categoryId;
+    private String symbol;
+
+    // 표시용
     private String categoryName;
+
     private OrderType orderType;
     private OrderStatus orderStatus;
 
     private BigDecimal orderPrice;
-    private BigDecimal orderCount; // 전체 주문 수량
-    private BigDecimal remainingCount; // 남은 수량
-    private BigDecimal executedCount;  // 체결된 수량
+    private BigDecimal orderCount;
+    private BigDecimal remainingCount;
+    private BigDecimal executedCount;
 
     private BigDecimal totalAmount;
     private String orderTime;
@@ -34,16 +43,26 @@ public class OrderResponse {
         BigDecimal total = order.getOrderCount();
         BigDecimal remaining = order.getRemainingCount();
         BigDecimal executed = total.subtract(remaining);
-
         BigDecimal totalAmount = order.getOrderPrice().multiply(total);
 
         String formattedTime = order.getOrderTime() != null
-                ? order.getOrderTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                ? order.getOrderTime().format(
+                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        )
                 : "";
+
+        Category category = order.getCategory();
 
         return OrderResponse.builder()
                 .orderId(order.getOrderId())
-                .categoryName(order.getCategory() != null ? order.getCategory().getCategoryName() : "알 수 없음")
+
+                // 기준값
+                .categoryId(category != null ? category.getCategoryId() : null)
+                .symbol(category != null ? category.getSymbol() : null)
+
+                // 표시용
+                .categoryName(category != null ? category.getCategoryName() : "알 수 없음")
+
                 .orderType(order.getOrderType())
                 .orderStatus(order.getOrderStatus())
                 .orderPrice(order.getOrderPrice())
