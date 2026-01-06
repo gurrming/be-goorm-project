@@ -49,3 +49,7 @@ jobs:
             docker compose pull
             docker compose up -d
             docker image prune -f
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
