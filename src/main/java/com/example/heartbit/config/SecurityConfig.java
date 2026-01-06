@@ -2,6 +2,7 @@ package com.example.heartbit.config;
 
 import com.example.heartbit.global.jwt.JwtFilter;
 import com.example.heartbit.global.jwt.JwtTokenProvider;
+import com.example.heartbit.global.security.ServerTokenFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,8 +25,11 @@ import java.util.Arrays;
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
+    private final ServerTokenFilter serverTokenFilter;
+
     private final String[] allowedUrls = {"/api/member/signup", "/api/member/login",
             "/v3/api-docs/**",
+            //"/api/orders/**",
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/swagger-resources/**",
@@ -45,6 +49,7 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/chatroom/**").permitAll()
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(serverTokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session

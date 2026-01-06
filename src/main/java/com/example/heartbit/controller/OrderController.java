@@ -29,7 +29,6 @@ public class OrderController {
     public ResponseEntity<OrderResponse> createOrder(
             @Valid @RequestBody OrderRequest request
     ) {
-        // ✅ 요청값 확인용 로그 (핵심)
         log.info(
                 "CREATE ORDER | isBot={} | memberId={} | categoryId={} | type={} | price={} | count={}",
                 request.getIsBot(),
@@ -40,10 +39,12 @@ public class OrderController {
                 request.getOrderCount()
         );
 
+        // ✅ 서비스 결과 그대로 반환
         OrderResponse response = orderService.createOrder(request);
 
         return ResponseEntity.ok(response);
     }
+
 
     @Operation(summary = "호가창 조회")
     @GetMapping("/orderbook")
