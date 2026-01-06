@@ -31,7 +31,7 @@ public class OrderService {
     // 주문 생성
     // =========================
     @Transactional
-    public Order createOrder(OrderRequest request) {
+    public OrderResponse createOrder(OrderRequest request) {
 
         // 카테고리 조회
         Category category = categoryRepository.findById(request.getCategoryId())
@@ -47,11 +47,16 @@ public class OrderService {
                     .orElseThrow(() -> new EntityNotFoundException("Member not found"));
         }
 
-        // Order 엔티티 생성
+        // ✅ Order 엔티티 생성
         Order order = request.toEntity(member, category);
 
-        return orderRepository.save(order);
+        // ✅ 저장
+        Order savedOrder = orderRepository.save(order);
+
+        // ✅ Response 반환
+        return OrderResponse.from(savedOrder);
     }
+
 
     // =========================
     // 멤버별 주문 조회
