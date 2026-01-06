@@ -12,24 +12,23 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ChatroomResponseDto {
-    private Long chatroomId;
+public class ChatResponseDto {
+    private Long chatId;
     private Long categoryId;
-    private LocalDateTime chatroomTime;
-    private String chatroomContent;
+    private LocalDateTime chatTime;
+    private String chatContent;
 
     private Long memberId;
-    private String memberNickname; // 조인
+    private String memberNickname;
 
-    public static ChatroomResponseDto from(Chatroom chatroom) {
-        return ChatroomResponseDto.builder()
-                .chatroomId(chatroom.getChatroomId())
+    public static ChatResponseDto from(Chatroom chatroom) {
+        return ChatResponseDto.builder()
+                .chatId(chatroom.getChatroomId())
                 .categoryId(chatroom.getCategory().getCategoryId())
-                .chatroomTime(chatroom.getChatroomTime())
-                .chatroomContent(chatroom.getChatroomContent())
+                .chatTime(chatroom.getChatroomTime())
+                .chatContent(chatroom.getChatroomContent())
                 .memberId(chatroom.getMember().getMemberId())
                 .memberNickname(chatroom.getMember().getMemberNickname())
                 .build();
     }
-
 }
