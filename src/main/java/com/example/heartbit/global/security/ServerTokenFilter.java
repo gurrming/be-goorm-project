@@ -25,10 +25,10 @@ public class ServerTokenFilter extends OncePerRequestFilter {
     protected void doFilterInternal(
             HttpServletRequest request, HttpServletResponse response, FilterChain filterChain
     ) throws ServletException, IOException {
-        String authHeader = request.getHeader("Authorization");
+        String authHeader = request.getHeader("X-Internal-Token");
 
-        if(authHeader != null && authHeader.startsWith("Bearer")){
-            String token = authHeader.substring(7);
+        if(authHeader != null){
+            String token = authHeader.toString();
             if(serverToken.equals(token)){
                 UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
                         "BOT", null, List.of()

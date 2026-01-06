@@ -12,6 +12,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OrderService {
 
     private final OrderRepository orderRepository;
@@ -35,10 +37,10 @@ public class OrderService {
     @Transactional
     public OrderResponse createOrder(@Valid OrderRequest request) {
         // 주문 생성 및 저장
-        Member member = memberRepository.findById(request.getMemberId()).orElseThrow();
-        Category category = categoryRepository.findById(request.getCategoryId()).orElseThrow();
-        Order order = request.toEntity(member, category);
-        Order savedOrder = orderRepository.save(order);
+//        Member member = memberRepository.findById(request.getMemberId()).orElseThrow();
+//        Category category = categoryRepository.findById(request.getCategoryId()).orElseThrow();
+//        Order order = request.toEntity(member, category);
+//        Order savedOrder = orderRepository.save(order);
 
 //        // 매칭 엔진 호출
 //        List<TradeResponse> tradeResults = tradeEngineService.processOrder(savedOrder);
@@ -49,7 +51,9 @@ public class OrderService {
 //        }
 
         // 결과 반환
-        return OrderResponse.from(savedOrder);
+//        return OrderResponse.from(savedOrder);
+//        log.info("주문 잘 받음 ㅎ");
+        return null;
     }
 
 
