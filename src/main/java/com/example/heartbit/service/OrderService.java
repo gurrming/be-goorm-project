@@ -37,12 +37,12 @@ public class OrderService {
     @Transactional
     public OrderResponse createOrder(@Valid OrderRequest request) {
         // 주문 생성 및 저장
-        Member member = memberRepository.findById(request.getMemberId()).orElseThrow();
-        Category category = categoryRepository.findById(request.getCategoryId()).orElseThrow();
-        Order order = request.toEntity(member, category);
-        Order savedOrder = orderRepository.save(order);
+        //Member member = memberRepository.findById(request.getMemberId()).orElseThrow();
+        //Category category = categoryRepository.findById(request.getCategoryId()).orElseThrow();
+        //Order order = request.toEntity(member, category);
+        //Order savedOrder = orderRepository.save(order);
 
-        sendOrderBookUpdate(request.getCategoryId());
+//        sendOrderBookUpdate(request.getCategoryId());
 
 //        // 매칭 엔진 호출
 //        List<TradeResponse> tradeResults = tradeEngineService.processOrder(savedOrder);
@@ -53,7 +53,7 @@ public class OrderService {
 //        }
 
         // 결과 반환
-        return OrderResponse.from(savedOrder);
+        return null;
     }
 
 
