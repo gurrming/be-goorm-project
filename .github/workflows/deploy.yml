@@ -23,17 +23,13 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '25'
+          java-version: '21' # Java 21 LTS가 현재 가장 권장되는 버전입니다.
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # 수정 부분: gradlew 실행 시 -D 옵션으로 직접 User-Agent를 주입합니다.
       - name: Build (Gradle)
-        run: |
-          ./gradlew clean build -x test --no-daemon \
-          -Dhttp.userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
-          -Dhttps.userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        run: ./gradlew clean build -x test
 
       - name: Login to GHCR
         uses: docker/login-action@v3
