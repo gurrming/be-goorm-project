@@ -1,6 +1,6 @@
 services:
   api:
-    image: ghcr.io/gurrming/backend:latest
+    image: ghcr.io/gurrming/be-goorm-project/backend:latest
     ports:
       - "8080:8080"
     env_file:
