@@ -69,6 +69,7 @@ public class TradeService {
      */
     @Transactional
     public void processTrade(TradeRequest request) {
+        Long categoryId = request.getCategoryId();
         Trade trade = Trade.builder()
                 .tradePrice(request.getTradePrice())
                 .tradeCount(request.getTradeCount())
@@ -114,7 +115,7 @@ public class TradeService {
         broadcastData(request, changeAmount, changeRate, intensity, isBuyTaker);
     }
 
-    private void broadcastData(TradeRequest request, BigDecimal changeAmount, BigDecimal changeRate, BigDecimal intensity, boolean isBuyTaker) {
+    private void broadcastData(TradeRequest request, Long categoryId,  BigDecimal changeAmount, BigDecimal changeRate, BigDecimal intensity, boolean isBuyTaker) {
         // Ticker 정보 (상단바)
         Map<String, Object> ticker = new HashMap<>();
         ticker.put("price", request.getTradePrice().toPlainString());
@@ -125,7 +126,7 @@ public class TradeService {
         ticker.put("volume", accVolume.setScale(8, RoundingMode.HALF_UP).toPlainString());
         ticker.put("amount", accAmount.setScale(0, RoundingMode.HALF_UP).toPlainString());
 
-        messagingTemplate.convertAndSend("/topic/ticker", (Object)ticker);
+        messagingTemplate.convertAndSend("/topic/ticker" + categoryId, (Object)ticker);
 
         // 실시간 체결 내역 (왼쪽 하단 리스트)
         Map<String, Object> tradeList = new HashMap<>();
@@ -135,7 +136,7 @@ public class TradeService {
         tradeList.put("type", isBuyTaker ? "BUY" : "SELL");
         tradeList.put("time", request.getTradeTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
         tradeList.put("intensity", intensity.setScale(2, RoundingMode.HALF_UP).toPlainString());
-        messagingTemplate.convertAndSend("/topic/trades", (Object)tradeList);
+        messagingTemplate.convertAndSend("/topic/trades" + categoryId, (Object)tradeList);
 
         // 오더북 현재가 테두리용
         messagingTemplate.convertAndSend("/topic/orderbook/lastPrice", request.getTradePrice().toPlainString());
@@ -147,7 +148,7 @@ public class TradeService {
         candle.put("h", candleHigh.toPlainString());
         candle.put("l", candleLow.toPlainString());
         candle.put("c", request.getTradePrice().toPlainString());
-        messagingTemplate.convertAndSend("/topic/charts", (Object)candle);
+        messagingTemplate.convertAndSend("/topic/charts" + categoryId, (Object)candle);
 
     }
 
