@@ -28,7 +28,7 @@ public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
     private final ServerTokenFilter serverTokenFilter;
 
-    private final String[] allowedUrls = {"/api/member/signup", "/api/member/login",
+    public static final String[] ALLOWED_URLS = {"/api/member/signup", "/api/member/login",
             "/v3/api-docs/**",
             "/api/chatroom/**",
             "/api/orders/orderbook",
@@ -49,7 +49,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(allowedUrls).permitAll()
+                        .requestMatchers(ALLOWED_URLS).permitAll()
 
                         // 로그인 안해도 채팅내역 볼 수 있게 해줌
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/chatroom/**").permitAll()
