@@ -1,6 +1,7 @@
 package com.example.heartbit.service;
 
 import com.example.heartbit.domain.Category;
+import com.example.heartbit.domain.Order;
 import com.example.heartbit.domain.Trade;
 import com.example.heartbit.dto.TradeRequest;
 import com.example.heartbit.dto.TradeResponse;
@@ -59,7 +60,7 @@ public class TradeService {
     private final Map<Long, LocalDateTime> currentMinutes = new ConcurrentHashMap<>();
 
     /**
-     * 서버 재시작 시 오늘 오전 9시 이후의 시세 데이터를 DB에서 복구합니다.
+     * 서버 재시작 시 오늘 오전 9시 이후의 시세 데이터를 DB에서 복구
      */
     @PostConstruct
     public void init() {
@@ -72,7 +73,7 @@ public class TradeService {
         for (Category category : categories) {
             Long id = category.getCategoryId();
 
-            // 1. 기준가 및 현재가 로드
+            // 기준가 및 현재가 로드
             tradeRepository.findTop1ByTradeTimeBeforeOrderByTradeTimeDesc(today9AM)
                     .ifPresent(t -> openPrices.put(id, t.getTradePrice()));
 
@@ -86,8 +87,8 @@ public class TradeService {
                         currentMinutes.put(id, t.getTradeTime().withSecond(0).withNano(0));
                     });
 
-            // 2. [개선] 집계 데이터를 한 번에 가져오기 (TradeRepository에 집계 쿼리 구현 권장)
-            // 여기서는 리스트를 쓰신다면 최소한 거래대금과 체결강도용 수량도 복구해야 합니다.
+
+            // 여기서는 리스트를 쓰면 최소한 거래대금과 체결강도용 수량도 복구
             List<Trade> todayTrades = tradeRepository.findTradesByCategoryIdAndTradeTimeAfter(id, today9AM);
             if (!todayTrades.isEmpty()) {
                 dailyHighs.put(id, todayTrades.stream().map(Trade::getTradePrice).max(BigDecimal::compareTo).get());
@@ -97,16 +98,26 @@ public class TradeService {
                 accVolumes.put(id, todayTrades.stream().map(Trade::getTradeCount).reduce(BigDecimal.ZERO, BigDecimal::add));
                 accAmounts.put(id, todayTrades.stream().map(t -> t.getTradePrice().multiply(t.getTradeCount())).reduce(BigDecimal.ZERO, BigDecimal::add));
 
-                // 체결강도용 매수/매도 누적량 복구 (TakerType 기준)
-                // Note: 실제 DB에 TakerType이 저장되어 있어야 정확합니다.
-                // totalBuyQtys.put(id, ...);
-                // totalSellQtys.put(id, ...);
+                BigDecimal buyVol = todayTrades.stream()
+                        .filter(t -> t.getBuyOrder().getOrderTime().isAfter(t.getSellOrder().getOrderTime())) // 매수자가 늦게 주문했으면 매수 체결(BUY Taker)
+                        .map(Trade::getTradeCount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal sellVol = todayTrades.stream()
+                        .filter(t -> t.getSellOrder().getOrderTime().isAfter(t.getBuyOrder().getOrderTime())) // 매도자가 늦게 주문했으면 매도 체결(SELL Taker)
+                        .map(Trade::getTradeCount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                totalBuyQtys.put(id, buyVol);
+                totalSellQtys.put(id, sellVol);
+
+
             }
         }
     }
 
     /**
-     * [체결 처리] 엔진의 체결 결과 리스트를 순회하며 DB 저장 및 시세를 업데이트합니다.
+     * [체결 처리] 엔진의 체결 결과 리스트를 순회하며 DB 저장 및 시세를 업데이트
      */
     @Transactional
     @Operation(summary = "체결 엔진 결과 처리", description = "체결 데이터를 저장하고 매도자에게 대금을 정산합니다.")
@@ -114,11 +125,11 @@ public class TradeService {
         if (tradeResults.isEmpty()) return;
 
         for (TradeResponse response : tradeResults) {
-            // 1. 주문 정보 상세 조회 (자산 처리를 위해 실제 객체 필요)
-            com.example.heartbit.domain.Order sellOrder = orderRepository.findById(response.getSellOrderId())
+            // 주문 정보 상세 조회 (자산 처리를 위해 실제 객체 필요)
+            Order sellOrder = orderRepository.findById(response.getSellOrderId())
                     .orElseThrow(() -> new NoSuchElementException("매도 주문을 찾을 수 없습니다."));
 
-            // 2. [핵심] 자산 정산: 매도자에게 체결 대금 지급
+            // 자산 정산: 매도자에게 체결 대금 지급
             BigDecimal tradeAmount = response.getTradePrice().multiply(response.getTradeCount());
 
             // 관리자 계정(1L)이 아닌 경우에만 실제 돈을 지급 (유동성 공급용 계정 제외 로직)
@@ -127,7 +138,6 @@ public class TradeService {
                 assetService.refundCash(sellOrder.getMember().getMemberId(), tradeAmount);
             }
 
-            // 3. Trade 엔티티 생성 및 저장
             Trade trade = Trade.builder()
                     .tradePrice(response.getTradePrice())
                     .tradeCount(response.getTradeCount())
@@ -137,7 +147,7 @@ public class TradeService {
                     .build();
             tradeRepository.save(trade);
 
-            // 4. 종목별 상태 업데이트 및 웹소켓 전송
+            //종목별 상태 업데이트 및 웹소켓 전송
             updateMarketAndBroadcast(categoryId, response);
         }
     }
@@ -168,11 +178,11 @@ public class TradeService {
         BigDecimal buyQty = totalBuyQtys.getOrDefault(categoryId, BigDecimal.ZERO);
         BigDecimal sellQty = totalSellQtys.getOrDefault(categoryId, BigDecimal.ONE); // 분모 0 방지
 
-        // 계산식: (매수체결량 / 매도체결량) * 100
+        // 체결강도 계산식: (매수체결량 / 매도체결량) * 100
         BigDecimal intensity = buyQty.divide(sellQty, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
         BigDecimal openPrice = openPrices.getOrDefault(categoryId, price);
 
-        // 변동률 및 시세 데이터 조립
+        // 변동률 및 시세 데이터
         BigDecimal changeAmount = price.subtract(openPrice);
         BigDecimal changeRate = openPrice.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO :
                 changeAmount.divide(openPrice, 10, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
@@ -207,7 +217,7 @@ public class TradeService {
         messagingTemplate.convertAndSend("/topic/orderbook/lastPrice/" + categoryId, price.toPlainString());
     }
 
-    // --- [조회 API 기능들] ---
+
 
     public List<TradeResponse> getTradeList(Long categoryId, int limit) {
         Pageable pageable = PageRequest.of(0, limit);
@@ -237,7 +247,6 @@ public class TradeService {
 
     public List<Map<String, Object>> getInitialCandles(Long categoryId) {
         LocalDateTime fifteenMinutesAgo = LocalDateTime.now().minusMinutes(15);
-        // 조인 쿼리를 통한 종목별 데이터 조회
         List<Trade> trades = tradeRepository.findTradesByCategoryIdAndTradeTimeAfter(categoryId, fifteenMinutesAgo);
 
         if (trades.isEmpty()) return Collections.emptyList();
@@ -277,10 +286,21 @@ public class TradeService {
     }
 
     @Scheduled(cron = "0 0 9 * * *")
+    @Transactional
     public void refreshMarket() {
-        openPrices.putAll(currentPrices);
+        for (Long id : currentPrices.keySet()) {
+            BigDecimal closePrice = currentPrices.get(id);
+            openPrices.put(id, closePrice);
+
+            // 고가/저가를 현재가로 초기화 (0으로 하면 비교 로직이 꼬임)
+            dailyHighs.put(id, closePrice);
+            dailyLows.put(id, closePrice);
+        }
+
+        // 누적 데이터 전량 삭제
         accVolumes.clear();
         accAmounts.clear();
-        log.info("오전 9시 장 개시 - 기준가 갱신 완료");
+        totalBuyQtys.clear();
+        totalSellQtys.clear();
     }
 }
