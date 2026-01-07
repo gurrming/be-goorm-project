@@ -149,6 +149,7 @@ public class OrderService {
         }
     }
 
+
     // 호가창 (매수 매도 목록)
     public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType) {
         List<OrderStatus> activeStatuses = List.of(OrderStatus.OPEN, OrderStatus.PARTIAL);
