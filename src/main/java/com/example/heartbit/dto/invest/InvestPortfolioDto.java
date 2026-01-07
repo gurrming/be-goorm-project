@@ -12,8 +12,5 @@ public class InvestPortfolioDto {
 
     private InvestSummaryDto summary;
     private List<InvestAssetDto> assets;
-
-    public InvestPortfolioDto(BigDecimal zero) {
-    }
 }
 
