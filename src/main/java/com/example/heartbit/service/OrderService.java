@@ -70,7 +70,7 @@ public class OrderService {
 
         List<TradeResponse> tradeResults = tradeEngineService.processOrder(newOrder);
         if(!tradeResults.isEmpty()) {
-            tradeService.proccessTradeResults(newOrder.getCategory().getCategoryId(), tradeResults);
+            tradeService.processTradeResults(newOrder.getCategory().getCategoryId(), tradeResults);
         }
 
         sendOrderBookUpdate(request.getCategoryId());
