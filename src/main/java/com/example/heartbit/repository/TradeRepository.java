@@ -13,20 +13,18 @@ import java.util.Optional;
 
 public interface TradeRepository extends JpaRepository<Trade, Long> {
 
-    // [유지] 특정 주문(OrderId)에 연관된 모든 체결 내역 조회
+    // 1. 특정 주문(OrderId)에 연관된 모든 체결 내역 조회
     List<Trade> findByBuyOrder_OrderIdOrSellOrder_OrderId(Long buyOrderId, Long sellOrderId);
 
-    // [보완] 특정 카테고리(categoryId)의 최신 체결 내역 리스트 (getTradeList 용)
-    // Pageable을 사용하면 Service에서 limit 갯수를 조절하기 매우 편합니다.
+    // 2. 종목별 최신 체결 내역 리스트 (getTradeList 용)
     @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId ORDER BY t.tradeTime DESC")
     List<Trade> findTopTradesByCategory(@Param("categoryId") Long categoryId, Pageable pageable);
 
-    // [추가] 특정 카테고리의 가장 최근 체결 1건 (getRecentTrade 용)
-    // 9시 기준가 로드와 별개로, '현재가' 표시를 위해 필요합니다.
+    // 3. 종목별 최근 체결 1건 (getRecentTrade 용)
     @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId ORDER BY t.tradeTime DESC")
     Optional<Trade> findTop1ByCategoryOrderByTradeTimeDesc(@Param("categoryId") Long categoryId);
 
-    // [유지] 내 거래 내역 조회 (마이페이지용)
+    // 4. 내 거래 내역 조회 (마이페이지용)
     @Query("""
         SELECT t
         FROM Trade t
@@ -38,12 +36,13 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
     """)
     Page<Trade> findTradeByMemberId(@Param("memberId") Long memberId, Pageable pageable);
 
-    // [유지] 9시 기준가 로드용 (가장 중요한 메서드)
+    // 5. 특정 카테고리의 15분 차트 데이터 조회 (getInitialCandles 용)
+    // Trade에 category가 없으므로 쿼리 메서드 대신 @Query로 명시해야 합니다.
+    @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId AND t.tradeTime > :time ORDER BY t.tradeTime ASC")
+    List<Trade> findTradesByCategoryIdAndTradeTimeAfter(@Param("categoryId") Long categoryId, @Param("time") LocalDateTime time);
+
+    // 6. 9시 기준가 로드용 (특정 시점 이전의 마지막 체결가)
+    // 만약 이것도 종목별로 가져와야 한다면 아래 @Query 주석을 해제하고 사용하세요.
+    // @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId AND t.tradeTime < :dateTime ORDER BY t.tradeTime DESC")
     Optional<Trade> findTop1ByTradeTimeBeforeOrderByTradeTimeDesc(LocalDateTime dateTime);
-
-    List<Trade> findByTradeTimeAfterOrderByTradeTimeAsc(LocalDateTime dateTime);
-
-    // [정리 대상] findAllByOrderByTradeTimeDesc
-    // 특정 종목(카테고리) 구분 없이 전 종목의 체결을 가져오므로, 단일 종목 거래소라면 유지해도 무방하나
-    // 멀티 종목(비트코인, 이더리움 등)이라면 위 findTopTradesByCategory로 대체하는 것이 좋습니다.
 }
