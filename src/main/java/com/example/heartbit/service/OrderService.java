@@ -89,6 +89,18 @@ public class OrderService {
                 .collect(Collectors.toList());
     }
 
+    // 회원 미체결 내역 리스트
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getOpenOrderByMember(Long memberId) {
+        List<OrderStatus> openStatus = List.of(OrderStatus.OPEN, OrderStatus.PARTIAL);
+
+        return orderRepository.findByMember_MemberIdAndOrderStatusInOrderByOrderTimeDesc(memberId, openStatus)
+                .stream()
+                .map(OrderResponse::from)
+                .toList();
+    }
+
+
     // 종목별 호가창
     public void sendOrderBookUpdate(Long categoryId) {
         // 최신 매수/매도 호가 데이터를 가져옴

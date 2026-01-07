@@ -22,9 +22,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByMember_MemberIdOrderByOrderTimeDesc(Long memberId);
 
 
-    // 2. 회원의 체결 내역 (페이징 처리 - 데이터가 많아질 때 필수)
-    Page<Order> findByMember_MemberIdAndOrderStatusIn(
-            Long memberId, Collection<OrderStatus> statuses, Pageable pageable);
+    // 회원의 미체결 주문 내역
+    List<Order> findByMember_MemberIdAndOrderStatusInOrderByOrderTimeDesc(
+            Long memberId, Collection<OrderStatus> statuses
+    );
 
     // 3. 만료된 주문 조회 (스케줄러용)
     @Query("""

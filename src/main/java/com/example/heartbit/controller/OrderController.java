@@ -67,6 +67,14 @@ public class OrderController {
         );
     }
 
+    @Operation(summary = "회원 미체결 주문 조회")
+    @GetMapping("/open")
+    public ResponseEntity<List<OrderResponse>> getOpenMyOrders(
+            @RequestParam Long memberId
+    ) {
+        return ResponseEntity.ok(orderService.getOpenOrderByMember(memberId));
+    }
+
     @Operation(summary = "주문 취소")
     @PatchMapping("/{orderId}/cancel")
     public ResponseEntity<Void> cancelOrder(
