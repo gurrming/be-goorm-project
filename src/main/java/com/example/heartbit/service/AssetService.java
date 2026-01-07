@@ -52,7 +52,7 @@ public class AssetService {
         return AssetResponse.from(asset, totalEvaluateAmount);
     }
 
-    @Scheduled(fixedRate = 1000) // 1초(1000ms)마다 자동 실행
+    @Scheduled(fixedRate = 5000) // 1초(1000ms)마다 자동 실행
     public void sendAssetUpdate() {
         // 1. 현재 접속 중인 사용자의 ID 리스트를 가져와야 합니다.
         // (지금은 테스트를 위해 특정 ID를 지정하거나, 전체 회원을 순회할 수 있습니다.)
@@ -83,6 +83,7 @@ public class AssetService {
      */
     @Transactional
     public void deductCash(Long memberId, BigDecimal amount) {
+        if (memberId.equals(1L)) return;
         Asset asset = assetRepository.findByMember_MemberId(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("자산 정보를 찾을 수 없습니다."));
 
@@ -98,7 +99,7 @@ public class AssetService {
      */
     @Transactional
     public void refundCash(Long memberId, BigDecimal amount) {
-        if (memberId == 1L) return;
+        if (memberId.equals(1L)) return;
         Asset asset = assetRepository.findByMember_MemberId(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("자산 정보를 찾을 수 없습니다."));
 

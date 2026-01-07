@@ -9,14 +9,13 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class TradeEngineService {
     // 주문 종목별 호가창
-    private final Map<Long, MatchingOrder> machingOrderBooks = new ConcurrentHashMap<>();
+    private final Map<Long, MatchingOrder> machingOrderBooks = new HashMap<>();
     // 주문 값 dto로 반환
-    public synchronized List<TradeResponse> processOrder(Order newOrder) {
+    public List<TradeResponse> processOrder(Order newOrder) {
         // 종목 id 값
         Long categoryId = newOrder.getCategory().getCategoryId();
 
@@ -68,6 +67,8 @@ public class TradeEngineService {
         // 매칭
         public List<TradeRequest> match(Order newOrder) {
 
+            Long categoryId = newOrder.getCategory().getCategoryId();
+
             List<TradeRequest> tradeList = new ArrayList<>();
 
             while (!buyOrderBook.isEmpty() && !sellOrderBook.isEmpty()) {
@@ -91,6 +92,7 @@ public class TradeEngineService {
                     TradeRequest trade = new TradeRequest(
                             tradePrice,
                             tradeCount,
+                            categoryId,
                             buy.getOrderId(),
                             sell.getOrderId(),
                             tradeTime,

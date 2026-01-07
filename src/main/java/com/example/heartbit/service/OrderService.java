@@ -39,13 +39,14 @@ public class OrderService {
 
     private final TradeEngineService tradeEngineService;
     private final AssetService assetService;
+    private final TradeService tradeService;
 
     // 멤버별 주문 입력값
     @Transactional
     public OrderResponse createOrder(@Valid OrderRequest request) {
 
         Member member = memberRepository.findById(request.getMemberId()).orElseThrow(()-> new IllegalArgumentException("멤버 정보를 찾을 수 없습니다."));
-        if (member.getMemberId() == 1L) {
+        if (member.getMemberId().equals(1L)) {
             System.out.println("봇 주문");
         } else {
             // 진짜 사용자
@@ -66,18 +67,12 @@ public class OrderService {
                 .orderStatus(OrderStatus.OPEN)
                 .build();
         orderRepository.save(newOrder);
-        // 호출
-        List<TradeResponse> tradeResults = tradeEngineService.processOrder(newOrder);
-        if (!tradeResults.isEmpty()) {
-            for (TradeResponse tradeResponse : tradeResults) {
-                // 체결 금액
-                BigDecimal tradePrice = tradeResponse.getTradePrice().multiply(tradeResponse.getTradeCount());
 
-                Order sellOrder = orderRepository.findById(tradeResponse.getSellOrderId()).orElseThrow();
-                // 환불
-                assetService.refundCash(sellOrder.getMember().getMemberId(), tradePrice);
-            }
+        List<TradeResponse> tradeResults = tradeEngineService.processOrder(newOrder);
+        if(!tradeResults.isEmpty()) {
+            tradeService.processTradeResults(newOrder.getCategory().getCategoryId(), tradeResults);
         }
+
         sendOrderBookUpdate(request.getCategoryId());
         return OrderResponse.from(newOrder);
     }
@@ -116,7 +111,6 @@ public class OrderService {
         String destination = "/topic/orderbook/" + categoryId;
         messagingTemplate.convertAndSend(destination, (Object) payload);
     }
-
     // 주문 취소
     private void processCancel(Order order) {
         if (order.getOrderStatus() != OrderStatus.OPEN && order.getOrderStatus() != OrderStatus.PARTIAL) {

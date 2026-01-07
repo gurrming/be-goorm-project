@@ -18,6 +18,8 @@ public class TradeRequest {
     @NotNull
     private BigDecimal tradeCount;
     @NotNull
+    private Long categoryId;
+    @NotNull
     private Long buyOrderId;
     @NotNull
     private Long sellOrderId;
