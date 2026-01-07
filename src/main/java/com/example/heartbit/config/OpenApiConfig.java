@@ -38,7 +38,6 @@ public class OpenApiConfig {
     @Bean
     public OpenApiCustomizer openApiCustomizer() {
         return openApi -> {
-            // 경로 매칭을 위한 AntPathMatcher (ex: /api/chatroom/**)
             AntPathMatcher pathMatcher = new AntPathMatcher();
 
             // 1. 스웨거에 등록된 모든 URL 경로(path)를 하나씩 검사
