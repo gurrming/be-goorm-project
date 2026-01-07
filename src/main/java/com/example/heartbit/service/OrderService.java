@@ -45,7 +45,7 @@ public class OrderService {
     public OrderResponse createOrder(@Valid OrderRequest request) {
 
         Member member = memberRepository.findById(request.getMemberId()).orElseThrow(()-> new IllegalArgumentException("멤버 정보를 찾을 수 없습니다."));
-        if (member.getMemberId() == 1L) {
+        if (member.getMemberId().equals(1L)) {
             System.out.println("봇 주문");
         } else {
             // 진짜 사용자
@@ -99,6 +99,7 @@ public class OrderService {
                 .map(OrderResponse::from)
                 .toList();
     }
+
 
     // 종목별 호가창
     public void sendOrderBookUpdate(Long categoryId) {
