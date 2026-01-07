@@ -13,33 +13,37 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
-    // 1. 회원의 전체 주문 내역 (최신순)
+    // 회원의 전체 주문 내역 (최신순)
     List<Order> findByMember_MemberIdOrderByOrderTimeDesc(Long memberId);
 
+    // 회원의 미체결 주문 내역
+    List<Order> findByMember_MemberIdAndOrderStatusInOrderByOrderTimeDesc(
+            Long memberId, Collection<OrderStatus> statuses
+    );
 
-    // 2. 회원의 체결 내역 (페이징 처리 - 데이터가 많아질 때 필수)
-    Page<Order> findByMember_MemberIdAndOrderStatusIn(
-            Long memberId, Collection<OrderStatus> statuses, Pageable pageable);
-
-    // 3. 만료된 주문 조회 (스케줄러용)
+    // 만료된 주문 조회 (스케줄러용)
     @Query("""
-        SELECT o FROM Order o 
+
+            SELECT o FROM Order o 
         WHERE o.orderTime <= :expirationTime 
         AND (o.orderStatus = 'OPEN' OR o.orderStatus = 'PARTIAL')
         """)
     List<Order> findExpiredOrders(@Param("expirationTime") LocalDateTime expirationTime);
 
-    // 4. 호가창: 매수 (가격 내림차순, 시간 오름차순)
+    // 호가창: 매수 (가격 내림차순, 시간 오름차순)
     List<Order> findByCategory_CategoryIdAndOrderTypeAndOrderStatusInOrderByOrderPriceDescOrderTimeAsc(
             Long categoryId, OrderType orderType, List<OrderStatus> statuses);
 
-    // 5. 호가창: 매도 (가격 오름차순, 시간 오름차순)
+    // 호가창: 매도 (가격 오름차순, 시간 오름차순)
     List<Order> findByCategory_CategoryIdAndOrderTypeAndOrderStatusInOrderByOrderPriceAscOrderTimeAsc(
             Long categoryId, OrderType orderType, List<OrderStatus> statuses);
+
+
 }
+
+
 

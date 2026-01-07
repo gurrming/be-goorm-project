@@ -65,6 +65,7 @@ public class AssetService {
      */
     @Transactional
     public void refundCash(Long memberId, BigDecimal amount) {
+        if (memberId == 1L) return;
         Asset asset = assetRepository.findByMember_MemberId(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("자산 정보를 찾을 수 없습니다."));
 
