@@ -5,11 +5,22 @@ import lombok.Getter;
 
 import java.math.BigDecimal;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 @Getter
 @AllArgsConstructor
 public class InvestQuantityDto {
-    private Long categoryId;       // 종목 아이디
-    private String categoryName;   // 종목 이름
-    private String symbol;         // 심볼
-    private BigDecimal quantity;   // 수량
+
+    @Schema(description = "종목 아이디")
+    private Long categoryId;
+
+    @Schema(description = "종목 이름")
+    private String categoryName;
+
+    @Schema(description = "심볼")
+    private String symbol;
+
+    @Schema(description = "보유 수량")
+    private BigDecimal quantity;
 }
+

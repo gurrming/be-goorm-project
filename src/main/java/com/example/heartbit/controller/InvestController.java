@@ -46,8 +46,9 @@ public class InvestController {
             summary = "종목 수량 조회",
             description = "특정 종목(categoryId)의 투자 수량과 기본 정보를 조회합니다."
     )
-    public ResponseEntity<InvestQuantityDto> getQuantity(@PathVariable Long categoryId) {
+    public ResponseEntity<InvestQuantityDto> getQuantity(@PathVariable("categoryId") Long categoryId) {
         InvestQuantityDto quantityDto = investService.getQuantityByCategoryId(categoryId);
         return ResponseEntity.ok(quantityDto);
     }
+
 }
