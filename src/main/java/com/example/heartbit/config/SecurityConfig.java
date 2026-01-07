@@ -30,7 +30,10 @@ public class SecurityConfig {
 
     private final String[] allowedUrls = {"/api/member/signup", "/api/member/login",
             "/v3/api-docs/**",
-            //"/api/orders/**",
+            "/api/chatroom/**",
+            "/api/orders/orderbook",
+            "/api/trades/chart",
+            "/api/categories",
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/swagger-resources/**",
@@ -78,7 +81,8 @@ public class SecurityConfig {
                         "http://localhost:5173",
                         "https://d1z2afuae81hvp.cloudfront.net",
                         "http://172.16.24.109:8080",
-                        "http://3.27.95.44:8080"
+                        "http://3.27.95.44:8080",
+                        "https://api.heartbit.site"
                 ));
         configuration.setAllowedMethods(Arrays.asList("*"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
