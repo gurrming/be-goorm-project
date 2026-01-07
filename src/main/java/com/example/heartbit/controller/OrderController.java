@@ -10,7 +10,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -46,6 +45,7 @@ public class OrderController {
         return ResponseEntity.ok(response);
     }
 
+
     @Operation(summary = "호가창 조회")
     @GetMapping("/orderbook")
     public ResponseEntity<List<OrderBookResponse>> orderBook(
@@ -65,15 +65,6 @@ public class OrderController {
         return ResponseEntity.ok(
                 orderService.getOrderByMember(memberId)
         );
-    }
-
-    // OrderController.java
-    @Operation(summary = "회원 미체결 주문 조회")
-    @GetMapping("/open")
-    public ResponseEntity<List<OrderResponse>> getOpenMyOrders(
-            @RequestParam Long memberId
-    ) {
-        return ResponseEntity.ok(orderService.getOpenOrderByMember(memberId));
     }
 
     @Operation(summary = "주문 취소")
