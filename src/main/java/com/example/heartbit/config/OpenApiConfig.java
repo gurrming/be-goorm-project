@@ -5,6 +5,7 @@ import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
 import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,7 +32,9 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("heartbit API 명세서")
                         .description("heartbit API 문서입니다.")
-                        .version("1.0.0"));
+                        .version("1.0.0"))
+                .addServersItem(new Server().url("/"));
+
 
     }
 
