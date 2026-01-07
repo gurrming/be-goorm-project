@@ -39,4 +39,23 @@ public class ServerTokenFilter extends OncePerRequestFilter {
         filterChain.doFilter(request,response);
     }
 
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        String path = request.getRequestURI();
+        String[] excludedPaths = {
+                "/api/member/signup",
+                "/api/member/login",
+                "/ws-heartbit",
+                "/favicon.ico"
+        };
+
+        // 경로가 excludedPaths에 포함되면 필터 실행 안 함 (true 반환)
+        for (String excludedPath : excludedPaths) {
+            if (path.startsWith(excludedPath)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 }

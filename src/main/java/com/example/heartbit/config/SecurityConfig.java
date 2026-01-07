@@ -4,6 +4,7 @@ import com.example.heartbit.global.jwt.JwtFilter;
 import com.example.heartbit.global.jwt.JwtTokenProvider;
 import com.example.heartbit.global.security.ServerTokenFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -29,7 +30,10 @@ public class SecurityConfig {
 
     private final String[] allowedUrls = {"/api/member/signup", "/api/member/login",
             "/v3/api-docs/**",
-            //"/api/orders/**",
+            "/api/chatroom/**",
+            "/api/orders/orderbook",
+            "/api/trades/chart",
+            "/api/categories",
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/swagger-resources/**",
@@ -75,7 +79,9 @@ public class SecurityConfig {
                 Arrays.asList(
                         "http://localhost:8080",
                         "http://localhost:5173",
-                        "https://d1z2afuae81hvp.cloudfront.net"
+                        "https://d1z2afuae81hvp.cloudfront.net",
+                        "http://172.16.24.109:8080",
+                        "http://3.27.95.44:8080"
                 ));
         configuration.setAllowedMethods(Arrays.asList("*"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
@@ -84,6 +90,13 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    @Bean
+    public FilterRegistrationBean<ServerTokenFilter> preventAutoRegistration(ServerTokenFilter filter) {
+        FilterRegistrationBean<ServerTokenFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false); // 자동 등록 비활성화
+        return registration;
     }
 
 }
