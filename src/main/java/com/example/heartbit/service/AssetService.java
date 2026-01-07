@@ -6,12 +6,17 @@ import com.example.heartbit.dto.AssetResponse;
 import com.example.heartbit.repository.AssetRepository;
 import com.example.heartbit.repository.InvestRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -19,6 +24,8 @@ public class AssetService {
 
     private final AssetRepository assetRepository;
     private final InvestRepository investRepository;
+    private final SimpMessagingTemplate messagingTemplate;
+
 
     @Transactional
     public void createInitialAsset(Member member) {
@@ -43,6 +50,32 @@ public class AssetService {
 
         // 3. DTO 반환
         return AssetResponse.from(asset, totalEvaluateAmount);
+    }
+
+    @Scheduled(fixedRate = 1000) // 1초(1000ms)마다 자동 실행
+    public void sendAssetUpdate() {
+        // 1. 현재 접속 중인 사용자의 ID 리스트를 가져와야 합니다.
+        // (지금은 테스트를 위해 특정 ID를 지정하거나, 전체 회원을 순회할 수 있습니다.)
+        // 여기서는 모든 자산 정보를 순회하며 웹소켓을 쏘는 예시입니다.
+
+        List<Asset> allAssets = assetRepository.findAll();
+
+        for (Asset asset : allAssets) {
+            Long memberId = asset.getMember().getMemberId();
+
+            try {
+                // 기존에 잘 만들어둔 계산 로직 호출
+                AssetResponse response = getAssetByMemberId(memberId);
+
+                // 특정 사용자의 개인 채널로 전송
+                // 구독 경로: /sub/asset/{memberId}
+                messagingTemplate.convertAndSend("/topic/asset/" + memberId, response);
+
+            } catch (Exception e) {
+                // 특정 유저 계산 실패 시 로그만 남기고 다음 유저로 진행
+                log.error("자산 업데이트 전송 실패 - 회원ID: {}", memberId, e);
+            }
+        }
     }
 
     /**

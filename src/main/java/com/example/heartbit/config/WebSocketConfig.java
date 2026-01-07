@@ -27,7 +27,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         //프론트엔드에서 소켓연결을 시도할 주소 "/ws-heartbit"
         registry.addEndpoint("/ws-heartbit")
-                .setAllowedOriginPatterns("*")
+                .setAllowedOrigins("https://api.heartbit.site")
                 .withSockJS();
     }
 

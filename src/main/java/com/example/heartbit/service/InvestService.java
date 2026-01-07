@@ -90,6 +90,7 @@ public class InvestService {
             assets.add(new InvestAssetDto(
                     category.getCategoryId(),
                     category.getCategoryName(),
+                    category.getSymbol(),
                     quantity,
                     avgBuyPrice,
                     buyAmount,
