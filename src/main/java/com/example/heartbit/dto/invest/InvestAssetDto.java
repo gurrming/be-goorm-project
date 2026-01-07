@@ -11,6 +11,7 @@ public class InvestAssetDto {
 
     private Long categoryId;
     private String categoryName;
+    private String symbol;
 
     private BigDecimal quantity;          // 보유수량
     private BigDecimal avgBuyPrice;   // 매수평균가
