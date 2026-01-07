@@ -35,6 +35,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final MemberRepository memberRepository;
     private final CategoryRepository categoryRepository;
+    private final TradeRepository tradeRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
     private final TradeEngineService tradeEngineService;
@@ -68,14 +69,24 @@ public class OrderService {
         orderRepository.save(newOrder);
         // 호출
         List<TradeResponse> tradeResults = tradeEngineService.processOrder(newOrder);
+        System.out.println("체결 결과 개수: " + tradeResults.size()); // 로그 확인용
         if (!tradeResults.isEmpty()) {
             for (TradeResponse tradeResponse : tradeResults) {
                 // 체결 금액
                 BigDecimal tradePrice = tradeResponse.getTradePrice().multiply(tradeResponse.getTradeCount());
 
                 Order sellOrder = orderRepository.findById(tradeResponse.getSellOrderId()).orElseThrow();
-                // 환불
-                assetService.refundCash(sellOrder.getMember().getMemberId(), tradePrice);
+                if (!sellOrder.getMember().getMemberId().equals(1L)) {
+                    assetService.refundCash(sellOrder.getMember().getMemberId(), tradePrice);
+                }
+                Trade trade = Trade.builder()
+                        .tradePrice(tradeResponse.getTradePrice())
+                        .tradeCount(tradeResponse.getTradeCount())
+                        .buyOrder(orderRepository.getReferenceById(tradeResponse.getBuyOrderId()))
+                        .sellOrder(orderRepository.getReferenceById(tradeResponse.getSellOrderId()))
+                        .tradeTime(tradeResponse.getTradeTime())
+                        .build();
+                tradeRepository.save(trade);
             }
         }
         sendOrderBookUpdate(request.getCategoryId());
