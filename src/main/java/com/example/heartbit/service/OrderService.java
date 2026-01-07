@@ -35,11 +35,11 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final MemberRepository memberRepository;
     private final CategoryRepository categoryRepository;
-    private final TradeRepository tradeRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
     private final TradeEngineService tradeEngineService;
     private final AssetService assetService;
+    private final TradeService tradeService;
 
     // 멤버별 주문 입력값
     @Transactional
@@ -67,28 +67,12 @@ public class OrderService {
                 .orderStatus(OrderStatus.OPEN)
                 .build();
         orderRepository.save(newOrder);
-        // 호출
-        List<TradeResponse> tradeResults = tradeEngineService.processOrder(newOrder);
-        System.out.println("체결 결과 개수: " + tradeResults.size()); // 로그 확인용
-        if (!tradeResults.isEmpty()) {
-            for (TradeResponse tradeResponse : tradeResults) {
-                // 체결 금액
-                BigDecimal tradePrice = tradeResponse.getTradePrice().multiply(tradeResponse.getTradeCount());
 
-                Order sellOrder = orderRepository.findById(tradeResponse.getSellOrderId()).orElseThrow();
-                if (!sellOrder.getMember().getMemberId().equals(1L)) {
-                    assetService.refundCash(sellOrder.getMember().getMemberId(), tradePrice);
-                }
-                Trade trade = Trade.builder()
-                        .tradePrice(tradeResponse.getTradePrice())
-                        .tradeCount(tradeResponse.getTradeCount())
-                        .buyOrder(orderRepository.getReferenceById(tradeResponse.getBuyOrderId()))
-                        .sellOrder(orderRepository.getReferenceById(tradeResponse.getSellOrderId()))
-                        .tradeTime(tradeResponse.getTradeTime())
-                        .build();
-                tradeRepository.save(trade);
-            }
+        List<TradeResponse> tradeResults = tradeEngineService.processOrder(newOrder);
+        if(!tradeResults.isEmpty()) {
+            tradeService.proccessTradeResults(newOrder.getCategory().getCategoryId(), tradeResults);
         }
+
         sendOrderBookUpdate(request.getCategoryId());
         return OrderResponse.from(newOrder);
     }
@@ -111,7 +95,6 @@ public class OrderService {
                 .toList();
     }
 
-
     // 종목별 호가창
     public void sendOrderBookUpdate(Long categoryId) {
         // 최신 매수/매도 호가 데이터를 가져옴
@@ -128,7 +111,6 @@ public class OrderService {
         String destination = "/topic/orderbook/" + categoryId;
         messagingTemplate.convertAndSend(destination, (Object) payload);
     }
-
     // 주문 취소
     private void processCancel(Order order) {
         if (order.getOrderStatus() != OrderStatus.OPEN && order.getOrderStatus() != OrderStatus.PARTIAL) {
