@@ -49,8 +49,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(ALLOWED_URLS).permitAll()
-
+   
                         // 로그인 안해도 채팅내역 볼 수 있게 해줌
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/chatroom/**").permitAll()
                         .anyRequest().authenticated()
