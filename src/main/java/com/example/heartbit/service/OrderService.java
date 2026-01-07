@@ -12,6 +12,9 @@ import com.example.heartbit.repository.TradeRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -22,6 +25,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,16 +43,19 @@ public class OrderService {
     // 멤버별 주문 입력값
     @Transactional
     public OrderResponse createOrder(@Valid OrderRequest request) {
-        // 주문 생성 및 저장
-        Member member = memberRepository.findById(request.getMemberId()).orElseThrow();
+
+        Member member = memberRepository.findById(request.getMemberId()).orElseThrow(()-> new IllegalArgumentException("멤버 정보를 찾을 수 없습니다."));
+        if (member.getMemberId() == 1L) {
+            System.out.println("봇 주문");
+        } else {
+            // 진짜 사용자
+            if (request.getOrderType() == OrderType.BUY) {
+                BigDecimal totalAmount = request.getOrderPrice().multiply(request.getOrderCount());
+                assetService.deductCash(member.getMemberId(), totalAmount);
+            }
+        }
         Category category = categoryRepository.findById(request.getCategoryId()).orElseThrow();
 
-        // 매수: 주문 즉시 자산에 적용
-        if (request.getOrderType() == OrderType.BUY) {
-            // 총 금액 = 주문 가격 * 주문 수량
-            BigDecimal totalPrice = request.getOrderPrice().multiply(request.getOrderCount());
-            assetService.deductCash(request.getMemberId(), totalPrice);
-        }
         Order newOrder = Order.builder()
                 .member(member)
                 .category(category)
@@ -75,13 +82,25 @@ public class OrderService {
         return OrderResponse.from(newOrder);
     }
 
-    // 멤버별 주문 리스트
+    // 멤버별 주문 내역 리스트
     public List<OrderResponse> getOrderByMember(Long memberId) {
         return orderRepository.findByMember_MemberIdOrderByOrderTimeDesc(memberId).stream()
                 .map(OrderResponse::from)
                 .collect(Collectors.toList());
     }
 
+    // 회원 미체결 내역 리스트
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getOpenOrderByMember(Long memberId) {
+        List<OrderStatus> openStatus = List.of(OrderStatus.OPEN, OrderStatus.PARTIAL);
+
+        return orderRepository.findByMember_MemberIdAndOrderStatusInOrderByOrderTimeDesc(memberId, openStatus)
+                .stream()
+                .map(OrderResponse::from)
+                .toList();
+    }
+
+    // 종목별 호가창
     public void sendOrderBookUpdate(Long categoryId) {
         // 최신 매수/매도 호가 데이터를 가져옴
         List<OrderBookResponse> buyOrderBook = getOrderBook(categoryId, OrderType.BUY);
@@ -97,7 +116,6 @@ public class OrderService {
         String destination = "/topic/orderbook/" + categoryId;
         messagingTemplate.convertAndSend(destination, (Object) payload);
     }
-
 
     // 주문 취소
     private void processCancel(Order order) {
@@ -150,8 +168,6 @@ public class OrderService {
     }
 
 
-
-
     // 호가창 (매수 매도 목록)
     public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType) {
         List<OrderStatus> activeStatuses = List.of(OrderStatus.OPEN, OrderStatus.PARTIAL);
@@ -183,4 +199,5 @@ public class OrderService {
                 })
                 .collect(Collectors.toList());
     }
+
 }
