@@ -60,4 +60,22 @@ public class JwtFilter extends OncePerRequestFilter {
 
         filterChain.doFilter(request, response);
     }
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        String path = request.getRequestURI();
+        String[] excludedPaths = {
+                "/api/member/signup",
+                "/api/member/login",
+//                "/ws-heartbit",
+                "/h2-console",
+                "/favicon.ico"
+        };
+
+        for (String excludedPath : excludedPaths) {
+            if (path.startsWith(excludedPath)) {
+                return true; // 이 경로는 필터 실행 건너뛰기
+            }
+        }
+        return false;
+    }
 }
