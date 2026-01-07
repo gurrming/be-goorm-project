@@ -3,8 +3,6 @@ package com.example.heartbit.repository;
 import com.example.heartbit.domain.Order;
 import com.example.heartbit.domain.OrderStatus;
 import com.example.heartbit.domain.OrderType;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,16 +16,15 @@ import java.util.Optional;
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
-    // 1. 회원의 전체 주문 내역 (최신순)
+    // 회원의 전체 주문 내역 (최신순)
     List<Order> findByMember_MemberIdOrderByOrderTimeDesc(Long memberId);
-
 
     // 회원의 미체결 주문 내역
     List<Order> findByMember_MemberIdAndOrderStatusInOrderByOrderTimeDesc(
             Long memberId, Collection<OrderStatus> statuses
     );
 
-    // 3. 만료된 주문 조회 (스케줄러용)
+    // 만료된 주문 조회 (스케줄러용)
     @Query("""
         SELECT o FROM Order o 
         WHERE o.orderTime <= :expirationTime 
@@ -35,11 +32,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         """)
     List<Order> findExpiredOrders(@Param("expirationTime") LocalDateTime expirationTime);
 
-    // 4. 호가창: 매수 (가격 내림차순, 시간 오름차순)
+    // 호가창: 매수 (가격 내림차순, 시간 오름차순)
     List<Order> findByCategory_CategoryIdAndOrderTypeAndOrderStatusInOrderByOrderPriceDescOrderTimeAsc(
             Long categoryId, OrderType orderType, List<OrderStatus> statuses);
 
-    // 5. 호가창: 매도 (가격 오름차순, 시간 오름차순)
+    // 호가창: 매도 (가격 오름차순, 시간 오름차순)
     List<Order> findByCategory_CategoryIdAndOrderTypeAndOrderStatusInOrderByOrderPriceAscOrderTimeAsc(
             Long categoryId, OrderType orderType, List<OrderStatus> statuses);
 }
