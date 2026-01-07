@@ -2,92 +2,61 @@ package com.example.heartbit.service;
 
 import com.example.heartbit.domain.Category;
 import com.example.heartbit.domain.Member;
-import com.example.heartbit.domain.Trade;
 import com.example.heartbit.dto.invest.InvestAssetDto;
 import com.example.heartbit.dto.invest.InvestPortfolioDto;
 import com.example.heartbit.dto.invest.InvestSummaryDto;
+import com.example.heartbit.dto.invest.InvestQuantityDto;
 import com.example.heartbit.repository.CategoryRepository;
 import com.example.heartbit.repository.InvestRepository;
 import com.example.heartbit.service.member.MemberQueryServiceImpl;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayList;
-import java.util.List;
-
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class InvestService {
 
-    // 투자 내역 조회용
     private final InvestRepository investRepository;
-
-    // 종목 정보
     private final CategoryRepository categoryRepository;
-
-    // 로그인 사용자 조회
     private final MemberQueryServiceImpl memberService;
-
     private final TradeService tradeService;
+    private final SimpMessagingTemplate messagingTemplate; // 웹소켓
 
+    /**
+     * 전체 포트폴리오 조회 (기존 기능)
+     */
     public InvestPortfolioDto getPortfolio() {
 
-        // 1 현재 로그인한 사용자 조회
-
         Member member = memberService.getCurrentMember();
-
-        // 2 전체 투자 요약 계산용 변수
-        BigDecimal totalBuyAmount = BigDecimal.ZERO;       // 총 매수 금액
-        BigDecimal totalEvaluateAmount = BigDecimal.ZERO;  // 총 평가 금액
-
-        // 3 종목별 투자 현황 리스트
+        BigDecimal totalBuyAmount = BigDecimal.ZERO;
+        BigDecimal totalEvaluateAmount = BigDecimal.ZERO;
         List<InvestAssetDto> assets = new ArrayList<>();
-
-        // 4 전체 종목 조회
         List<Category> categories = categoryRepository.findAll();
 
-        // 5 종목별 투자 현황 계산
         for (Category category : categories) {
 
-            // 5-1 회원 + 종목 기준 보유 수량 조회
-            BigDecimal quantity =
-                    investRepository.findTotalHoldingByMemberAndCategory(member, category);
+            BigDecimal quantity = investRepository.findTotalHoldingByMemberAndCategory(member, category);
+            if (quantity == null || quantity.compareTo(BigDecimal.ZERO) == 0) continue;
 
-            // 보유하지 않은 종목은 포트폴리오에서 제외
-            if (quantity == null || quantity.compareTo(BigDecimal.ZERO) == 0) {
-                continue;
-            }
+            BigDecimal avgBuyPrice = investRepository.findAvgBuyPriceByMemberAndCategory(member, category);
+            BigDecimal buyAmount = avgBuyPrice.multiply(quantity);
 
-            // 5-2 회원 + 종목 기준 평균 매수가
-            BigDecimal avgBuyPrice =
-                    investRepository.findAvgBuyPriceByMemberAndCategory(member, category);
+            BigDecimal currentPrice = Optional.ofNullable(tradeService.getRecentTrade(category.getCategoryId()))
+                    .map(t -> t.getTradePrice())
+                    .orElse(BigDecimal.ZERO);
 
-            // 5-3 매수 금액 = 평균 매수가 × 수량
-            BigDecimal buyAmount =
-                    avgBuyPrice.multiply(quantity);
-
-            // 5-4 현재가
-            // 현재는 Category에 가격이 있다고 가정
-            BigDecimal currentPrice = tradeService.getRecentTrade(category.getCategoryId()) != null ?
-                    tradeService.getRecentTrade(category.getCategoryId()).getTradePrice() :
-                    BigDecimal.ZERO;
-
-            // 5-5 평가 금액 = 현재가 × 수량
             BigDecimal evaluateAmount = currentPrice.multiply(quantity);
-
-            // 5-6 평가 손익 = 평가 금액 - 매수 금액
             BigDecimal profit = evaluateAmount.subtract(buyAmount);
 
-            // 5-7 전체 합계 누적
             totalBuyAmount = totalBuyAmount.add(buyAmount);
             totalEvaluateAmount = totalEvaluateAmount.add(evaluateAmount);
 
-            // 5-8 종목별 투자 현황 DTO 생성
-            assets.add(new InvestAssetDto(
+            InvestAssetDto assetDto = new InvestAssetDto(
                     category.getCategoryId(),
                     category.getCategoryName(),
                     category.getSymbol(),
@@ -96,24 +65,22 @@ public class InvestService {
                     buyAmount,
                     evaluateAmount,
                     profit
-            ));
+            );
+
+            assets.add(assetDto);
+
+            // 웹소켓 전송
+            Map<String, BigDecimal> coinData = new HashMap<>();
+            coinData.put("evaluateAmount", evaluateAmount);
+            coinData.put("profit", profit);
+            messagingTemplate.convertAndSend("/topic/assets/" + member.getMemberId(), coinData);
         }
 
-        // 6 총 평가 손익 = 총 평가 금액 - 총 매수 금액
-        BigDecimal totalProfit =
-                totalEvaluateAmount.subtract(totalBuyAmount);
+        BigDecimal totalProfit = totalEvaluateAmount.subtract(totalBuyAmount);
+        BigDecimal totalProfitRate = totalBuyAmount.compareTo(BigDecimal.ZERO) > 0 ?
+                totalProfit.divide(totalBuyAmount, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)) :
+                BigDecimal.ZERO;
 
-        // 7 총 평가 수익률 계산
-        // → 매수 금액이 0인 경우 0으로 처리 (0으로 나누기 방지)
-        BigDecimal totalProfitRate = BigDecimal.ZERO;
-
-        if (totalBuyAmount.compareTo(BigDecimal.ZERO) > 0) {
-            totalProfitRate = totalProfit
-                    .divide(totalBuyAmount, 4, RoundingMode.HALF_UP)
-                    .multiply(BigDecimal.valueOf(100));
-        }
-
-        // 8 투자 요약 DTO 생성
         InvestSummaryDto summary = new InvestSummaryDto(
                 totalBuyAmount,
                 totalEvaluateAmount,
@@ -121,7 +88,39 @@ public class InvestService {
                 totalProfitRate
         );
 
-        // 9 포트폴리오 DTO 반환
+        // 웹소켓 전송
+        Map<String, BigDecimal> summaryData = new HashMap<>();
+        summaryData.put("totalBuyAmount", summary.getTotalBuyAmount());
+        summaryData.put("totalEvaluateAmount", summary.getTotalEvaluateAmount());
+        summaryData.put("totalProfit", summary.getTotalProfit());
+        summaryData.put("totalProfitRate", summary.getTotalProfitRate());
+        messagingTemplate.convertAndSend("/topic/summary/" + member.getMemberId(), summaryData);
+
         return new InvestPortfolioDto(summary, assets);
     }
+
+    /**
+     * 특정 종목(symbol) 수량 및 기본 정보 조회 (신규 API)
+     * - 최적화: DB 직접 조회, null 처리 간소화
+     */
+    public InvestQuantityDto getQuantityByCategoryId(Long categoryId) {
+        Member member = memberService.getCurrentMember();
+
+        Category category = categoryRepository.findById(categoryId).orElse(null);
+        if (category == null) {
+            return new InvestQuantityDto(null, null, null, BigDecimal.ZERO);
+        }
+
+        BigDecimal quantity = Optional.ofNullable(
+                investRepository.findTotalHoldingByMemberAndCategory(member, category)
+        ).orElse(BigDecimal.ZERO);
+
+        return new InvestQuantityDto(
+                category.getCategoryId(),
+                category.getCategoryName(),
+                category.getSymbol(),
+                quantity
+        );
+    }
+
 }
