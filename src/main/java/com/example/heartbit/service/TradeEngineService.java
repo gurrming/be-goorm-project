@@ -68,6 +68,8 @@ public class TradeEngineService {
         // 매칭
         public List<TradeRequest> match(Order newOrder) {
 
+            Long categoryId = newOrder.getCategory().getCategoryId();
+
             List<TradeRequest> tradeList = new ArrayList<>();
 
             while (!buyOrderBook.isEmpty() && !sellOrderBook.isEmpty()) {
@@ -91,6 +93,7 @@ public class TradeEngineService {
                     TradeRequest trade = new TradeRequest(
                             tradePrice,
                             tradeCount,
+                            categoryId,
                             buy.getOrderId(),
                             sell.getOrderId(),
                             tradeTime,
