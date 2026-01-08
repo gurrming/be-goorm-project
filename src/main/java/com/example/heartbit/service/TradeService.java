@@ -77,7 +77,7 @@ public class TradeService {
             tradeRepository.findTop1ByTradeTimeBeforeOrderByTradeTimeDesc(today9AM)
                     .ifPresent(t -> openPrices.put(id, t.getTradePrice()));
 
-            tradeRepository.findTop1ByCategoryOrderByTradeTimeDesc(id)
+            tradeRepository.findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(id)
                     .ifPresent(t -> {
                         BigDecimal price = t.getTradePrice();
                         currentPrices.put(id, price);
@@ -221,13 +221,14 @@ public class TradeService {
 
     public List<TradeResponse> getTradeList(Long categoryId, int limit) {
         Pageable pageable = PageRequest.of(0, limit);
-        return tradeRepository.findTopTradesByCategory(categoryId, pageable).stream()
+        return tradeRepository.findByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(categoryId, pageable)
+                .stream()
                 .map(TradeResponse::fromEntity)
                 .collect(Collectors.toList());
     }
 
     public TradeResponse getRecentTrade(Long categoryId) {
-        return tradeRepository.findTop1ByCategoryOrderByTradeTimeDesc(categoryId)
+        return tradeRepository.findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(categoryId)
                 .map(TradeResponse::fromEntity)
                 .orElse(null);
     }
