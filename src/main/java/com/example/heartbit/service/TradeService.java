@@ -62,7 +62,7 @@ public class TradeService {
     /**
      * 서버 재시작 시 오늘 오전 9시 이후의 시세 데이터를 DB에서 복구
      */
-
+    @PostConstruct
     public void init() {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime today9AM = now.withHour(9).withMinute(0).withSecond(0).withNano(0);
@@ -77,7 +77,7 @@ public class TradeService {
             tradeRepository.findTop1ByTradeTimeBeforeOrderByTradeTimeDesc(today9AM)
                     .ifPresent(t -> openPrices.put(id, t.getTradePrice()));
 
-            tradeRepository.findTop1ByCategoryOrderByTradeTimeDesc(id)
+            tradeRepository.findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(id)
                     .ifPresent(t -> {
                         BigDecimal price = t.getTradePrice();
                         currentPrices.put(id, price);
@@ -117,7 +117,7 @@ public class TradeService {
     }
 
     /**
-     * [체결 처리] 엔진의 체결 결과 리스트를 순회하며 DB 저장 및 시세를 업데이트
+     * 체결 엔진의 체결 결과 리스트를 순회하며 DB 저장 및 시세를 업데이트
      */
     @Transactional
     @Operation(summary = "체결 엔진 결과 처리", description = "체결 데이터를 저장하고 매도자에게 대금을 정산합니다.")
@@ -133,7 +133,7 @@ public class TradeService {
             BigDecimal tradeAmount = response.getTradePrice().multiply(response.getTradeCount());
 
             // 관리자 계정(1L)이 아닌 경우에만 실제 돈을 지급 (유동성 공급용 계정 제외 로직)
-            if (!sellOrder.getMember().getMemberId().equals(1L)) {
+            if (!sellOrder.getMember().getMemberId().equals(5L)) {
                 // 매도 완료 후 현금(Cash)으로 정산
                 assetService.refundCash(sellOrder.getMember().getMemberId(), tradeAmount);
             }
@@ -152,6 +152,7 @@ public class TradeService {
         }
     }
 
+    //값이 바뀌면 값들 갱신하고 웹소켓으로 쏴주는 매서드 호출
     private void updateMarketAndBroadcast(Long categoryId, TradeResponse response) {
         BigDecimal price = response.getTradePrice();
         BigDecimal count = response.getTradeCount();
@@ -171,6 +172,7 @@ public class TradeService {
         sendWebSocketData(categoryId, response);
     }
 
+    //실시간으로 웹소켓으로 데이터 전송
     private void sendWebSocketData(Long categoryId, TradeResponse response) {
         String suffix = "/" + categoryId;
         BigDecimal price = response.getTradePrice();
@@ -219,25 +221,31 @@ public class TradeService {
 
 
 
+    //최근 체결 기록(limit으로 개수 설정 가능)
     public List<TradeResponse> getTradeList(Long categoryId, int limit) {
         Pageable pageable = PageRequest.of(0, limit);
-        return tradeRepository.findTopTradesByCategory(categoryId, pageable).stream()
+        return tradeRepository.findByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(categoryId, pageable)
+                .stream()
                 .map(TradeResponse::fromEntity)
                 .collect(Collectors.toList());
     }
 
+    //해당 종목의 현재가 1개 가져오기
     public TradeResponse getRecentTrade(Long categoryId) {
-        return tradeRepository.findTop1ByCategoryOrderByTradeTimeDesc(categoryId)
+        return tradeRepository.findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(categoryId)
                 .map(TradeResponse::fromEntity)
                 .orElse(null);
     }
 
+
+    //주문별로 실제로 얼마나 체결되었는지 확인하기
     public List<TradeResponse> getTradeByOrder(Long orderId) {
         return tradeRepository.findByBuyOrder_OrderIdOrSellOrder_OrderId(orderId, orderId).stream()
                 .map(TradeResponse::fromEntity)
                 .collect(Collectors.toList());
     }
 
+    //개인 체결 내역
     public List<TradeResponse> getMyTrade(Long memberId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         return tradeRepository.findTradeByMemberId(memberId, pageable).getContent().stream()
@@ -245,7 +253,9 @@ public class TradeService {
                 .collect(Collectors.toList());
     }
 
+    //사용자가 처음에 접속했을때 텅빈 화면이 뜨는것을 방지하기 위해 db에서 지난 15분간의 데이터들을 미리 가져와서 띄우기
     public List<Map<String, Object>> getInitialCandles(Long categoryId) {
+
         LocalDateTime fifteenMinutesAgo = LocalDateTime.now().minusMinutes(15);
         List<Trade> trades = tradeRepository.findTradesByCategoryIdAndTradeTimeAfter(categoryId, fifteenMinutesAgo);
 
@@ -270,6 +280,7 @@ public class TradeService {
         }).collect(Collectors.toList());
     }
 
+    //분단위로 계산하여 nowMinute이 currentMinute보다 커지게 되면 캔틀 하나 옆으로 이동(그게 아니라면 캔들은 제자리에서 위아래로만)
     private void updateCandle(Long categoryId, BigDecimal price, LocalDateTime tradeTime) {
         LocalDateTime nowMinute = tradeTime.withSecond(0).withNano(0);
         LocalDateTime currentMinute = currentMinutes.getOrDefault(categoryId, LocalDateTime.MIN);
@@ -285,6 +296,7 @@ public class TradeService {
         }
     }
 
+    //오전 9시되면 장 초기화
     @Scheduled(cron = "0 0 9 * * *")
     @Transactional
     public void refreshMarket() {
