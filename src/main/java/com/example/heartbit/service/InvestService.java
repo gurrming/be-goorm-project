@@ -21,7 +21,6 @@ import java.util.*;
 @RequiredArgsConstructor
 public class InvestService {
 
-
     private final InvestRepository investRepository;
     private final CategoryRepository categoryRepository;
     private final MemberQueryServiceImpl memberService;
@@ -29,7 +28,7 @@ public class InvestService {
     private final SimpMessagingTemplate messagingTemplate; // 웹소켓
 
     /**
-     * 전체 포트폴리오 조회 (기존 기능)
+     * 전체 포트폴리오 조회
      */
     public InvestPortfolioDto getPortfolio() {
 
@@ -43,6 +42,9 @@ public class InvestService {
 
             BigDecimal quantity = investRepository.findTotalHoldingByMemberAndCategory(member, category);
             if (quantity == null) quantity = BigDecimal.ZERO;  // null -> 0 처리
+
+            // 종목 수량이 0이면 건너뜀 (웹소켓 전송 X)
+            if (quantity.compareTo(BigDecimal.ZERO) == 0) continue;
 
             BigDecimal avgBuyPrice = investRepository.findAvgBuyPriceByMemberAndCategory(member, category);
             if (avgBuyPrice == null) avgBuyPrice = BigDecimal.ZERO;
@@ -72,14 +74,15 @@ public class InvestService {
 
             assets.add(assetDto);
 
-            // 웹소켓 전송 (quantity가 0이어도 전송)
+            // 종목 웹소켓 전송 (quantity > 0일 때)
             Map<String, BigDecimal> coinData = new HashMap<>();
-            coinData.put("quantity", quantity); // 추가: 수량도 전송하면 UI에서 바로 표시 가능
+            coinData.put("quantity", quantity);
             coinData.put("evaluateAmount", evaluateAmount);
             coinData.put("profit", profit);
             messagingTemplate.convertAndSend("/topic/assets/" + member.getMemberId(), coinData);
         }
 
+        // 총합(summary) 계산
         BigDecimal totalProfit = totalEvaluateAmount.subtract(totalBuyAmount);
         BigDecimal totalProfitRate = totalBuyAmount.compareTo(BigDecimal.ZERO) > 0 ?
                 totalProfit.divide(totalBuyAmount, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)) :
@@ -92,21 +95,19 @@ public class InvestService {
                 totalProfitRate
         );
 
-        // 웹소켓 전송
+        // summary 웹소켓 전송
         Map<String, BigDecimal> summaryData = new HashMap<>();
-        summaryData.put("totalBuyAmount", summary.getTotalBuyAmount());
-        summaryData.put("totalEvaluateAmount", summary.getTotalEvaluateAmount());
-        summaryData.put("totalProfit", summary.getTotalProfit());
-        summaryData.put("totalProfitRate", summary.getTotalProfitRate());
+        summaryData.put("totalBuyAmount", totalBuyAmount);
+        summaryData.put("totalEvaluateAmount", totalEvaluateAmount);
+        summaryData.put("totalProfit", totalProfit);
+        summaryData.put("totalProfitRate", totalProfitRate);
         messagingTemplate.convertAndSend("/topic/summary/" + member.getMemberId(), summaryData);
 
         return new InvestPortfolioDto(summary, assets);
     }
 
-
     /**
-     * 특정 종목(symbol) 수량 및 기본 정보 조회 (신규 API)
-     * - 최적화: DB 직접 조회, null 처리 간소화
+     * 특정 종목(symbol) 수량 및 기본 정보 조회
      */
     public InvestQuantityDto getQuantityByCategoryId(Long categoryId) {
         Member member = memberService.getCurrentMember();
@@ -126,5 +127,4 @@ public class InvestService {
                 quantity
         );
     }
-
 }
