@@ -46,17 +46,12 @@ public class OrderService {
     // 멤버별 주문 입력값
     @Transactional
     public OrderResponse createOrder(@Valid OrderRequest request) {
-        log.info("REQ CHECK | isBotRaw={} | isBotParsed={} | memberId={} | type={}",
-                request.getIsBot(),
-                (Boolean.TRUE.equals(request.getIsBot()) || Long.valueOf(5L).equals(request.getMemberId())),
-                request.getMemberId(),
-                request.getOrderType());
 
         Member member = memberRepository.findById(request.getMemberId()).orElseThrow(()-> new IllegalArgumentException("멤버 정보를 찾을 수 없습니다."));
-        log.info("[REQ CHECK] memberId={}, orderType={}, isBot(raw)={}",
+        log.info("request가 찍히니",
                 request.getMemberId(), request.getOrderType(), request.getIsBot());
         boolean isBot = Boolean.TRUE.equals(request.getIsBot());
-        log.info("[REQ CHECK] computed isBot={}", isBot);
+        log.info("봇이니", isBot);
         if (isBot) {
             // 봇이 찍혔는지
             System.out.println("isBot=" + request.getIsBot());
