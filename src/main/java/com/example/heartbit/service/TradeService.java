@@ -208,9 +208,10 @@ public class TradeService {
         Map<String, Object> ticker = new HashMap<>();
         ticker.put("price", price.toPlainString());
         ticker.put("changeRate", price.subtract(openPrice).divide(openPrice, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100")).setScale(2, RoundingMode.HALF_UP).toPlainString());
-        ticker.put("high", dailyHighs.get(categoryId).toPlainString());
-        ticker.put("low", dailyLows.get(categoryId).toPlainString());
-        ticker.put("volume", accVolumes.get(categoryId).setScale(2, RoundingMode.HALF_UP).toPlainString());
+        ticker.put("high", dailyHighs.getOrDefault(categoryId, price).toPlainString());
+        ticker.put("low", dailyLows.getOrDefault(categoryId, price).toPlainString());
+        ticker.put("volume", accVolumes.getOrDefault(categoryId, BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP).toPlainString());
+        ticker.put("amount", accAmounts.getOrDefault(categoryId, BigDecimal.ZERO).setScale(0, RoundingMode.HALF_UP).toPlainString());
         ticker.put("intensity", intensity.setScale(2, RoundingMode.HALF_UP).toPlainString());
         return ticker;
     }
@@ -218,9 +219,9 @@ public class TradeService {
     private Map<String, Object> getCandleMap(Long categoryId, BigDecimal price) {
         Map<String, Object> candle = new HashMap<>();
         candle.put("t", currentMinutes.get(categoryId).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
-        candle.put("o", candleOpens.get(categoryId).toPlainString());
-        candle.put("h", candleHighs.get(categoryId).toPlainString());
-        candle.put("l", candleLows.get(categoryId).toPlainString());
+        candle.put("o", candleOpens.getOrDefault(categoryId, price).toPlainString());
+        candle.put("h", candleHighs.getOrDefault(categoryId, price).toPlainString());
+        candle.put("l", candleLows.getOrDefault(categoryId, price).toPlainString());
         candle.put("c", price.toPlainString());
         return candle;
     }
