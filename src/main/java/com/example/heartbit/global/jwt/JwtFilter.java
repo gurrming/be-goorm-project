@@ -66,11 +66,11 @@ public class JwtFilter extends OncePerRequestFilter {
         String[] excludedPaths = {
                 "/api/member/signup",
                 "/api/member/login",
-                "/api/chatroom/**",
+                "/api/chatroom/",
                 "/api/orders/orderbook",
                 "/api/trades/chart",
                 "/api/categories",
-//                "/ws-heartbit",
+                "/ws-heartbit",
                 "/h2-console",
                 "/favicon.ico"
         };
