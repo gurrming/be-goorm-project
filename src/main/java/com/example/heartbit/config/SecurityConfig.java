@@ -42,6 +42,7 @@ public class SecurityConfig {
             "/ws-heartbit/info/**"
     };
 
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         JwtFilter jwtFilter = new JwtFilter(jwtTokenProvider);
