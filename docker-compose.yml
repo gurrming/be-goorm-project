@@ -10,7 +10,7 @@ services:
       - postgres
 
   postgres:
-    image: postgres:18
+    image: postgres:17
     container_name: postgres
     environment:
       POSTGRES_USER: postgres
