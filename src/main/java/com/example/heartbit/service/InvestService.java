@@ -42,9 +42,11 @@ public class InvestService {
         for (Category category : categories) {
 
             BigDecimal quantity = investRepository.findTotalHoldingByMemberAndCategory(member, category);
-            if (quantity == null || quantity.compareTo(BigDecimal.ZERO) == 0) continue;
+            if (quantity == null) quantity = BigDecimal.ZERO;  // null -> 0 처리
 
             BigDecimal avgBuyPrice = investRepository.findAvgBuyPriceByMemberAndCategory(member, category);
+            if (avgBuyPrice == null) avgBuyPrice = BigDecimal.ZERO;
+
             BigDecimal buyAmount = avgBuyPrice.multiply(quantity);
 
             BigDecimal currentPrice = Optional.ofNullable(tradeService.getRecentTrade(category.getCategoryId()))
@@ -70,8 +72,9 @@ public class InvestService {
 
             assets.add(assetDto);
 
-            // 웹소켓 전송
+            // 웹소켓 전송 (quantity가 0이어도 전송)
             Map<String, BigDecimal> coinData = new HashMap<>();
+            coinData.put("quantity", quantity); // 추가: 수량도 전송하면 UI에서 바로 표시 가능
             coinData.put("evaluateAmount", evaluateAmount);
             coinData.put("profit", profit);
             messagingTemplate.convertAndSend("/topic/assets/" + member.getMemberId(), coinData);
@@ -99,6 +102,7 @@ public class InvestService {
 
         return new InvestPortfolioDto(summary, assets);
     }
+
 
     /**
      * 특정 종목(symbol) 수량 및 기본 정보 조회 (신규 API)
