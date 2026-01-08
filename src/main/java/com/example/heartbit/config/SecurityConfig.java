@@ -38,7 +38,8 @@ public class SecurityConfig {
             "/swagger-ui.html",
             "/swagger-resources/**",
             "/webjars/**",
-            "/ws-heartbit/**"
+            "/ws-heartbit/**",
+            "/ws-heartbit/info"
     };
 
     @Bean
