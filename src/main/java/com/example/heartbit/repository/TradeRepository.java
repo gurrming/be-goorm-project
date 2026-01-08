@@ -37,12 +37,10 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
     Page<Trade> findTradeByMemberId(@Param("memberId") Long memberId, Pageable pageable);
 
     // 5. 특정 카테고리의 15분 차트 데이터 조회 (getInitialCandles 용)
-    // Trade에 category가 없으므로 쿼리 메서드 대신 @Query로 명시해야 합니다.
     @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId AND t.tradeTime > :time ORDER BY t.tradeTime ASC")
     List<Trade> findTradesByCategoryIdAndTradeTimeAfter(@Param("categoryId") Long categoryId, @Param("time") LocalDateTime time);
 
     // 6. 9시 기준가 로드용 (특정 시점 이전의 마지막 체결가)
-    // 만약 이것도 종목별로 가져와야 한다면 아래 @Query 주석을 해제하고 사용하세요.
     // @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId AND t.tradeTime < :dateTime ORDER BY t.tradeTime DESC")
     Optional<Trade> findTop1ByTradeTimeBeforeOrderByTradeTimeDesc(LocalDateTime dateTime);
 }
