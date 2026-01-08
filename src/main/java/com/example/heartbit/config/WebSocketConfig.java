@@ -28,7 +28,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         //프론트엔드에서 소켓연결을 시도할 주소 "/ws-heartbit"
         registry.addEndpoint("/ws-heartbit")
                 .setAllowedOrigins(
-                        "http://localhost:5173/",
+                        "http://localhost:5173",
                         "https://d1z2afuae81hvp.cloudfront.net",
                         "https://api.heartbit.site"
                 )
