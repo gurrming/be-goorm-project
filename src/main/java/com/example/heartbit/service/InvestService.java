@@ -39,22 +39,24 @@ public class InvestService {
         BigDecimal totalBuyAmount = BigDecimal.ZERO;
         BigDecimal totalEvaluateAmount = BigDecimal.ZERO;
 
-        // asset 생성 및 합계 계산
+        boolean hasHolding = false; // 보유 자산 존재 여부
+
+        // 체결된 종목만 asset 생성 및 합계 계산
         for (Category category : categories) {
 
             BigDecimal quantity = investRepository.findTotalHoldingByMemberAndCategory(member, category);
-            if (quantity == null) quantity = BigDecimal.ZERO;
-
-            // quantity가 0이면 asset 생성하지 않고 summary 합계에도 포함하지 않음
-            if (quantity.compareTo(BigDecimal.ZERO) <= 0) {
-                continue;
+            if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
+                continue; // 체결되지 않은 종목 → 건너뜀
             }
+
+            hasHolding = true; // 하나라도 보유 자산 있음
 
             BigDecimal avgBuyPrice = investRepository.findAvgBuyPriceByMemberAndCategory(member, category);
             if (avgBuyPrice == null) avgBuyPrice = BigDecimal.ZERO;
 
             BigDecimal buyAmount = avgBuyPrice.multiply(quantity);
 
+            // 체결된 종목 기준 최근 체결가
             BigDecimal currentPrice = Optional.ofNullable(tradeService.getRecentTrade(category.getCategoryId()))
                     .map(t -> t.getTradePrice())
                     .orElse(BigDecimal.ZERO);
@@ -79,18 +81,23 @@ public class InvestService {
 
             assets.add(assetDto);
 
-            // 웹소켓 전송: 주문이 들어온 종목만
+            // 웹소켓 전송: 체결된 종목만
             Map<String, BigDecimal> coinData = new HashMap<>();
             coinData.put("evaluateAmount", evaluateAmount);
             coinData.put("profit", profit);
             messagingTemplate.convertAndSend("/topic/assets/" + member.getMemberId() + "/" + category.getCategoryId(), coinData);
         }
 
-        // summary 계산
-        BigDecimal totalProfit = totalEvaluateAmount.subtract(totalBuyAmount);
-        BigDecimal totalProfitRate = totalBuyAmount.compareTo(BigDecimal.ZERO) > 0 ?
-                totalProfit.divide(totalBuyAmount, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)) :
-                BigDecimal.ZERO;
+        // 보유 자산이 없으면 summary 0, 있으면 실제 합계 계산
+        BigDecimal totalProfit = BigDecimal.ZERO;
+        BigDecimal totalProfitRate = BigDecimal.ZERO;
+
+        if (hasHolding) {
+            totalProfit = totalEvaluateAmount.subtract(totalBuyAmount);
+            totalProfitRate = totalBuyAmount.compareTo(BigDecimal.ZERO) > 0 ?
+                    totalProfit.divide(totalBuyAmount, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)) :
+                    BigDecimal.ZERO;
+        }
 
         InvestSummaryDto summary = new InvestSummaryDto(
                 totalBuyAmount,
@@ -99,7 +106,7 @@ public class InvestService {
                 totalProfitRate
         );
 
-        // summary 웹소켓 전송 (초기에는 값이 없으면 0)
+        // summary 웹소켓 전송 (항상 전송, 초기 호출은 0)
         Map<String, BigDecimal> summaryData = new HashMap<>();
         summaryData.put("totalBuyAmount", totalBuyAmount);
         summaryData.put("totalEvaluateAmount", totalEvaluateAmount);
@@ -109,6 +116,7 @@ public class InvestService {
 
         return new InvestPortfolioDto(summary, assets);
     }
+
 
 
     /**
