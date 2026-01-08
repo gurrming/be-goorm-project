@@ -1,16 +1,8 @@
 services:
-  api:
-    image: ghcr.io/gurrming/be-goorm-project/backend:latest
-    ports:
-      - "8080:8080"
-    env_file:
-      - .env
-    restart: always
-    depends_on:
-      - postgres
+
 
   postgres:
-    image: postgres:18
+    image: postgres:17
     container_name: postgres
     environment:
       POSTGRES_USER: postgres
