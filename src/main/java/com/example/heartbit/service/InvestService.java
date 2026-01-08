@@ -38,6 +38,14 @@ public class InvestService {
         List<InvestAssetDto> assets = new ArrayList<>();
         List<Category> categories = categoryRepository.findAll();
 
+        // 🔹 루프 시작 전에 summary 0으로 전송 (프론트 초기값용)
+        Map<String, BigDecimal> initialSummary = new HashMap<>();
+        initialSummary.put("totalBuyAmount", BigDecimal.ZERO);
+        initialSummary.put("totalEvaluateAmount", BigDecimal.ZERO);
+        initialSummary.put("totalProfit", BigDecimal.ZERO);
+        initialSummary.put("totalProfitRate", BigDecimal.ZERO);
+        messagingTemplate.convertAndSend("/topic/summary/" + member.getMemberId(), initialSummary);
+
         for (Category category : categories) {
 
             BigDecimal quantity = investRepository.findTotalHoldingByMemberAndCategory(member, category);
@@ -68,10 +76,9 @@ public class InvestService {
                     evaluateAmount,
                     profit
             );
-
             assets.add(assetDto);
 
-            // 웹소켓 전송: 주문이 들어온 종목만
+            // 🔹 주문이 들어온 종목만 asset 웹소켓 전송
             if (quantity.compareTo(BigDecimal.ZERO) > 0) {
                 Map<String, BigDecimal> coinData = new HashMap<>();
                 coinData.put("evaluateAmount", evaluateAmount);
@@ -80,7 +87,7 @@ public class InvestService {
             }
         }
 
-        // 총합(summary) 계산 - 루프 밖
+        // 🔹 루프 끝: 최종 summary 계산 후 전송
         BigDecimal totalProfit = totalEvaluateAmount.subtract(totalBuyAmount);
         BigDecimal totalProfitRate = totalBuyAmount.compareTo(BigDecimal.ZERO) > 0 ?
                 totalProfit.divide(totalBuyAmount, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)) :
@@ -93,7 +100,6 @@ public class InvestService {
                 totalProfitRate
         );
 
-        // summary 웹소켓 전송 (총합은 항상 전송, 시작 시점에는 0)
         Map<String, BigDecimal> summaryData = new HashMap<>();
         summaryData.put("totalBuyAmount", totalBuyAmount);
         summaryData.put("totalEvaluateAmount", totalEvaluateAmount);
@@ -101,7 +107,6 @@ public class InvestService {
         summaryData.put("totalProfitRate", totalProfitRate);
         messagingTemplate.convertAndSend("/topic/summary/" + member.getMemberId(), summaryData);
 
-        // 전체 포트폴리오 DTO 반환
         return new InvestPortfolioDto(summary, assets);
     }
 
