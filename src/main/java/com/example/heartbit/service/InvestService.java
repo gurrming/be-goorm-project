@@ -27,6 +27,9 @@ public class InvestService {
     private final TradeService tradeService;
     private final SimpMessagingTemplate messagingTemplate;
 
+    /**
+     * 전체 포트폴리오 조회
+     */
     public InvestPortfolioDto getPortfolio() {
 
         Member member = memberService.getCurrentMember();
@@ -91,7 +94,7 @@ public class InvestService {
                 totalProfitRate
         );
 
-        // summary 웹소켓 전송
+        // summary 웹소켓 전송 (총합은 항상 전송, 시작 시점에는 0)
         Map<String, BigDecimal> summaryData = new HashMap<>();
         summaryData.put("totalBuyAmount", totalBuyAmount);
         summaryData.put("totalEvaluateAmount", totalEvaluateAmount);
@@ -99,9 +102,13 @@ public class InvestService {
         summaryData.put("totalProfitRate", totalProfitRate);
         messagingTemplate.convertAndSend("/topic/summary/" + member.getMemberId(), summaryData);
 
+        // 전체 포트폴리오 DTO 반환
         return new InvestPortfolioDto(summary, assets);
     }
 
+    /**
+     * 특정 종목(symbol) 수량 및 기본 정보 조회
+     */
     public InvestQuantityDto getQuantityByCategoryId(Long categoryId) {
         Member member = memberService.getCurrentMember();
 
