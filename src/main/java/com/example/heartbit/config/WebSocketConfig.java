@@ -30,6 +30,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .setAllowedOrigins(
                         "http://localhost:5173",
                         "https://d1z2afuae81hvp.cloudfront.net",
+                        "https://d1z2afuae81hvp.cloudfront.net",
                         "https://api.heartbit.site"
                 )
                 .withSockJS();

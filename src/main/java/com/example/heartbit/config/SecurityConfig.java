@@ -39,7 +39,7 @@ public class SecurityConfig {
             "/swagger-resources/**",
             "/webjars/**",
             "/ws-heartbit/**",
-            "/ws-heartbit/info"
+            "/ws-heartbit/info/**"
     };
 
     @Bean
@@ -83,7 +83,8 @@ public class SecurityConfig {
                         "https://d1z2afuae81hvp.cloudfront.net",
                         "http://172.16.24.109:8080",
                         "http://3.27.95.44:8080",
-                        "https://api.heartbit.site"
+                        "https://api.heartbit.site",
+                        "http://*.127.0.0.1:5173"
                 ));
         configuration.setAllowedMethods(Arrays.asList("*"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
