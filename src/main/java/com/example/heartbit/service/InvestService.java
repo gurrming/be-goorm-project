@@ -21,6 +21,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class InvestService {
 
+
     private final InvestRepository investRepository;
     private final CategoryRepository categoryRepository;
     private final MemberQueryServiceImpl memberService;
