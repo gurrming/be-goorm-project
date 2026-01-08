@@ -74,7 +74,6 @@ public class InvestService {
             // 웹소켓 전송: 주문이 들어온 종목만
             if (quantity.compareTo(BigDecimal.ZERO) > 0) {
                 Map<String, BigDecimal> coinData = new HashMap<>();
-                coinData.put("quantity", quantity);
                 coinData.put("evaluateAmount", evaluateAmount);
                 coinData.put("profit", profit);
                 messagingTemplate.convertAndSend("/topic/assets/" + member.getMemberId() + "/" + category.getCategoryId(), coinData);
