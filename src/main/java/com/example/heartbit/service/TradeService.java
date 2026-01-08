@@ -59,6 +59,8 @@ public class TradeService {
     private final Map<Long, BigDecimal> candleLows = new ConcurrentHashMap<>();
     private final Map<Long, LocalDateTime> currentMinutes = new ConcurrentHashMap<>();
 
+
+    private final Map<Long, List<TradeResponse>> tradeBuffer = new ConcurrentHashMap<>();
     /**
      * 서버 재시작 시 오늘 오전 9시 이후의 시세 데이터를 DB에서 복구
      */
@@ -149,77 +151,79 @@ public class TradeService {
             tradeRepository.save(trade);
 
             //종목별 상태 업데이트 및 웹소켓 전송
-            updateMarketAndBroadcast(categoryId, response);
+            updateMarketState(categoryId, response);
         }
     }
 
     //값이 바뀌면 값들 갱신하고 웹소켓으로 쏴주는 매서드 호출
-    private void updateMarketAndBroadcast(Long categoryId, TradeResponse response) {
+    private void updateMarketState(Long categoryId, TradeResponse response) {
         BigDecimal price = response.getTradePrice();
         BigDecimal count = response.getTradeCount();
 
-        // 실시간 맵 데이터 갱신
         currentPrices.put(categoryId, price);
         dailyHighs.merge(categoryId, price, (old, val) -> val.compareTo(old) > 0 ? val : old);
         dailyLows.merge(categoryId, price, (old, val) -> val.compareTo(old) < 0 ? val : old);
         accVolumes.merge(categoryId, count, BigDecimal::add);
         accAmounts.merge(categoryId, price.multiply(count), BigDecimal::add);
 
-        // 체결강도 계산용 수량 업데이트
         if ("BUY".equals(response.getTakerType())) totalBuyQtys.merge(categoryId, count, BigDecimal::add);
         else totalSellQtys.merge(categoryId, count, BigDecimal::add);
 
         updateCandle(categoryId, price, response.getTradeTime());
-        sendWebSocketData(categoryId, response);
+
+        // 즉시 쏘지 않고 버퍼에 저장
+        tradeBuffer.computeIfAbsent(categoryId, k -> Collections.synchronizedList(new ArrayList<>())).add(response);
     }
 
     //실시간으로 웹소켓으로 데이터 전송
-    private void sendWebSocketData(Long categoryId, TradeResponse response) {
-        String suffix = "/" + categoryId;
-        BigDecimal price = response.getTradePrice();
+    @Scheduled(fixedRate = 100)
+    public void broadcastMarketData() {
+        tradeBuffer.forEach((categoryId, results) -> {
+            if (results.isEmpty()) return;
 
-        BigDecimal buyQty = totalBuyQtys.getOrDefault(categoryId, BigDecimal.ZERO);
-        BigDecimal sellQty = totalSellQtys.getOrDefault(categoryId, BigDecimal.ONE); // 분모 0 방지
+            List<TradeResponse> snapshot;
+            synchronized (results) {
+                snapshot = new ArrayList<>(results);
+                results.clear();
+            }
 
-        // 체결강도 계산식: (매수체결량 / 매도체결량) * 100
-        BigDecimal intensity = buyQty.divide(sellQty, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+            TradeResponse lastTrade = snapshot.get(snapshot.size() - 1);
+
+            // 모든 데이터를 하나의 객체로 통합
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("ticker", getTickerMap(categoryId, lastTrade.getTradePrice()));
+            payload.put("trades", snapshot); // 이번 0.1초 동안의 모든 체결 리스트
+            payload.put("candle", getCandleMap(categoryId, lastTrade.getTradePrice()));
+
+            messagingTemplate.convertAndSend("/topic/market/" + categoryId, (Object)payload);
+        });
+    }
+
+    private Map<String, Object> getTickerMap(Long categoryId, BigDecimal price) {
         BigDecimal openPrice = openPrices.getOrDefault(categoryId, price);
-
-        // 변동률 및 시세 데이터
-        BigDecimal changeAmount = price.subtract(openPrice);
-        BigDecimal changeRate = openPrice.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO :
-                changeAmount.divide(openPrice, 10, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+        BigDecimal buyQty = totalBuyQtys.getOrDefault(categoryId, BigDecimal.ZERO);
+        BigDecimal sellQty = totalSellQtys.getOrDefault(categoryId, BigDecimal.ONE);
+        BigDecimal intensity = buyQty.divide(sellQty, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
 
         Map<String, Object> ticker = new HashMap<>();
         ticker.put("price", price.toPlainString());
-        ticker.put("changeAmount", changeAmount.toPlainString());
-        ticker.put("changeRate", changeRate.setScale(2, RoundingMode.HALF_UP).toPlainString());
-        ticker.put("high", dailyHighs.getOrDefault(categoryId, price).toPlainString());
-        ticker.put("low", dailyLows.getOrDefault(categoryId, price).toPlainString());
-        ticker.put("volume", accVolumes.getOrDefault(categoryId, BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP).toPlainString());
-        ticker.put("amount", accAmounts.getOrDefault(categoryId, BigDecimal.ZERO).setScale(0, RoundingMode.HALF_UP).toPlainString());
+        ticker.put("changeRate", price.subtract(openPrice).divide(openPrice, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100")).setScale(2, RoundingMode.HALF_UP).toPlainString());
+        ticker.put("high", dailyHighs.get(categoryId).toPlainString());
+        ticker.put("low", dailyLows.get(categoryId).toPlainString());
+        ticker.put("volume", accVolumes.get(categoryId).setScale(2, RoundingMode.HALF_UP).toPlainString());
+        ticker.put("intensity", intensity.setScale(2, RoundingMode.HALF_UP).toPlainString());
+        return ticker;
+    }
 
-        messagingTemplate.convertAndSend("/topic/ticker" + suffix, (Object)ticker);
-
-        Map<String, Object> trades = new HashMap<>();
-        trades.put("price", price.toPlainString());
-        trades.put("count", response.getTradeCount().toPlainString());
-        trades.put("type", response.getTakerType());
-        trades.put("time", response.getTradeTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
-        trades.put("intensity", intensity.setScale(2, RoundingMode.HALF_UP).toPlainString());
-        messagingTemplate.convertAndSend("/topic/trades" + suffix, (Object)trades);
-
+    private Map<String, Object> getCandleMap(Long categoryId, BigDecimal price) {
         Map<String, Object> candle = new HashMap<>();
         candle.put("t", currentMinutes.get(categoryId).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
         candle.put("o", candleOpens.get(categoryId).toPlainString());
         candle.put("h", candleHighs.get(categoryId).toPlainString());
         candle.put("l", candleLows.get(categoryId).toPlainString());
         candle.put("c", price.toPlainString());
-        messagingTemplate.convertAndSend("/topic/charts" + suffix, (Object)candle);
-
-        messagingTemplate.convertAndSend("/topic/orderbook/lastPrice/" + categoryId, price.toPlainString());
+        return candle;
     }
-
 
 
     //최근 체결 기록(limit으로 개수 설정 가능)
