@@ -38,14 +38,6 @@ public class InvestService {
         List<InvestAssetDto> assets = new ArrayList<>();
         List<Category> categories = categoryRepository.findAll();
 
-        // 🔹 루프 시작 전에 summary 0으로 전송 (프론트 초기값용)
-        Map<String, BigDecimal> initialSummary = new HashMap<>();
-        initialSummary.put("totalBuyAmount", BigDecimal.ZERO);
-        initialSummary.put("totalEvaluateAmount", BigDecimal.ZERO);
-        initialSummary.put("totalProfit", BigDecimal.ZERO);
-        initialSummary.put("totalProfitRate", BigDecimal.ZERO);
-        messagingTemplate.convertAndSend("/topic/summary/" + member.getMemberId(), initialSummary);
-
         for (Category category : categories) {
 
             BigDecimal quantity = investRepository.findTotalHoldingByMemberAndCategory(member, category);
@@ -66,6 +58,7 @@ public class InvestService {
             totalBuyAmount = totalBuyAmount.add(buyAmount);
             totalEvaluateAmount = totalEvaluateAmount.add(evaluateAmount);
 
+            // asset DTO 생성
             InvestAssetDto assetDto = new InvestAssetDto(
                     category.getCategoryId(),
                     category.getCategoryName(),
@@ -76,9 +69,10 @@ public class InvestService {
                     evaluateAmount,
                     profit
             );
+
             assets.add(assetDto);
 
-            // 🔹 주문이 들어온 종목만 asset 웹소켓 전송
+            // 웹소켓 전송: 주문이 들어온 종목만
             if (quantity.compareTo(BigDecimal.ZERO) > 0) {
                 Map<String, BigDecimal> coinData = new HashMap<>();
                 coinData.put("evaluateAmount", evaluateAmount);
@@ -87,7 +81,7 @@ public class InvestService {
             }
         }
 
-        // 🔹 루프 끝: 최종 summary 계산 후 전송
+        // 총합(summary) 계산 - 루프 밖
         BigDecimal totalProfit = totalEvaluateAmount.subtract(totalBuyAmount);
         BigDecimal totalProfitRate = totalBuyAmount.compareTo(BigDecimal.ZERO) > 0 ?
                 totalProfit.divide(totalBuyAmount, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)) :
@@ -100,6 +94,7 @@ public class InvestService {
                 totalProfitRate
         );
 
+        // summary 웹소켓 전송 (총합은 항상 전송, 시작 시점에는 0)
         Map<String, BigDecimal> summaryData = new HashMap<>();
         summaryData.put("totalBuyAmount", totalBuyAmount);
         summaryData.put("totalEvaluateAmount", totalEvaluateAmount);
@@ -117,8 +112,9 @@ public class InvestService {
         Member member = memberService.getCurrentMember();
 
         Category category = categoryRepository.findById(categoryId).orElse(null);
+
         if (category == null) {
-            return new InvestQuantityDto(null, null, null, BigDecimal.ZERO);
+            return new InvestQuantityDto(categoryId, "", "", BigDecimal.ZERO);
         }
 
         BigDecimal quantity = investRepository.findTotalHoldingByMemberAndCategory(member, category);
