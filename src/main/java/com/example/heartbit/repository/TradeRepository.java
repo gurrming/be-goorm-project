@@ -17,13 +17,12 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
     List<Trade> findByBuyOrder_OrderIdOrSellOrder_OrderId(Long buyOrderId, Long sellOrderId);
 
     // 2. 종목별 최신 체결 내역 리스트 (getTradeList 용)
-    @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId ORDER BY t.tradeTime DESC")
-    List<Trade> findTopTradesByCategory(@Param("categoryId") Long categoryId, Pageable pageable);
+    //@Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId ORDER BY t.tradeTime DESC")
+    List<Trade> findByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(Long categoryId, Pageable pageable);
 
     // 3. 종목별 최근 체결 1건 (getRecentTrade 용)
-    @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId ORDER BY t.tradeTime DESC")
-    Optional<Trade> findTop1ByCategoryOrderByTradeTimeDesc(@Param("categoryId") Long categoryId);
-
+   // @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId ORDER BY t.tradeTime DESC")
+    Optional<Trade> findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(Long categoryId);
     // 4. 내 거래 내역 조회 (마이페이지용)
     @Query("""
         SELECT t
@@ -40,7 +39,6 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
     // Trade에 category가 없으므로 쿼리 메서드 대신 @Query로 명시해야 합니다.
     @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId AND t.tradeTime > :time ORDER BY t.tradeTime ASC")
     List<Trade> findTradesByCategoryIdAndTradeTimeAfter(@Param("categoryId") Long categoryId, @Param("time") LocalDateTime time);
-
     // 6. 9시 기준가 로드용 (특정 시점 이전의 마지막 체결가)
     // 만약 이것도 종목별로 가져와야 한다면 아래 @Query 주석을 해제하고 사용하세요.
     // @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId AND t.tradeTime < :dateTime ORDER BY t.tradeTime DESC")
