@@ -111,9 +111,8 @@ public class InvestService {
             return new InvestQuantityDto(null, null, null, BigDecimal.ZERO);
         }
 
-        BigDecimal quantity = Optional.ofNullable(
-                investRepository.findTotalHoldingByMemberAndCategory(member, category)
-        ).orElse(BigDecimal.ZERO);
+        BigDecimal quantity = investRepository.findTotalHoldingByMemberAndCategory(member, category);
+        if (quantity == null) quantity = BigDecimal.ZERO;
 
         return new InvestQuantityDto(
                 category.getCategoryId(),
