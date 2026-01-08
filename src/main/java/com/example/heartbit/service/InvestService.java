@@ -25,11 +25,8 @@ public class InvestService {
     private final CategoryRepository categoryRepository;
     private final MemberQueryServiceImpl memberService;
     private final TradeService tradeService;
-    private final SimpMessagingTemplate messagingTemplate; // 웹소켓
+    private final SimpMessagingTemplate messagingTemplate;
 
-    /**
-     * 전체 포트폴리오 조회
-     */
     public InvestPortfolioDto getPortfolio() {
 
         Member member = memberService.getCurrentMember();
@@ -41,10 +38,7 @@ public class InvestService {
         for (Category category : categories) {
 
             BigDecimal quantity = investRepository.findTotalHoldingByMemberAndCategory(member, category);
-            if (quantity == null) quantity = BigDecimal.ZERO;  // null -> 0 처리
-
-            // 종목 수량이 0이면 건너뜀 (웹소켓 전송 X)
-            if (quantity.compareTo(BigDecimal.ZERO) == 0) continue;
+            if (quantity == null) quantity = BigDecimal.ZERO;
 
             BigDecimal avgBuyPrice = investRepository.findAvgBuyPriceByMemberAndCategory(member, category);
             if (avgBuyPrice == null) avgBuyPrice = BigDecimal.ZERO;
@@ -74,15 +68,17 @@ public class InvestService {
 
             assets.add(assetDto);
 
-            // 종목 웹소켓 전송 (quantity > 0일 때)
-            Map<String, BigDecimal> coinData = new HashMap<>();
-            coinData.put("quantity", quantity);
-            coinData.put("evaluateAmount", evaluateAmount);
-            coinData.put("profit", profit);
-            messagingTemplate.convertAndSend("/topic/assets/" + member.getMemberId(), coinData);
+            // 웹소켓 전송: 주문이 들어온 종목만
+            if (quantity.compareTo(BigDecimal.ZERO) > 0) {
+                Map<String, BigDecimal> coinData = new HashMap<>();
+                coinData.put("quantity", quantity);
+                coinData.put("evaluateAmount", evaluateAmount);
+                coinData.put("profit", profit);
+                messagingTemplate.convertAndSend("/topic/assets/" + member.getMemberId() + "/" + category.getCategoryId(), coinData);
+            }
         }
 
-        // 총합(summary) 계산
+        // 총합(summary) 계산 - 루프 밖
         BigDecimal totalProfit = totalEvaluateAmount.subtract(totalBuyAmount);
         BigDecimal totalProfitRate = totalBuyAmount.compareTo(BigDecimal.ZERO) > 0 ?
                 totalProfit.divide(totalBuyAmount, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)) :
@@ -106,9 +102,6 @@ public class InvestService {
         return new InvestPortfolioDto(summary, assets);
     }
 
-    /**
-     * 특정 종목(symbol) 수량 및 기본 정보 조회
-     */
     public InvestQuantityDto getQuantityByCategoryId(Long categoryId) {
         Member member = memberService.getCurrentMember();
 
