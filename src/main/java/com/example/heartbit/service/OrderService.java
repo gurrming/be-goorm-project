@@ -12,6 +12,7 @@ import com.example.heartbit.repository.TradeRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +29,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
@@ -44,16 +46,23 @@ public class OrderService {
     // 멤버별 주문 입력값
     @Transactional
     public OrderResponse createOrder(@Valid OrderRequest request) {
+        log.info("REQ CHECK | isBotRaw={} | isBotParsed={} | memberId={} | type={}",
+                request.getIsBot(),
+                (Boolean.TRUE.equals(request.getIsBot()) || Long.valueOf(5L).equals(request.getMemberId())),
+                request.getMemberId(),
+                request.getOrderType());
 
         Member member = memberRepository.findById(request.getMemberId()).orElseThrow(()-> new IllegalArgumentException("멤버 정보를 찾을 수 없습니다."));
-        if (member.getMemberId().equals(1L)) {
-            System.out.println("봇 주문");
-        } else {
-            // 진짜 사용자
-            if (request.getOrderType() == OrderType.BUY) {
-                BigDecimal totalAmount = request.getOrderPrice().multiply(request.getOrderCount());
-                assetService.deductCash(member.getMemberId(), totalAmount);
-            }
+        log.info("[REQ CHECK] memberId={}, orderType={}, isBot(raw)={}",
+                request.getMemberId(), request.getOrderType(), request.getIsBot());
+        boolean isBot = Boolean.TRUE.equals(request.getIsBot());
+        log.info("[REQ CHECK] computed isBot={}", isBot);
+        if (isBot) {
+            // 봇이 찍혔는지
+            System.out.println("isBot=" + request.getIsBot());
+        } else if (request.getOrderType() == OrderType.BUY) {
+            BigDecimal totalAmount = request.getOrderPrice().multiply(request.getOrderCount());
+            assetService.deductCash(request.getMemberId(), totalAmount);
         }
         Category category = categoryRepository.findById(request.getCategoryId()).orElseThrow();
 
@@ -65,6 +74,7 @@ public class OrderService {
                 .remainingCount(request.getOrderCount())
                 .orderType(request.getOrderType())
                 .orderStatus(OrderStatus.OPEN)
+                .isBot(isBot)
                 .build();
         orderRepository.save(newOrder);
 

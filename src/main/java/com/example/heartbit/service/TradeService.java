@@ -62,6 +62,7 @@ public class TradeService {
     /**
      * 서버 재시작 시 오늘 오전 9시 이후의 시세 데이터를 DB에서 복구
      */
+//    @PostConstruct
     public void init() {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime today9AM = now.withHour(9).withMinute(0).withSecond(0).withNano(0);
@@ -132,7 +133,7 @@ public class TradeService {
             BigDecimal tradeAmount = response.getTradePrice().multiply(response.getTradeCount());
 
             // 관리자 계정(1L)이 아닌 경우에만 실제 돈을 지급 (유동성 공급용 계정 제외 로직)
-            if (!sellOrder.getMember().getMemberId().equals(1L)) {
+            if (!sellOrder.getMember().getMemberId().equals(5L)) {
                 // 매도 완료 후 현금(Cash)으로 정산
                 assetService.refundCash(sellOrder.getMember().getMemberId(), tradeAmount);
             }
