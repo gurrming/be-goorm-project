@@ -83,7 +83,7 @@ public class AssetService {
      */
     @Transactional
     public void deductCash(Long memberId, BigDecimal amount) {
-        if (memberId.equals(1L)) return;
+        if (memberId.equals(5L)) return;
         Asset asset = assetRepository.findByMember_MemberId(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("자산 정보를 찾을 수 없습니다."));
 
@@ -99,7 +99,7 @@ public class AssetService {
      */
     @Transactional
     public void refundCash(Long memberId, BigDecimal amount) {
-        if (memberId.equals(1L)) return;
+        if (memberId.equals(5L)) return;
         Asset asset = assetRepository.findByMember_MemberId(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("자산 정보를 찾을 수 없습니다."));
 

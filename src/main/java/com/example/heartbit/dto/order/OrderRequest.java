@@ -1,6 +1,7 @@
 package com.example.heartbit.dto.order;
 
 import com.example.heartbit.domain.*;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -30,6 +31,7 @@ public class OrderRequest {
     @NotNull(message = "주문 타입(BUY/SELL)은 필수입니다.")
     private OrderType orderType;
 
+    @JsonProperty("isBot")
     @NotNull(message = "BOT 여부는 필수입니다.")
     private Boolean isBot;
 
