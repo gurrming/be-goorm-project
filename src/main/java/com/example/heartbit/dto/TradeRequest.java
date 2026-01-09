@@ -25,7 +25,5 @@ public class TradeRequest {
     private Long sellOrderId;
     @NotNull
     private LocalDateTime tradeTime;
-    @NotNull
-    private String takerType;
 
 }
