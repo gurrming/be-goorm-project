@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 public class TradeResponse {
 
     private Long tradeId;
+    private String symbol;
     private LocalDateTime tradeTime;
     private BigDecimal tradePrice;
     private BigDecimal tradeCount;
@@ -30,6 +31,7 @@ public class TradeResponse {
             BigDecimal tradePrice,
             BigDecimal tradeCount,
             BigDecimal tradeClosePrice,
+            String symbol,
             Long buyOrderId,
             Long sellOrderId,
             String takerType
@@ -39,6 +41,7 @@ public class TradeResponse {
         this.tradePrice = tradePrice;
         this.tradeCount = tradeCount;
         this.tradeClosePrice = tradeClosePrice;
+        this.symbol = symbol;
         this.buyOrderId = buyOrderId;
         this.sellOrderId = sellOrderId;
         this.takerType = takerType;
@@ -51,6 +54,7 @@ public class TradeResponse {
                 .tradePrice(trade.getTradePrice())
                 .tradeCount(trade.getTradeCount())
                 .tradeClosePrice(trade.getTradeClosePrice())
+                .symbol(trade.getSymbol())
                 .buyOrderId(trade.getBuyOrder().getOrderId())
                 .sellOrderId(trade.getSellOrder().getOrderId())
                 .build();

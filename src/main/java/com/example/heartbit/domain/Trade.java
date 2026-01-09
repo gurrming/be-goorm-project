@@ -66,4 +66,12 @@ public class Trade {
         }
     }
 
+    public String getSymbol() {
+        // 매수 주문이나 매도 주문 중 하나만 타고 들어가도 종목 같음
+        if (this.buyOrder != null && this.buyOrder.getCategory() != null) {
+            return this.buyOrder.getCategory().getSymbol();
+        }
+        return "UNKNOWN";
+    }
+
 }
