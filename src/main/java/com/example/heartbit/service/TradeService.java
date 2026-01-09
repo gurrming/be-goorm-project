@@ -62,60 +62,64 @@ public class TradeService {
     /**
      * 서버 재시작 시 오늘 오전 9시 이후의 시세 데이터를 DB에서 복구
      */
-//    @PostConstruct
-//    @Transactional(readOnly = true)
-//    public void init() {
-//        LocalDateTime now = LocalDateTime.now();
-//        LocalDateTime today9AM = now.withHour(9).withMinute(0).withSecond(0).withNano(0);
-//        if (now.isBefore(today9AM)) today9AM = today9AM.minusDays(1);
-//
-//        List<Category> categories = categoryRepository.findAll();
-//
-//        for (Category category : categories) {
-//            Long id = category.getCategoryId();
-//
-//            // 기준가 및 현재가 로드
-//            tradeRepository.findTop1ByTradeTimeBeforeOrderByTradeTimeDesc(today9AM)
-//                    .ifPresent(t -> openPrices.put(id, t.getTradePrice()));
-//
-//            tradeRepository.findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(id)
-//                    .ifPresent(t -> {
-//                        BigDecimal price = t.getTradePrice();
-//                        currentPrices.put(id, price);
-//                        candleOpens.put(id, price);
-//                        candleHighs.put(id, price);
-//                        candleLows.put(id, price);
-//                        currentMinutes.put(id, t.getTradeTime().withSecond(0).withNano(0));
-//                    });
-//
-//
-//            // 여기서는 리스트를 쓰면 최소한 거래대금과 체결강도용 수량도 복구
-//            List<Trade> todayTrades = tradeRepository.findTradesByCategoryIdAndTradeTimeAfter(id, today9AM);
-//            if (!todayTrades.isEmpty()) {
-//                dailyHighs.put(id, todayTrades.stream().map(Trade::getTradePrice).max(BigDecimal::compareTo).get());
-//                dailyLows.put(id, todayTrades.stream().map(Trade::getTradePrice).min(BigDecimal::compareTo).get());
-//
-//                // 거래량 및 거래대금 복구
-//                accVolumes.put(id, todayTrades.stream().map(Trade::getTradeCount).reduce(BigDecimal.ZERO, BigDecimal::add));
-//                accAmounts.put(id, todayTrades.stream().map(t -> t.getTradePrice().multiply(t.getTradeCount())).reduce(BigDecimal.ZERO, BigDecimal::add));
-//
-//                BigDecimal buyVol = todayTrades.stream()
-//                        .filter(t -> t.getBuyOrder().getOrderTime().isAfter(t.getSellOrder().getOrderTime())) // 매수자가 늦게 주문했으면 매수 체결(BUY Taker)
-//                        .map(Trade::getTradeCount)
-//                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-//
-//                BigDecimal sellVol = todayTrades.stream()
-//                        .filter(t -> t.getSellOrder().getOrderTime().isAfter(t.getBuyOrder().getOrderTime())) // 매도자가 늦게 주문했으면 매도 체결(SELL Taker)
-//                        .map(Trade::getTradeCount)
-//                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-//
-//                totalBuyQtys.put(id, buyVol);
-//                totalSellQtys.put(id, sellVol);
-//
-//
-//            }
-//        }
-//    }
+    @PostConstruct
+    @Transactional(readOnly = true)
+    public void init() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime today9AM = now.withHour(9).withMinute(0).withSecond(0).withNano(0);
+        if (now.isBefore(today9AM)) today9AM = today9AM.minusDays(1);
+
+        List<Category> categories = categoryRepository.findAll();
+
+        for (Category category : categories) {
+            Long id = category.getCategoryId();
+
+            // 기준가 및 현재가 로드(오전 9시 이전의 체결이 있다면)
+            tradeRepository.findTop1ByTradeTimeBeforeOrderByTradeTimeDesc(today9AM)
+                    .ifPresent(t -> openPrices.put(id, t.getTradePrice()));
+
+            //종목별로 최근 체결 내역 1건 가져옴
+            tradeRepository.findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(id)
+                    .ifPresent(t -> {
+                        BigDecimal price = t.getTradePrice();
+                        currentPrices.put(id, price);
+                        candleOpens.put(id, price);
+                        candleHighs.put(id, price);
+                        candleLows.put(id, price);
+                        currentMinutes.put(id, t.getTradeTime().withSecond(0).withNano(0));
+                    });
+
+
+            // 여기서는 리스트를 쓰면 최소한 거래대금과 체결강도용 수량도 복구
+            List<Trade> todayTrades = tradeRepository.findTradesByCategoryIdAndTradeTimeAfter(id, today9AM);
+            if (!todayTrades.isEmpty()) {
+                dailyHighs.put(id, todayTrades.stream().map(Trade::getTradePrice).max(BigDecimal::compareTo).get());
+                dailyLows.put(id, todayTrades.stream().map(Trade::getTradePrice).min(BigDecimal::compareTo).get());
+
+                // 거래량 및 거래대금 복구
+                accVolumes.put(id, todayTrades.stream().map(Trade::getTradeCount).reduce(BigDecimal.ZERO, BigDecimal::add));
+                accAmounts.put(id, todayTrades.stream().map(t -> t.getTradePrice().multiply(t.getTradeCount())).reduce(BigDecimal.ZERO, BigDecimal::add));
+
+
+                //총 매수 거래량
+                BigDecimal buyVol = todayTrades.stream()
+                        .filter(t -> t.getBuyOrder().getOrderTime().isAfter(t.getSellOrder().getOrderTime())) // 매수자가 늦게 주문했으면 매수 체결(BUY Taker)
+                        .map(Trade::getTradeCount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                //총 매도 거래량
+                BigDecimal sellVol = todayTrades.stream()
+                        .filter(t -> t.getSellOrder().getOrderTime().isAfter(t.getBuyOrder().getOrderTime())) // 매도자가 늦게 주문했으면 매도 체결(SELL Taker)
+                        .map(Trade::getTradeCount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                totalBuyQtys.put(id, buyVol);
+                totalSellQtys.put(id, sellVol);
+
+
+            }
+        }
+    }
 
     /**
      * 체결 엔진의 체결 결과 리스트를 순회하며 DB 저장 및 시세를 업데이트
@@ -133,7 +137,7 @@ public class TradeService {
             // 자산 정산: 매도자에게 체결 대금 지급
             BigDecimal tradeAmount = response.getTradePrice().multiply(response.getTradeCount());
 
-            // 관리자 계정(1L)이 아닌 경우에만 실제 돈을 지급 (유동성 공급용 계정 제외 로직)
+            // 관리자 계정(5L)이 아닌 경우에만 실제 돈을 지급 (유동성 공급용 계정 제외 로직)
             if (!sellOrder.getMember().getMemberId().equals(5L)) {
                 // 매도 완료 후 현금(Cash)으로 정산
                 assetService.refundCash(sellOrder.getMember().getMemberId(), tradeAmount);
@@ -172,6 +176,23 @@ public class TradeService {
         updateCandle(categoryId, price, response.getTradeTime());
         sendWebSocketData(categoryId, response);
     }
+
+    //분단위로 계산하여 nowMinute이 currentMinute보다 커지게 되면 캔틀 하나 옆으로 이동(그게 아니라면 캔들은 제자리에서 위아래로만)
+    private void updateCandle(Long categoryId, BigDecimal price, LocalDateTime tradeTime) {
+        LocalDateTime nowMinute = tradeTime.withSecond(0).withNano(0);
+        LocalDateTime currentMinute = currentMinutes.getOrDefault(categoryId, LocalDateTime.MIN);
+
+        if (nowMinute.isAfter(currentMinute)) {
+            candleOpens.put(categoryId, price);
+            candleHighs.put(categoryId, price);
+            candleLows.put(categoryId, price);
+            currentMinutes.put(categoryId, nowMinute);
+        } else {
+            candleHighs.merge(categoryId, price, (old, val) -> val.compareTo(old) > 0 ? val : old);
+            candleLows.merge(categoryId, price, (old, val) -> val.compareTo(old) < 0 ? val : old);
+        }
+    }
+
 
     //실시간으로 웹소켓으로 데이터 전송
     private void sendWebSocketData(Long categoryId, TradeResponse response) {
@@ -281,21 +302,7 @@ public class TradeService {
         }).collect(Collectors.toList());
     }
 
-    //분단위로 계산하여 nowMinute이 currentMinute보다 커지게 되면 캔틀 하나 옆으로 이동(그게 아니라면 캔들은 제자리에서 위아래로만)
-    private void updateCandle(Long categoryId, BigDecimal price, LocalDateTime tradeTime) {
-        LocalDateTime nowMinute = tradeTime.withSecond(0).withNano(0);
-        LocalDateTime currentMinute = currentMinutes.getOrDefault(categoryId, LocalDateTime.MIN);
 
-        if (nowMinute.isAfter(currentMinute)) {
-            candleOpens.put(categoryId, price);
-            candleHighs.put(categoryId, price);
-            candleLows.put(categoryId, price);
-            currentMinutes.put(categoryId, nowMinute);
-        } else {
-            candleHighs.merge(categoryId, price, (old, val) -> val.compareTo(old) > 0 ? val : old);
-            candleLows.merge(categoryId, price, (old, val) -> val.compareTo(old) < 0 ? val : old);
-        }
-    }
 
     //오전 9시되면 장 초기화
     @Scheduled(cron = "0 0 9 * * *")

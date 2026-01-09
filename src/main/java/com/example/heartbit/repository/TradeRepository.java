@@ -29,7 +29,7 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
     FROM Trade t
     JOIN t.buyOrder bo
     JOIN t.sellOrder so
-    WHERE bo.member.memberId = :memberId
+    WHERE bo.member.memberId = :memberIdr
        OR so.member.memberId = :memberId
     ORDER BY t.tradeTime DESC
 """)
