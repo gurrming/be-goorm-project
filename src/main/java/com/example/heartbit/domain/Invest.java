@@ -34,4 +34,18 @@ public class Invest {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
+
+    // ✅ 도메인 생성자 (이거 하나면 충분)
+    public Invest(Member member,
+                  Category category,
+                  Trade trade,
+                  BigDecimal investCount,
+                  BigDecimal investPrice) {
+
+        this.member = member;
+        this.category = category;
+        this.trade = trade;
+        this.investCount = investCount;
+        this.investPrice = investPrice;
+    }
 }
