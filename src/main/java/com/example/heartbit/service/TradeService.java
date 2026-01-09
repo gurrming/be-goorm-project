@@ -42,6 +42,8 @@ public class TradeService {
     private final SimpMessagingTemplate messagingTemplate;
     private final OrderRepository orderRepository;
     private final AssetService assetService;
+    private final TradeSetService tradeSetService;
+
 
     // 종목별 실시간 시세 상태 관리 (메모리 맵)
     private final Map<Long, BigDecimal> openPrices = new ConcurrentHashMap<>();
@@ -150,7 +152,9 @@ public class TradeService {
                     .sellOrder(sellOrder) // 위에서 찾은 sellOrder 활용
                     .tradeTime(response.getTradeTime())
                     .build();
-            tradeRepository.save(trade);
+
+            // ✅ 보유 자산 반영 (신규)
+            tradeSetService.settleTrade(trade);
 
             //종목별 상태 업데이트 및 웹소켓 전송
             updateMarketAndBroadcast(categoryId, response);

@@ -37,15 +37,18 @@ public interface InvestRepository extends JpaRepository<Invest, Long>{
 
     // 회원 + 종목 기준 평균 매수 단가
     @Query("""
-        SELECT AVG(i.investPrice) 
-        FROM Invest i 
-        WHERE i.member = :member 
-        AND i.category = :category
+    SELECT
+        SUM(i.investPrice * i.investCount) / SUM(i.investCount)
+    FROM Invest i
+    WHERE i.member = :member
+    AND i.category = :category
+    AND i.investCount > 0
     """)
     BigDecimal findAvgBuyPriceByMemberAndCategory(
             @Param("member") Member member,
             @Param("category") Category category
     );
+
 
     // 특정 Trade와 연관된 투자 내역 조회
     List<Invest> findByTrade(Trade trade);
