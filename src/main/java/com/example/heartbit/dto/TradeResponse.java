@@ -47,6 +47,7 @@ public class TradeResponse {
         this.takerType = takerType;
     }
 
+
     public static TradeResponse fromEntity(Trade trade) {
 
         String takerType = trade.getBuyOrder().getOrderTime().isAfter(trade.getSellOrder().getOrderTime())
