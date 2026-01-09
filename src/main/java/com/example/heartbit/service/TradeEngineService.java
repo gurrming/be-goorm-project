@@ -34,7 +34,6 @@ public class TradeEngineService {
                         .tradePrice(request.getTradePrice())
                         .tradeCount(request.getTradeCount())
                         .tradeTime(request.getTradeTime())
-                        .takerType(request.getTakerType())
                         .build())
                 .toList();
     }
@@ -88,7 +87,6 @@ public class TradeEngineService {
                     BigDecimal tradeCount = buy.getRemainingCount().min(sell.getRemainingCount());
                     BigDecimal tradePrice = sell.getOrderPrice();
                     LocalDateTime tradeTime = LocalDateTime.now();
-                    String takerType = (newOrder.getOrderType() == OrderType.BUY) ? "BUY" : "SELL"; // 타입 결정
                     // Trade 객체 생성
                     TradeRequest trade = new TradeRequest(
                             tradePrice,
@@ -96,8 +94,7 @@ public class TradeEngineService {
                             categoryId,
                             buy.getOrderId(),
                             sell.getOrderId(),
-                            tradeTime,
-                            takerType
+                            tradeTime
                     );
                     tradeList.add(trade);
 
