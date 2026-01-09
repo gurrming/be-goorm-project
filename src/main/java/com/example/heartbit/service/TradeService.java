@@ -153,6 +153,8 @@ public class TradeService {
                     .tradeTime(response.getTradeTime())
                     .build();
 
+            Trade savedTrade = tradeRepository.save(trade);
+
             // ✅ 보유 자산 반영 (신규)
             tradeSetService.settleTrade(trade);
 

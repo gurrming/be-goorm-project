@@ -3,11 +3,13 @@ package com.example.heartbit.service;
 import com.example.heartbit.domain.*;
 import com.example.heartbit.repository.InvestRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -19,6 +21,8 @@ public class TradeSetService {
      * 체결 결과를 보유 자산에 반영
      */
     public void settleTrade(Trade trade) {
+
+        log.error("🔥🔥🔥🔥🔥 TradeSetService.settleTrade() 진입");
 
         BigDecimal tradeCount = trade.getTradeCount();
         BigDecimal tradePrice = trade.getTradePrice();
