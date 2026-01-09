@@ -25,16 +25,16 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
     Optional<Trade> findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(Long categoryId);
     // 4. 내 거래 내역 조회 (마이페이지용)
     @Query("""
-        SELECT t
-        FROM Trade t
-        JOIN t.buyOrder bo
-        JOIN t.sellOrder so
-        JOIN FETCH bo.category c
-        WHERE bo.member.memberId = :memberId
-           OR so.member.memberId = :memberId
-        ORDER BY t.tradeTime DESC
-    """)
+    SELECT t
+    FROM Trade t
+    JOIN t.buyOrder bo
+    JOIN t.sellOrder so
+    WHERE bo.member.memberId = :memberId
+       OR so.member.memberId = :memberId
+    ORDER BY t.tradeTime DESC
+""")
     Page<Trade> findTradeByMemberId(@Param("memberId") Long memberId, Pageable pageable);
+
 
     // 5. 특정 카테고리의 15분 차트 데이터 조회 (getInitialCandles 용)
     @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId AND t.tradeTime > :time ORDER BY t.tradeTime ASC")
