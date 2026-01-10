@@ -42,7 +42,6 @@ public class TradeService {
     private final SimpMessagingTemplate messagingTemplate;
     private final OrderRepository orderRepository;
     private final AssetService assetService;
-    private final TradeSetService tradeSetService;
 
 
     // 종목별 실시간 시세 상태 관리 (메모리 맵)
@@ -156,7 +155,6 @@ public class TradeService {
             Trade savedTrade = tradeRepository.save(trade);
 
             // ✅ 보유 자산 반영 (신규)
-            tradeSetService.settleTrade(trade);
 
             //종목별 상태 업데이트 및 웹소켓 전송
             updateMarketAndBroadcast(categoryId, response);
@@ -328,5 +326,30 @@ public class TradeService {
         accAmounts.clear();
         totalBuyQtys.clear();
         totalSellQtys.clear();
+    }
+
+    /**
+     * 특정 종목(categoryId)의 실시간 현재가 정보를 반환합니다.
+     * 반환 타입은 InvestService에서 바로 사용할 수 있도록 TradeResponse로 구성합니다.
+     */
+    public TradeResponse getCurrentTrade(Long categoryId) {
+
+        // 1. 메모리(currentPrices)에서 해당 종목의 실시간 가격 추출
+        // currentPrices는 TradeService 내부에 ConcurrentHashMap으로 관리되고 있습니다.
+        BigDecimal price = currentPrices.getOrDefault(categoryId, BigDecimal.ZERO);
+
+        // 2. 만약 메모리에 가격 정보가 없다면(서버 재시작 직후 등), DB에서 가장 최근 체결 기록을 조회 (방어 로직)
+        // compareTo를 사용하여 0원인 경우를 정확히 체크합니다.
+        if (price.compareTo(BigDecimal.ZERO) == 0) {
+            TradeResponse recent = getRecentTrade(categoryId);
+            if (recent != null) {
+                price = recent.getTradePrice();
+            }
+        }
+
+        // 3. InvestService 계산에 필요한 가격 데이터를 TradeResponse 객체에 담아 반환
+        return TradeResponse.builder()
+                .tradePrice(price)
+                .build();
     }
 }

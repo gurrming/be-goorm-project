@@ -16,40 +16,11 @@ import java.util.List;
  * 투자 내역 조회용
  * 한 회원 + 한 종목 기준 보유 수량과 평균 매수 단가 계산
  */
-public interface InvestRepository extends JpaRepository<Invest, Long>{
-
-    // 회원 + 종목 체결 내역 조회
-    List<Invest> findByMemberAndCategory(Member member, Category category);
-
-    List<Invest> findByMember_MemberId(Long memberId);
-
-    // 회원 + 종목 기준 보유 수량 합계
-    @Query("""
-        SELECT SUM(i.investCount) 
-        FROM Invest i 
-        WHERE i.member = :member
-        AND i.category = :category
-    """)
-    BigDecimal findTotalHoldingByMemberAndCategory(
-            @Param("member") Member member,
-            @Param("category") Category category
-    );
-
-    // 회원 + 종목 기준 평균 매수 단가
-    @Query("""
-    SELECT
-        SUM(i.investPrice * i.investCount) / SUM(i.investCount)
-    FROM Invest i
-    WHERE i.member = :member
-    AND i.category = :category
-    AND i.investCount > 0
-    """)
-    BigDecimal findAvgBuyPriceByMemberAndCategory(
-            @Param("member") Member member,
-            @Param("category") Category category
-    );
+public interface InvestRepository extends JpaRepository<Invest, Long> {
 
 
-    // 특정 Trade와 연관된 투자 내역 조회
-    List<Invest> findByTrade(Trade trade);
+    List<Invest> findAllByMember_MemberId(Long memberId);
+
+    @Query("SELECT DISTINCT i.member.memberId FROM Invest i WHERE i.category.categoryId = :categoryId")
+    List<Long> findMemberIdsByCategoryId(@Param("categoryId") Long categoryId);
 }

@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 
 @Slf4j
 @Service
@@ -36,14 +35,14 @@ public class AssetService {
         assetRepository.save(asset);
     }
 
-    //이 부분은 임시용. 나중에 회원가입과 동시에 자산 생성이 되면서 5억을 넣어주는 로직구현해야함.
+    // 자산 조회 (현금 + 현재 기준 평가금액 합계)
     public AssetResponse getAssetByMemberId(Long memberId) {
         // 1. 자산 조회
         Asset asset = assetRepository.findByMember_MemberId(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 회원의 자산 정보를 찾을 수 없습니다."));
 
-        // 2. 평가 금액 계산 (수정된 부분)
-        BigDecimal totalEvaluateAmount = investRepository.findByMember_MemberId(memberId)
+        // 2. 평가 금액 계산
+        BigDecimal totalEvaluateAmount = investRepository.findAllByMember_MemberId(memberId)
                 .stream()
                 .map(invest -> invest.getInvestCount().multiply(invest.getInvestPrice()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -52,34 +51,27 @@ public class AssetService {
         return AssetResponse.from(asset, totalEvaluateAmount);
     }
 
-    @Scheduled(fixedRate = 5000) // 1초(1000ms)마다 자동 실행
+    // 5초마다 실시간 전송을 담당하던 스케줄러
+    @Scheduled(fixedRate = 5000)
     public void sendAssetUpdate() {
-        // 1. 현재 접속 중인 사용자의 ID 리스트를 가져와야 합니다.
-        // (지금은 테스트를 위해 특정 ID를 지정하거나, 전체 회원을 순회할 수 있습니다.)
-        // 여기서는 모든 자산 정보를 순회하며 웹소켓을 쏘는 예시입니다.
-
         List<Asset> allAssets = assetRepository.findAll();
 
         for (Asset asset : allAssets) {
             Long memberId = asset.getMember().getMemberId();
 
             try {
-                // 기존에 잘 만들어둔 계산 로직 호출
                 AssetResponse response = getAssetByMemberId(memberId);
-
-                // 특정 사용자의 개인 채널로 전송
-                // 구독 경로: /sub/asset/{memberId}
+                // 구독 경로: /topic/asset/{memberId}
                 messagingTemplate.convertAndSend("/topic/asset/" + memberId, response);
 
             } catch (Exception e) {
-                // 특정 유저 계산 실패 시 로그만 남기고 다음 유저로 진행
                 log.error("자산 업데이트 전송 실패 - 회원ID: {}", memberId, e);
             }
         }
     }
 
     /**
-     * 3. 주문 시 자산 차감 (OrderService에서 호출)
+     * 주문 시 자산 차감
      */
     @Transactional
     public void deductCash(Long memberId, BigDecimal amount) {
@@ -95,7 +87,7 @@ public class AssetService {
     }
 
     /**
-     * 4. 주문 취소 시 자산 환불 (OrderService에서 호출)
+     * 주문 취소 시 자산 환불
      */
     @Transactional
     public void refundCash(Long memberId, BigDecimal amount) {
@@ -106,5 +98,3 @@ public class AssetService {
         asset.updateCash(asset.getAssetCash().add(amount));
     }
 }
-
-
