@@ -30,6 +30,7 @@ public class SecurityConfig {
 
     public static final String[] ALLOWED_URLS = {"/api/member/signup", "/api/member/login",
             "/v3/api-docs/**",
+            "/api/orders/**",
             "/api/chatroom/**",
             "/api/orders/orderbook",
             "/api/trades/chart",
