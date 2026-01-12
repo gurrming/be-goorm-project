@@ -34,18 +34,5 @@ public class CategoryService {
                 .toList();
     }
 
-    /**
-     * 종목 단건 조회 (투자용)
-     */
-    public CategoryDto getCategory(Long categoryId) {
 
-        Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 종목입니다."));
-
-        return new CategoryDto(
-                category.getCategoryId(),
-                category.getCategoryName(),
-                category.getSymbol()
-        );
-    }
 }

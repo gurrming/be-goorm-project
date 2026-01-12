@@ -3,6 +3,7 @@ package com.example.heartbit.service;
 import com.example.heartbit.domain.Category;
 import com.example.heartbit.domain.Order;
 import com.example.heartbit.domain.Trade;
+import com.example.heartbit.dto.CategoryDto;
 import com.example.heartbit.dto.TradeRequest;
 import com.example.heartbit.dto.TradeResponse;
 import com.example.heartbit.repository.*;
@@ -49,6 +50,8 @@ public class TradeService {
     // 종목별 실시간 시세 상태 관리 (메모리 맵)
     private final Map<Long, BigDecimal> openPrices = new ConcurrentHashMap<>();
     private final Map<Long, BigDecimal> currentPrices = new ConcurrentHashMap<>();
+    private final Map<Long, BigDecimal> changeAmounts = new ConcurrentHashMap<>();
+    private final Map<Long, BigDecimal> changeRates = new ConcurrentHashMap<>();
     private final Map<Long, BigDecimal> dailyHighs = new ConcurrentHashMap<>();
     private final Map<Long, BigDecimal> dailyLows = new ConcurrentHashMap<>();
     private final Map<Long, BigDecimal> accVolumes = new ConcurrentHashMap<>();
@@ -166,9 +169,16 @@ public class TradeService {
     private void updateMarketAndBroadcast(Long categoryId, TradeResponse response) {
         BigDecimal price = response.getTradePrice();
         BigDecimal count = response.getTradeCount();
+        BigDecimal openPrice = openPrices.getOrDefault(categoryId, price);
+
+        BigDecimal changeAmount = price.subtract(openPrice);
+        BigDecimal changeRate = openPrice.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO :
+                changeAmount.divide(openPrice, 10, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
 
         // 실시간 맵 데이터 갱신
         currentPrices.put(categoryId, price);
+        changeAmounts.put(categoryId, changeAmount);
+        changeRates.put(categoryId, changeRate);
         dailyHighs.merge(categoryId, price, (old, val) -> val.compareTo(old) > 0 ? val : old);
         dailyLows.merge(categoryId, price, (old, val) -> val.compareTo(old) < 0 ? val : old);
         accVolumes.merge(categoryId, count, BigDecimal::add);
@@ -366,6 +376,38 @@ public class TradeService {
         // 3. InvestService 계산에 필요한 가격 데이터를 TradeResponse 객체에 담아 반환
         return TradeResponse.builder()
                 .tradePrice(price)
+                .build();
+    }
+
+    /**
+     * 종목 단건 조회 (투자용)
+     */
+    public CategoryDto getCategory(Long categoryId) {
+
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 종목입니다."));
+
+        BigDecimal currentPrice = currentPrices.getOrDefault(categoryId, BigDecimal.ZERO);
+        BigDecimal changeAmount = changeAmounts.getOrDefault(categoryId, BigDecimal.ZERO);
+        BigDecimal changeRate = changeRates.getOrDefault(categoryId, BigDecimal.ZERO);
+        BigDecimal dailyHigh = dailyHighs.getOrDefault(categoryId, BigDecimal.ZERO);
+        BigDecimal dailyLow = dailyLows.getOrDefault(categoryId, BigDecimal.ZERO);
+        BigDecimal accVolume = accVolumes.getOrDefault(categoryId, BigDecimal.ZERO);
+        BigDecimal accAmount = accAmounts.getOrDefault(categoryId, BigDecimal.ZERO);
+
+
+
+        return CategoryDto.builder()
+                .categoryId(category.getCategoryId())
+                .categoryName(category.getCategoryName())
+                .symbol(category.getSymbol())
+                .tradePrice(currentPrice)
+                .changeAmount(changeAmount)
+                .changeRate(changeRate.setScale(2, RoundingMode.HALF_UP)) // 소수점 2자리 포맷팅
+                .dailyHigh(dailyHigh)
+                .dailyLow(dailyLow)
+                .accVolume(accVolume)
+                .accAmount(accAmount)
                 .build();
     }
 }
