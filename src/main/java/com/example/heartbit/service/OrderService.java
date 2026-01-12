@@ -102,9 +102,11 @@ public class OrderService {
 
     // 종목별 호가창
     public void sendOrderBookUpdate(Long categoryId) {
+
+        int limit = 30;
         // 최신 매수/매도 호가 데이터를 가져옴
-        List<OrderBookResponse> buyOrderBook = getOrderBook(categoryId, OrderType.BUY);
-        List<OrderBookResponse> sellOrderBook = getOrderBook(categoryId, OrderType.SELL);
+        List<OrderBookResponse> buyOrderBook = getOrderBook(categoryId, OrderType.BUY, limit);
+        List<OrderBookResponse> sellOrderBook = getOrderBook(categoryId, OrderType.SELL, limit);
 
         // /topic/orderbook/{categoryId} 채널로 구독자 전원에게 전송
         Map<String, Object> payload = Map.of(
@@ -168,7 +170,7 @@ public class OrderService {
 
 
     // 호가창 (매수 매도 목록)
-    public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType) {
+    public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType, int limit) {
         List<OrderStatus> activeStatuses = List.of(OrderStatus.OPEN, OrderStatus.PARTIAL);
         // 주문 목록 조회 (작성한 정렬 순서대로 가져옴)
         List<Order> orders = (orderType == OrderType.BUY)
@@ -196,6 +198,7 @@ public class OrderService {
                         return o1.getOrderPrice().compareTo(o2.getOrderPrice());
                     }
                 })
+                .limit(limit)
                 .collect(Collectors.toList());
     }
 
