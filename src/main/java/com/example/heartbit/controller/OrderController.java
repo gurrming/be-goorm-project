@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -50,10 +51,10 @@ public class OrderController {
     @GetMapping("/orderbook")
     public ResponseEntity<List<OrderBookResponse>> orderBook(
             @RequestParam Long categoryId,
-            @RequestParam OrderType orderType
-    ) {
+            @RequestParam OrderType orderType,
+            Pageable pageable) {
         return ResponseEntity.ok(
-                orderService.getOrderBook(categoryId, orderType)
+                orderService.getOrderBook(categoryId, orderType, pageable.getPageSize())
         );
     }
 

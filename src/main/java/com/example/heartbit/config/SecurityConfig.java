@@ -40,7 +40,8 @@ public class SecurityConfig {
             "/swagger-resources/**",
             "/webjars/**",
             "/ws-heartbit/**",
-            "/ws-heartbit/info/**"
+            "/ws-heartbit/info/**",
+            "/actuator/**"
     };
 
 
