@@ -21,4 +21,5 @@ public class CategoryDto {
     private BigDecimal dailyLow;
     private BigDecimal accVolume;
     private BigDecimal accAmount;
+
 }

@@ -410,4 +410,38 @@ public class TradeService {
                 .accAmount(accAmount)
                 .build();
     }
+
+    public List<CategoryDto> getCategories() {
+        return categoryRepository.findAll()
+                .stream()
+                // 삭제되지 않은 종목만 필터링
+                .filter(category -> !Boolean.TRUE.equals(category.getCategoryDelete()))
+                .map(category -> {
+                    Long id = category.getCategoryId();
+
+                    // ✅ TradeService 메모리 맵에서 실시간 데이터 추출
+                    BigDecimal price = currentPrices.getOrDefault(id, BigDecimal.ZERO);
+                    BigDecimal changeAmount = changeAmounts.getOrDefault(id, BigDecimal.ZERO);
+                    BigDecimal changeRate = changeRates.getOrDefault(id, BigDecimal.ZERO);
+                    BigDecimal dailyHigh = dailyHighs.getOrDefault(id, BigDecimal.ZERO);
+                    BigDecimal dailyLow = dailyLows.getOrDefault(id, BigDecimal.ZERO);
+                    BigDecimal accVolume = accVolumes.getOrDefault(id, BigDecimal.ZERO);
+                    BigDecimal accAmount = accAmounts.getOrDefault(id, BigDecimal.ZERO);
+
+                    // ✅ Builder를 사용하여 DTO의 모든 필드를 채워줌
+                    return CategoryDto.builder()
+                            .categoryId(id)
+                            .categoryName(category.getCategoryName())
+                            .symbol(category.getSymbol())
+                            .tradePrice(price)
+                            .changeAmount(changeAmount)
+                            .changeRate(changeRate.setScale(2, RoundingMode.HALF_UP))
+                            .dailyHigh(dailyHigh)
+                            .dailyLow(dailyLow)
+                            .accVolume(accVolume)
+                            .accAmount(accAmount)
+                            .build();
+                })
+                .toList();
+    }
 }

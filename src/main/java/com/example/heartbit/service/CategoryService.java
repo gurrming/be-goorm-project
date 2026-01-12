@@ -21,18 +21,6 @@ public class CategoryService {
     /**
      * 종목 전체 조회 (삭제되지 않은 것만)
      */
-    public List<CategoryDto> getCategories() {
-
-        return categoryRepository.findAll()
-                .stream()
-                .filter(category -> !Boolean.TRUE.equals(category.getCategoryDelete()))
-                .map(category -> new CategoryDto(
-                        category.getCategoryId(),
-                        category.getCategoryName(),
-                        category.getSymbol()
-                ))
-                .toList();
-    }
 
 
 }

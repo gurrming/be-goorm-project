@@ -30,7 +30,7 @@ public class CategoryController {
             description = "모든 투자 가능 종목 목록을 조회합니다."
     )
     public List<CategoryDto> getCategories() {
-        return categoryService.getCategories();
+        return tradeService.getCategories();
     }
 
     @GetMapping("/category")
