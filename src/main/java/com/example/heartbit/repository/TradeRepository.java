@@ -34,11 +34,20 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
 
 
     // TradeRepository.java
-// 최신순으로 정렬하여 페이징 처리
+    // 최신순으로 정렬하여 페이징 처리
     Page<Trade> findByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(Long categoryId, Pageable pageable);
 
 
     // 6. 9시 기준가 로드용 (특정 시점 이전의 마지막 체결가)
     // @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId AND t.tradeTime < :dateTime ORDER BY t.tradeTime DESC")
     Optional<Trade> findTop1ByTradeTimeBeforeOrderByTradeTimeDesc(LocalDateTime dateTime);
+
+    @Query("SELECT t FROM Trade t " +
+            "WHERE t.buyOrder.category.categoryId = :categoryId " +
+            "AND t.tradeTime >= :afterTime " +
+            "ORDER BY t.tradeTime ASC")
+    List<Trade> findTradesByCategoryIdAndTradeTimeAfter(
+            @Param("categoryId") Long categoryId,
+            @Param("afterTime") LocalDateTime afterTime
+    );
 }
