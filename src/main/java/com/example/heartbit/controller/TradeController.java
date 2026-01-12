@@ -54,10 +54,10 @@ public class TradeController {
         return ResponseEntity.ok(tradeService.getMyTrade(memberId, page, size));
     }
 
-    @Operation(summary = "차트 초기 데이터 조회", description = "최근 15분간의 체결 내역을 차트 렌더링용으로 조회합니다.")
+    @Operation(summary = "차트 초기 데이터 조회", description = "종목의 체결 내역을 차트 렌더링용으로 조회합니다.")
     @GetMapping("/chart")
-    public ResponseEntity<List<Map<String, Object>>> getChartData(@RequestParam Long categoryId) {
-        return ResponseEntity.ok(tradeService.getInitialCandles(categoryId));
+    public ResponseEntity<List<Map<String, Object>>> getChartData(@RequestParam Long categoryId, int page, int size) {
+        return ResponseEntity.ok(tradeService.getInitialCandles(categoryId, page, size));
     }
 
 }

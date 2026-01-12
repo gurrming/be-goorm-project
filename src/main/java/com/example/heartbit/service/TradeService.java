@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableArgumentResolver;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -59,6 +60,7 @@ public class TradeService {
     private final Map<Long, BigDecimal> candleHighs = new ConcurrentHashMap<>();
     private final Map<Long, BigDecimal> candleLows = new ConcurrentHashMap<>();
     private final Map<Long, LocalDateTime> currentMinutes = new ConcurrentHashMap<>();
+    private final PageableArgumentResolver pageableArgumentResolver;
 
     /**
      * 서버 재시작 시 오늘 오전 9시 이후의 시세 데이터를 DB에서 복구
@@ -279,29 +281,46 @@ public class TradeService {
                 .collect(Collectors.toList());
     }
 
-    //사용자가 처음에 접속했을때 텅빈 화면이 뜨는것을 방지하기 위해 db에서 지난 15분간의 데이터들을 미리 가져와서 띄우기
-    public List<Map<String, Object>> getInitialCandles(Long categoryId) {
 
-        LocalDateTime fifteenMinutesAgo = LocalDateTime.now().minusMinutes(15);
-        List<Trade> trades = tradeRepository.findTradesByCategoryIdAndTradeTimeAfter(categoryId, fifteenMinutesAgo);
+    //사용자가 처음에 접속했을때 텅빈 화면이 뜨는것을 방지하기 위해 db에서 지난 차트 데이터들을 REST API로 불러오기
+    public List<Map<String, Object>> getInitialCandles(Long categoryId, int page, int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        List<Trade> trades = tradeRepository.findByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(categoryId, pageable).getContent();
 
         if (trades.isEmpty()) return Collections.emptyList();
 
         Map<LocalDateTime, List<Trade>> groupedTrades = trades.stream()
                 .collect(Collectors.groupingBy(
                         t -> t.getTradeTime().withSecond(0).withNano(0),
-                        TreeMap::new,
+                        // Supplier 부분: 명시적으로 타입을 지정하거나,
+                        // 에러가 지속되면 TreeMap 대신 아래와 같이 작성합니다.
+                        () -> new TreeMap<LocalDateTime, List<Trade>>(Comparator.reverseOrder()),
                         Collectors.toList()
                 ));
 
         return groupedTrades.entrySet().stream().map(entry -> {
+            LocalDateTime minute = entry.getKey();
             List<Trade> minuteTrades = entry.getValue();
+
+            // DB에서 Desc로 가져왔기 때문에 리스트의 끝[size-1]이 그 분의 첫 거래
+            BigDecimal open = minuteTrades.get(minuteTrades.size() - 1).getTradePrice(); // 시가
+            BigDecimal close = minuteTrades.get(0).getTradePrice();                       // 종가
+
+            BigDecimal high = minuteTrades.stream()
+                    .map(Trade::getTradePrice)
+                    .max(BigDecimal::compareTo).orElse(BigDecimal.ZERO);
+            BigDecimal low = minuteTrades.stream()
+                    .map(Trade::getTradePrice)
+                    .min(BigDecimal::compareTo).orElse(BigDecimal.ZERO);
+
             Map<String, Object> candle = new HashMap<>();
-            candle.put("t", entry.getKey().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
-            candle.put("o", minuteTrades.get(0).getTradePrice().toPlainString());
-            candle.put("h", minuteTrades.stream().map(Trade::getTradePrice).max(BigDecimal::compareTo).get().toPlainString());
-            candle.put("l", minuteTrades.stream().map(Trade::getTradePrice).min(BigDecimal::compareTo).get().toPlainString());
-            candle.put("c", minuteTrades.get(minuteTrades.size() - 1).getTradePrice().toPlainString());
+            candle.put("t", minute.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
+            candle.put("o", open.toPlainString());
+            candle.put("h", high.toPlainString());
+            candle.put("l", low.toPlainString());
+            candle.put("c", close.toPlainString());
+
             return candle;
         }).collect(Collectors.toList());
     }

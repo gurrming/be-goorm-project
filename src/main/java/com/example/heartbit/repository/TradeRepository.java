@@ -16,9 +16,6 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
     // 1. 특정 주문(OrderId)에 연관된 모든 체결 내역 조회
     List<Trade> findByBuyOrder_OrderIdOrSellOrder_OrderId(Long buyOrderId, Long sellOrderId);
 
-    // 2. 종목별 최신 체결 내역 리스트 (getTradeList 용)
-    //@Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId ORDER BY t.tradeTime DESC")
-    List<Trade> findByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(Long categoryId, Pageable pageable);
 
     // 3. 종목별 최근 체결 1건 (getRecentTrade 용)
    // @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId ORDER BY t.tradeTime DESC")
@@ -36,9 +33,11 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
     Page<Trade> findTradeByMemberId(@Param("memberId") Long memberId, Pageable pageable);
 
 
-    // 5. 특정 카테고리의 15분 차트 데이터 조회 (getInitialCandles 용)
-    @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId AND t.tradeTime > :time ORDER BY t.tradeTime ASC")
-    List<Trade> findTradesByCategoryIdAndTradeTimeAfter(@Param("categoryId") Long categoryId, @Param("time") LocalDateTime time);
+    // TradeRepository.java
+// 최신순으로 정렬하여 페이징 처리
+    Page<Trade> findByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(Long categoryId, Pageable pageable);
+
+
     // 6. 9시 기준가 로드용 (특정 시점 이전의 마지막 체결가)
     // @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId AND t.tradeTime < :dateTime ORDER BY t.tradeTime DESC")
     Optional<Trade> findTop1ByTradeTimeBeforeOrderByTradeTimeDesc(LocalDateTime dateTime);
