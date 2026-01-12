@@ -419,7 +419,6 @@ public class TradeService {
                 .map(category -> {
                     Long id = category.getCategoryId();
 
-                    // ✅ TradeService 메모리 맵에서 실시간 데이터 추출
                     BigDecimal price = currentPrices.getOrDefault(id, BigDecimal.ZERO);
                     BigDecimal changeAmount = changeAmounts.getOrDefault(id, BigDecimal.ZERO);
                     BigDecimal changeRate = changeRates.getOrDefault(id, BigDecimal.ZERO);
@@ -428,7 +427,6 @@ public class TradeService {
                     BigDecimal accVolume = accVolumes.getOrDefault(id, BigDecimal.ZERO);
                     BigDecimal accAmount = accAmounts.getOrDefault(id, BigDecimal.ZERO);
 
-                    // ✅ Builder를 사용하여 DTO의 모든 필드를 채워줌
                     return CategoryDto.builder()
                             .categoryId(id)
                             .categoryName(category.getCategoryName())
