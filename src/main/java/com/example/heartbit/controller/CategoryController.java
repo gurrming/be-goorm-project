@@ -2,6 +2,7 @@ package com.example.heartbit.controller;
 
 import com.example.heartbit.dto.CategoryDto;
 import com.example.heartbit.service.CategoryService;
+import com.example.heartbit.service.TradeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import java.util.List;
 public class CategoryController {
 
     private final CategoryService categoryService;
+    private final TradeService tradeService;
 
     @GetMapping("/categories")
     @Operation(
@@ -34,7 +36,7 @@ public class CategoryController {
     @GetMapping("/category")
     @Operation(summary = "종목 단건 조회", description = "종목을 단건으로 조회합니다.")
     public ResponseEntity<CategoryDto> getCategory(@RequestParam Long categoryId) {
-        CategoryDto response = categoryService.getCategory(categoryId);
+        CategoryDto response = tradeService.getCategory(categoryId);
         return ResponseEntity.ok(response);
     }
 }
