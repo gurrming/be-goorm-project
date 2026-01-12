@@ -156,7 +156,6 @@ public class TradeService {
 
             Trade savedTrade = tradeRepository.save(trade);
 
-            // ✅ 보유 자산 반영 (신규)
 
             //종목별 상태 업데이트 및 웹소켓 전송
             updateMarketAndBroadcast(categoryId, response);
