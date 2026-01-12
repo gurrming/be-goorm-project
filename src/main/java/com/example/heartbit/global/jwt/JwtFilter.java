@@ -70,6 +70,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 "/api/orders/orderbook",
                 "/api/trades/chart",
                 "/api/categories",
+                "/api/category",
                 "/ws-heartbit",
                 "/h2-console",
                 "/favicon.ico"
