@@ -34,6 +34,7 @@ public class SecurityConfig {
             "/api/chatroom/**",
             "/api/orders/orderbook",
             "/api/trades/chart",
+            "/api/category",
             "/api/categories",
             "/swagger-ui/**",
             "/swagger-ui.html",
