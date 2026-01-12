@@ -2,10 +2,12 @@ package com.example.heartbit.controller;
 
 import com.example.heartbit.dto.MemberRequestDto;
 import com.example.heartbit.dto.MemberResponseDto;
+import com.example.heartbit.global.jwt.dto.IssuedTokens;
 import com.example.heartbit.service.member.MemberCommandService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -76,5 +78,11 @@ public class MemberController {
 
         return ResponseEntity.ok("로그아웃 성공");
     }
+
+//    @Operation(summary = "토큰 재발급", description = "refresh 토큰을 사용하여 토큰 재발급")
+//    @PostMapping("/reissue")
+//    public ResponseEntity<String> reissue(HttpServletRequest request, HttpServletResponse response){
+//
+//    }
 
 }
