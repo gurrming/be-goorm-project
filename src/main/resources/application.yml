@@ -1,0 +1,64 @@
+spring:
+  application:
+    name: heartbit
+
+  datasource:
+    url: "jdbc:postgresql://localhost:15432/app"
+    username: "postgres"
+    password: "0000"
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: Asia/Seoul
+
+  # flyway
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 1
+
+springdoc:
+  show-login-endpoint: true
+
+jwt:
+  secret-key: "c3ByaW5nLWJvb3Qtc2VjdXJpdHktand0LXR1dG9yaWFsLWppd29vbi1sprbmctYm9vdC1zZWN1cml0eS1qd3QtdHV0b3JpYWwK"
+  expiration-time: 18000000
+  refresh-token-expiration-time: 604800000
+  
+server:
+  secret-token: "heartbit-internal-secret-token"
+  
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "prometheus,health,info"
+
+  endpoint:
+    prometheus:
+      enabled: true
+    health:
+      show-details: always
+
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+  metrics:
+    tags:
+      application: heartbit-server
+
+logging:
+  level:
+    org.springframework.messaging: TRACE
+    org.springframework.web.socket: TRACE
