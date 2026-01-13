@@ -21,9 +21,10 @@ public class TradeEngineService {
         Long categoryId = newOrder.getCategory().getCategoryId();
 
         MatchingOrder orderBook = machingOrderBooks.computeIfAbsent(categoryId, id -> new MatchingOrder());
-        // 매칭 된 값
+        // 새 주문
         orderBook.addOrderToBook(newOrder);
 
+        // 매칭 된 값을 List로
         List<TradeRequest> tradeRequests = orderBook.match(newOrder);
 
         // dto로 반환

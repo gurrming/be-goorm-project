@@ -138,15 +138,21 @@ public class TradeService {
         if (tradeResults.isEmpty()) return;
 
         for (TradeResponse response : tradeResults) {
+            Order buyOrder = orderRepository.findById(response.getBuyOrderId())
+                    .orElseThrow(() -> new NoSuchElementException("매수 주문을 찾을 수 없습니다."));
             // 주문 정보 상세 조회 (자산 처리를 위해 실제 객체 필요)
             Order sellOrder = orderRepository.findById(response.getSellOrderId())
                     .orElseThrow(() -> new NoSuchElementException("매도 주문을 찾을 수 없습니다."));
+
+            // 주문 수량 변경 값 db 저장
+            buyOrder.updateRemainingCount(response.getTradeCount());
+            sellOrder.updateRemainingCount(response.getTradeCount());
 
             // 자산 정산: 매도자에게 체결 대금 지급
             BigDecimal tradeAmount = response.getTradePrice().multiply(response.getTradeCount());
 
             // 관리자 계정(5L)이 아닌 경우에만 실제 돈을 지급 (유동성 공급용 계정 제외 로직)
-            if (!sellOrder.getMember().getMemberId().equals(5L)) {
+            if (!sellOrder.getMember().getMemberId().equals(1L)) {
                 // 매도 완료 후 현금(Cash)으로 정산
                 assetService.refundCash(sellOrder.getMember().getMemberId(), tradeAmount);
             }
@@ -155,14 +161,13 @@ public class TradeService {
                     .tradePrice(response.getTradePrice())
                     .tradeCount(response.getTradeCount())
                     .tradeClosePrice(response.getTradeClosePrice())
-                    .buyOrder(orderRepository.getReferenceById(response.getBuyOrderId()))
+                    .buyOrder(buyOrder)
                     .sellOrder(sellOrder) // 위에서 찾은 sellOrder 활용
                     .tradeTime(response.getTradeTime())
                     .build();
 
-            Trade savedTrade = tradeRepository.save(trade);
-
-
+            // trade 값 저장
+            tradeRepository.save(trade);
             //종목별 상태 업데이트 및 웹소켓 전송
             updateMarketAndBroadcast(categoryId, response);
         }

@@ -74,9 +74,15 @@ public class OrderService {
         orderRepository.save(newOrder);
 
         List<TradeResponse> tradeResults = tradeEngineService.processOrder(newOrder);
-        if(!tradeResults.isEmpty()) {
+
+        // 결과 처리
+        if(tradeResults != null && !tradeResults.isEmpty()) {
             tradeService.processTradeResults(newOrder.getCategory().getCategoryId(), tradeResults);
         }
+
+        // 결과값 db에 반영
+        orderRepository.save(newOrder);
+
         // 호가창 update
         sendOrderBookUpdate(request.getCategoryId());
         return OrderResponse.from(newOrder);
@@ -173,9 +179,7 @@ public class OrderService {
     public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType, int limit) {
         List<OrderStatus> activeStatuses = List.of(OrderStatus.OPEN, OrderStatus.PARTIAL);
         // 주문 목록 조회 (작성한 정렬 순서대로 가져옴)
-        List<Order> orders = (orderType == OrderType.BUY)
-                ? orderRepository.findByCategory_CategoryIdAndOrderTypeAndOrderStatusInOrderByOrderPriceDescOrderTimeAsc(categoryId, orderType, activeStatuses)
-                : orderRepository.findByCategory_CategoryIdAndOrderTypeAndOrderStatusInOrderByOrderPriceAscOrderTimeAsc(categoryId, orderType, activeStatuses);
+        List<Order> orders = orderRepository.findByCategory_CategoryIdAndOrderTypeAndOrderStatusInOrderByOrderPriceAscOrderTimeAsc(categoryId, orderType, activeStatuses);
 
         // 가격별 잔량(remainingCount) 합산
         Map<BigDecimal, BigDecimal> priceGroupMap = orders.stream()
