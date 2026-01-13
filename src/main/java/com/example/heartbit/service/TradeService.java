@@ -12,6 +12,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableArgumentResolver;
@@ -45,7 +46,7 @@ public class TradeService {
     private final SimpMessagingTemplate messagingTemplate;
     private final OrderRepository orderRepository;
     private final AssetService assetService;
-
+    private final ApplicationEventPublisher eventPublisher;
 
     // 종목별 실시간 시세 상태 관리 (메모리 맵)
     private final Map<Long, BigDecimal> openPrices = new ConcurrentHashMap<>();
@@ -196,6 +197,7 @@ public class TradeService {
         if ("BUY".equals(response.getTakerType())) totalBuyQtys.merge(categoryId, count, BigDecimal::add);
         else totalSellQtys.merge(categoryId, count, BigDecimal::add);
 
+        eventPublisher.publishEvent(new PriceChangedEvent(categoryId, response.getTradePrice()));
         updateCandle(categoryId, price, response.getTradeTime());
         sendWebSocketData(categoryId, response);
     }

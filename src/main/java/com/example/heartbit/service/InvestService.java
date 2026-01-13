@@ -5,6 +5,7 @@ import com.example.heartbit.dto.InvestResponse;
 import com.example.heartbit.dto.TradeResponse;
 import com.example.heartbit.repository.InvestRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,20 +16,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 
-import com.example.heartbit.domain.Invest;
-import com.example.heartbit.dto.InvestResponse;
-import com.example.heartbit.dto.TradeResponse;
-import com.example.heartbit.repository.InvestRepository;
-import lombok.RequiredArgsConstructor;
+
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -71,7 +61,6 @@ public class InvestService {
             try {
                 InvestResponse totalSummary = getInvestSummary(memberId);
 
-                // 개인용 채널로 전송 (/topic/asset/1, /topic/asset/2 ...)
                 messagingTemplate.convertAndSend("/topic/invest/" + memberId, totalSummary);
 
                 log.debug("실시간 자산 업데이트 전송 - MemberID: {}, CategoryID: {}", memberId, categoryId);
@@ -144,5 +133,11 @@ public class InvestService {
         return eval.subtract(buy)
                 .divide(buy, 4, RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100));
+    }
+
+    @EventListener
+    public void handlePriceChange(PriceChangedEvent event) {
+        // 시세 변동 이벤트를 받아서 기존의 broadcastAssetUpdate 로직 수행
+        broadcastAssetUpdate(event.categoryId(), event.newPrice());
     }
 }

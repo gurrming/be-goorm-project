@@ -23,7 +23,7 @@ public class Asset {
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
 
-    @Column(name = "asset_cash", precision = 18, scale = 8)
+    @Column(name = "asset_cash", precision = 38, scale = 8)
     private BigDecimal assetCash;
 
     @Builder
