@@ -277,16 +277,26 @@ public class TradeService {
 
     //주문별로 실제로 얼마나 체결되었는지 확인하기
     public List<TradeResponse> getTradeByOrder(Long orderId) {
+        // 먼저 주문 정보를 가져와서 작성자 누군지 확인
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없습니다."));
+        Long memberId = order.getMember().getMemberId();
+
+        // 해당 주문과 연결된 체결 내역을 가져온 뒤, 사용자 ID를 넘겨서 타입을 결정
         return tradeRepository.findByBuyOrder_OrderIdOrSellOrder_OrderId(orderId, orderId).stream()
-                .map(TradeResponse::fromEntity)
+                .map(t -> TradeResponse.fromEntityWithOrderType(t, memberId)) // 사용자 ID 전달
                 .collect(Collectors.toList());
     }
 
     //개인 체결 내역
     public List<TradeResponse> getMyTrade(Long memberId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return tradeRepository.findTradeByMemberId(memberId, pageable).getContent().stream()
-                .map(TradeResponse::fromEntity)
+
+        return tradeRepository.findTradeByMemberId(memberId, pageable)
+                .getContent()
+                .stream()
+                // 각 체결건(t)에 대해 조회 주체(memberId)를 기준으로 BUY/SELL을 결정
+                .map(t -> TradeResponse.fromEntityWithOrderType(t, memberId))
                 .collect(Collectors.toList());
     }
 
