@@ -2,14 +2,15 @@ package com.example.heartbit.domain;
 
 import jakarta.persistence.*;
 
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
+
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "invest")
 @Getter
+@Builder
+@AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Invest {
     @Id
@@ -36,16 +37,5 @@ public class Invest {
     private Member member;
 
 
-    public Invest(Member member,
-                  Category category,
-                  Trade trade,
-                  BigDecimal investCount,
-                  BigDecimal investPrice) {
 
-        this.member = member;
-        this.category = category;
-        this.trade = trade;
-        this.investCount = investCount;
-        this.investPrice = investPrice;
-    }
 }
