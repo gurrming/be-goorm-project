@@ -4,6 +4,7 @@ import com.example.heartbit.domain.Category;
 import com.example.heartbit.domain.Order;
 import com.example.heartbit.domain.Trade;
 import com.example.heartbit.dto.CategoryDto;
+import com.example.heartbit.dto.PriceChangedEvent;
 import com.example.heartbit.dto.TradeRequest;
 import com.example.heartbit.dto.TradeResponse;
 import com.example.heartbit.repository.*;
@@ -12,6 +13,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableArgumentResolver;
@@ -42,6 +45,9 @@ public class TradeService {
 
     private final TradeRepository tradeRepository;
     private final CategoryRepository categoryRepository;
+    private final ApplicationEventPublisher eventPublisher;
+
+    private final InvestService investService;
     private final SimpMessagingTemplate messagingTemplate;
     private final OrderRepository orderRepository;
     private final AssetService assetService;
@@ -157,6 +163,26 @@ public class TradeService {
                 assetService.refundCash(sellOrder.getMember().getMemberId(), tradeAmount);
             }
 
+            investService.saveOrUpdateInvest(
+                    buyOrder.getMember().getMemberId(), // 매수자 ID
+                    categoryId,                         // 종목 ID
+                    response.getTradeCount(),           // 체결 수량
+                    response.getTradePrice(),           // 체결 가격
+                    "BUY"                               // 타입
+            );
+
+            // 4-2. 매도자 자산 업데이트 ("SELL" -> 수량 차감)
+            // 관리자 계정(1L)은 무한 공급자이므로 자산 차감 안 함
+            if (!sellOrder.getMember().getMemberId().equals(1L)) {
+                investService.saveOrUpdateInvest(
+                        sellOrder.getMember().getMemberId(), // 매도자 ID
+                        categoryId,                          // 종목 ID
+                        response.getTradeCount(),            // 체결 수량
+                        response.getTradePrice(),            // 체결 가격
+                        "SELL"                               // 타입
+                );
+            }
+
             Trade trade = Trade.builder()
                     .tradePrice(response.getTradePrice())
                     .tradeCount(response.getTradeCount())
@@ -200,6 +226,8 @@ public class TradeService {
         // 체결강도 계산용 수량 업데이트
         if ("BUY".equals(response.getTakerType())) totalBuyQtys.merge(categoryId, count, BigDecimal::add);
         else totalSellQtys.merge(categoryId, count, BigDecimal::add);
+
+        eventPublisher.publishEvent(new PriceChangedEvent(categoryId, price));
 
         updateCandle(categoryId, price, response.getTradeTime());
         sendWebSocketData(categoryId, response);
