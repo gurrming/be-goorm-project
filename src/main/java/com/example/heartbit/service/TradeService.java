@@ -81,8 +81,10 @@ public class TradeService {
             Long id = category.getCategoryId();
 
             // 기준가 및 현재가 로드(오전 9시 이전의 체결이 있다면)
-            tradeRepository.findTop1ByTradeTimeBeforeOrderByTradeTimeDesc(today9AM)
-                    .ifPresent(t -> openPrices.put(id, t.getTradePrice()));
+            tradeRepository.findTop1ByCategoryIdAndTradeTimeBefore(id, today9AM)
+                    .ifPresent(t -> {
+                        openPrices.put(id, t.getTradePrice());
+                    });
 
             //종목별로 최근 체결 내역 1건 가져옴
             tradeRepository.findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(id)
@@ -152,6 +154,7 @@ public class TradeService {
             Trade trade = Trade.builder()
                     .tradePrice(response.getTradePrice())
                     .tradeCount(response.getTradeCount())
+                    .tradeClosePrice(response.getTradeClosePrice())
                     .buyOrder(orderRepository.getReferenceById(response.getBuyOrderId()))
                     .sellOrder(sellOrder) // 위에서 찾은 sellOrder 활용
                     .tradeTime(response.getTradeTime())
