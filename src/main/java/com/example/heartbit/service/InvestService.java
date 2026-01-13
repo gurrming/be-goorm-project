@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 
@@ -42,14 +43,26 @@ public class InvestService {
     /**
      * [REST API] 사용자의 현재 투자 현황을 전체 조회 (초기 진입용)
      */
+    /**
+     * [REST API] 사용자의 현재 투자 현황을 전체 조회
+     * 컨트롤러에서 조회한 실시간 시세 맵을 인자로 받습니다.
+     */
     @Transactional(readOnly = true)
-    public InvestResponse getInvestSummary(Long memberId) {
+    public InvestResponse getInvestSummary(Long memberId, Map<Long, BigDecimal> priceMap) {
         // 1. 해당 유저의 모든 보유 종목 가져오기
         List<Invest> investList = investRepository.findAllByMember_MemberId(memberId);
 
         // 2. 각 종목별 실시간 시세 반영 및 상세 계산
         List<InvestResponse.AssetDetailDto> assetList = investList.stream()
-                .map(this::convertToAssetDetailDto)
+                .map(invest -> {
+                    // 해당 종목의 실시간 가격을 맵에서 추출 (없으면 0)
+                    BigDecimal currentPrice = priceMap.getOrDefault(
+                            invest.getCategory().getCategoryId(),
+                            BigDecimal.ZERO
+                    );
+                    // 인자 2개를 명시적으로 전달하여 호출 (에러 해결 지점)
+                    return convertToAssetDetailDto(invest, currentPrice);
+                })
                 .collect(Collectors.toList());
 
         // 3. 상단 요약 정보(총합) 계산

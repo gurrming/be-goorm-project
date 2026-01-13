@@ -318,8 +318,6 @@ public class TradeService {
         Map<LocalDateTime, List<Trade>> groupedTrades = trades.stream()
                 .collect(Collectors.groupingBy(
                         t -> t.getTradeTime().withSecond(0).withNano(0),
-                        // Supplier 부분: 명시적으로 타입을 지정하거나,
-                        // 에러가 지속되면 TreeMap 대신 아래와 같이 작성합니다.
                         () -> new TreeMap<LocalDateTime, List<Trade>>(Comparator.reverseOrder()),
                         Collectors.toList()
                 ));
@@ -459,7 +457,28 @@ public class TradeService {
                 .toList();
     }
 
+    public Map<Long, BigDecimal> getAllCurrentPrices() {
+        // 내부 맵인 currentPrices를 복사하여 반환하여 외부에서의 직접 수정을 방지합니다.
+        return new HashMap<>(this.currentPrices);
+    }
+
     public BigDecimal getCurrentPrice(Long categoryId) {
-        return currentPrices.getOrDefault(categoryId, BigDecimal.ZERO);
+        // 1. 메모리 맵(currentPrices)에서 해당 종목의 가격을 먼저 찾습니다.
+        BigDecimal price = currentPrices.get(categoryId);
+
+        // 2. 만약 메모리에 가격이 없다면 (서버 재시작 직후 등), DB에서 가장 최근 체결가를 조회합니다.
+        if (price == null || price.compareTo(BigDecimal.ZERO) == 0) {
+            TradeResponse recent = getRecentTrade(categoryId);
+            if (recent != null) {
+                price = recent.getTradePrice();
+                // 다음 조회를 위해 메모리에 캐싱해둡니다.
+                currentPrices.put(categoryId, price);
+            } else {
+                // 체결 기록이 아예 없는 신규 종목의 경우 0을 반환합니다.
+                price = BigDecimal.ZERO;
+            }
+        }
+
+        return price;
     }
 }
