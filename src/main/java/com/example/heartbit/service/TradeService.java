@@ -286,7 +286,7 @@ public class TradeService {
     public List<TradeResponse> getMyTrade(Long memberId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         return tradeRepository.findTradeByMemberId(memberId, pageable).getContent().stream()
-                .map(TradeResponse::fromEntity)
+                .map(t -> TradeResponse.fromEntityWithOrderType(t, memberId))
                 .collect(Collectors.toList());
     }
 
