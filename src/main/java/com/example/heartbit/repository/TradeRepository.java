@@ -39,6 +39,18 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
 
 
     // 6. 9시 기준가 로드용 (특정 시점 이전의 마지막 체결가)
+
+
+        // ... 기존 메서드들 ...
+
+        // 6. 9시 기준가 로드용 (특정 종목의 특정 시점 이전 마지막 체결가)
+        // 파라미터에 categoryId를 추가하여 해당 종목의 전일 종가를 정확히 가져오도록 합니다.
+        @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId " +
+                "AND t.tradeTime < :dateTime ORDER BY t.tradeTime DESC LIMIT 1")
+        Optional<Trade> findTop1ByCategoryIdAndTradeTimeBefore(
+                @Param("categoryId") Long categoryId,
+                @Param("dateTime") LocalDateTime dateTime);
+
     // @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId AND t.tradeTime < :dateTime ORDER BY t.tradeTime DESC")
     Optional<Trade> findTop1ByTradeTimeBeforeOrderByTradeTimeDesc(LocalDateTime dateTime);
 
