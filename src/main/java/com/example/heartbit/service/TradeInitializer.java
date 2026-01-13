@@ -14,7 +14,7 @@ public class TradeInitializer {
     private final TradeService tradeService;
 
     @EventListener(ApplicationReadyEvent.class)
-    @Transactional
+    @Transactional(readOnly = true)
     public void initData() {
         tradeService.init();
     }
