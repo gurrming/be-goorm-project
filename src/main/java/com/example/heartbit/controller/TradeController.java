@@ -56,7 +56,9 @@ public class TradeController {
 
     @Operation(summary = "차트 초기 데이터 조회", description = "종목의 체결 내역을 차트 렌더링용으로 조회합니다.")
     @GetMapping("/chart")
-    public ResponseEntity<List<Map<String, Object>>> getChartData(@RequestParam Long categoryId, int page, int size) {
+    public ResponseEntity<List<Map<String, Object>>> getChartData(@RequestParam Long categoryId,
+                                                                  @RequestParam(defaultValue = "0")int page,
+                                                                  @RequestParam(defaultValue = "10")int size) {
         return ResponseEntity.ok(tradeService.getInitialCandles(categoryId, page, size));
     }
 
