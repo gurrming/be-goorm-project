@@ -171,9 +171,14 @@ public class TradeService {
         BigDecimal count = response.getTradeCount();
         BigDecimal openPrice = openPrices.getOrDefault(categoryId, price);
 
+        if (openPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            openPrice = price;
+            openPrices.put(categoryId, price);
+        }
+
         BigDecimal changeAmount = price.subtract(openPrice);
-        BigDecimal changeRate = openPrice.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO :
-                changeAmount.divide(openPrice, 10, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+        BigDecimal changeRate = changeAmount.divide(openPrice, 10, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"));
 
         // 실시간 맵 데이터 갱신
         currentPrices.put(categoryId, price);
