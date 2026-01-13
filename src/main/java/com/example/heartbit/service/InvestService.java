@@ -59,49 +59,39 @@ public class InvestService {
     /**
      * [WebSocket] 시세 변동 시 해당 종목 보유자들에게 실시간 자산 스냅샷 전송
      */
-    @Transactional(readOnly = true)
     public void broadcastAssetUpdate(Long categoryId, BigDecimal newPrice) {
-        // 1. 해당 종목(categoryId)을 보유한 유저 ID 목록 조회 (Distinct)
         List<Long> memberIds = investRepository.findMemberIdsByCategoryId(categoryId);
-
         if (memberIds.isEmpty()) return;
 
-        // 2. 각 유저별로 전체 자산 현황을 재계산해서 웹소켓 전송
         for (Long memberId : memberIds) {
-            try {
-                InvestResponse totalSummary = getInvestSummary(memberId);
-
-                // 개인용 채널로 전송 (/topic/asset/1, /topic/asset/2 ...)
-                messagingTemplate.convertAndSend("/topic/invest/" + memberId, totalSummary);
-
-                log.debug("실시간 자산 업데이트 전송 - MemberID: {}, CategoryID: {}", memberId, categoryId);
-            } catch (Exception e) {
-                log.error("자산 업데이트 전송 실패 - MemberID: {}", memberId, e);
-            }
+            // 이 유저의 다른 보유 종목들 시세는 일단 무시하고,
+            // 현재 변동된 종목의 가격만 업데이트해서 보내는 로직으로 구성하거나
+            // 전체 요약을 다시 불러올 때 가격 Map을 활용합니다.
+            InvestResponse totalSummary = getInvestSummarySimple(memberId, categoryId, newPrice);
+            messagingTemplate.convertAndSend("/topic/invest/" + memberId, totalSummary);
         }
     }
 
     /**
      * 개별 종목 계산 로직 (DTO 변환)
      */
-    private InvestResponse.AssetDetailDto convertToAssetDetailDto(Invest invest) {
-        Long categoryId = invest.getCategory().getCategoryId();
+    private InvestResponse.AssetDetailDto convertToAssetDetailDto(Invest invest, BigDecimal currentPrice) {
+        // 1. 기본 정보 추출
+        BigDecimal quantity = invest.getInvestCount(); // 보유 수량
+        BigDecimal avgPrice = invest.getInvestPrice();  // 평단가
 
-        // TradeService에서 최신가 가져오기
-        TradeResponse trade = (TradeResponse) tradeService.getCurrentTrade(categoryId);
-        BigDecimal currentPrice = (trade != null) ? trade.getTradePrice() : BigDecimal.ZERO;
+        // 2. 금액 계산
+        BigDecimal buyAmount = quantity.multiply(avgPrice);       // 매수금액 = 수량 * 평단가
+        BigDecimal evalAmount = quantity.multiply(currentPrice); // 평가금액 = 수량 * 현재가
+        BigDecimal profit = evalAmount.subtract(buyAmount);      // 평가손익 = 평가금액 - 매수금액
 
-        BigDecimal quantity = invest.getInvestCount();
-        BigDecimal avgPrice = invest.getInvestPrice();
+        // 3. 수익률 계산
+        BigDecimal profitRate = calculateProfitRate(buyAmount, evalAmount);
 
-        BigDecimal buyAmount = quantity.multiply(avgPrice);       // 매수금액
-        BigDecimal evalAmount = quantity.multiply(currentPrice); // 평가금액
-        BigDecimal profit = evalAmount.subtract(buyAmount);      // 평가손익
-        BigDecimal profitRate = calculateProfitRate(buyAmount, evalAmount); // 수익률
-
+        // 4. DTO 빌드
         return InvestResponse.AssetDetailDto.builder()
                 .categoryName(invest.getCategory().getCategoryName())
-                .symbol(invest.getTrade().getSymbol())
+                .symbol(invest.getCategory().getSymbol()) // invest.getTrade().getSymbol() 대신 category 권장
                 .investCount(quantity)
                 .avgPrice(avgPrice)
                 .buyAmount(buyAmount)
@@ -110,6 +100,23 @@ public class InvestService {
                 .evaluationProfit(profit)
                 .profitRate(profitRate)
                 .build();
+    }
+
+    private InvestResponse getInvestSummarySimple(Long memberId, Long categoryId, BigDecimal newPrice) {
+        List<Invest> investList = investRepository.findAllByMember_MemberId(memberId);
+
+        List<InvestResponse.AssetDetailDto> assetList = investList.stream()
+                .map(invest -> {
+                    // 변동된 종목(categoryId)이면 newPrice 사용, 아니면 기존 DB의 평단가 등을 활용
+                    // (더 정확하려면 다른 종목의 시세도 필요하지만, 성능상 변동된 종목만 우선 반영)
+                    BigDecimal price = invest.getCategory().getCategoryId().equals(categoryId)
+                            ? newPrice
+                            : invest.getInvestPrice(); // 다른 종목은 평단가로 임시 계산하거나 0 처리
+                    return convertToAssetDetailDto(invest, price);
+                })
+                .collect(Collectors.toList());
+
+        return buildInvestResponse(assetList);
     }
 
     /**

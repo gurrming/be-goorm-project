@@ -195,6 +195,7 @@ public class TradeService {
 
         updateCandle(categoryId, price, response.getTradeTime());
         sendWebSocketData(categoryId, response);
+
     }
 
     //분단위로 계산하여 nowMinute이 currentMinute보다 커지게 되면 캔틀 하나 옆으로 이동(그게 아니라면 캔들은 제자리에서 위아래로만)
@@ -456,5 +457,9 @@ public class TradeService {
                             .build();
                 })
                 .toList();
+    }
+
+    public BigDecimal getCurrentPrice(Long categoryId) {
+        return currentPrices.getOrDefault(categoryId, BigDecimal.ZERO);
     }
 }
