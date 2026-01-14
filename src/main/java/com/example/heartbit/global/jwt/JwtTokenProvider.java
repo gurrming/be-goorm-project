@@ -27,9 +27,6 @@ public class JwtTokenProvider {
     @Value("${jwt.refresh-token-expiration-time}")
     private long refreshTokenExpirationTime;
 
-    private final SecretKey signingKey;
-
-
     private Key getSignInKey(){
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         return Keys.hmacShaKeyFor(keyBytes);
@@ -56,8 +53,11 @@ public class JwtTokenProvider {
         Date now = new Date();
         Date validity = new Date(now.getTime()+expirationTime);
 
-        return Jwts.builder().setClaims(claims).setIssuedAt(now)
-                .setExpiration(validity).signWith(getSignInKey(), SignatureAlgorithm.HS256)
+        return Jwts.builder()
+                .setClaims(claims)
+                .setIssuedAt(now)
+                .setExpiration(validity)
+                .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
     public String getSubject(String token){
