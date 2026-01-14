@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -79,10 +80,25 @@ public class MemberController {
         return ResponseEntity.ok("로그아웃 성공");
     }
 
-//    @Operation(summary = "토큰 재발급", description = "refresh 토큰을 사용하여 토큰 재발급")
-//    @PostMapping("/reissue")
-//    public ResponseEntity<String> reissue(HttpServletRequest request, HttpServletResponse response){
-//
-//    }
+    @Operation(summary = "토큰 재발급", description = "refresh 토큰을 사용하여 토큰 재발급")
+    @PostMapping("/reissue")
+    public ResponseEntity<String> reissue(HttpServletRequest request, HttpServletResponse response){
+        IssuedTokens issued = memberCommandService.reissue(request);
+
+        ResponseCookie refreshCookie = memberCommandService.buildRefreshCookie(
+                issued.refreshToken(), issued.refreshExpiresInSec()
+        );
+        response.addHeader("Set-Cookie", refreshCookie.toString());
+
+        MemberResponseDto.MemberReissueDTO memberReissueDTO = MemberResponseDto.MemberReissueDTO
+                .builder()
+                .accessToken(issued.accessToken())
+                .accessExpiresInSec(issued.accessExpiresInSec())
+                .build();
+
+        return ResponseEntity.ok("토큰 재발급 성공");
+
+
+    }
 
 }
