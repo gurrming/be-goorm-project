@@ -1,8 +1,6 @@
 package com.example.heartbit.service;
 
-import com.example.heartbit.domain.Category;
-import com.example.heartbit.domain.Invest;
-import com.example.heartbit.domain.Member;
+import com.example.heartbit.domain.*;
 import com.example.heartbit.dto.*;
 import com.example.heartbit.repository.CategoryRepository;
 import com.example.heartbit.repository.InvestRepository;
@@ -87,7 +85,8 @@ public class InvestService {
      * 매수 시 평단가를 섞고, 매도 시 수량을 뺌
      */
     @Transactional
-    public void saveOrUpdateInvest(Long memberId, Long categoryId, BigDecimal tradeCount, BigDecimal tradePrice, String type) {
+    public void saveOrUpdateInvest(Long memberId, Trade trade, Long categoryId, BigDecimal tradeCount, BigDecimal tradePrice, String type) {
+
         // 1. 내 투자 내역 조회 (없으면 0으로 초기화된 객체 생성)
         Invest invest = investRepository.findByMember_MemberIdAndCategory_CategoryId(memberId, categoryId)
                 .orElseGet(() -> {
@@ -98,10 +97,15 @@ public class InvestService {
                             .category(category)
                             .investCount(BigDecimal.ZERO)
                             .investPrice(BigDecimal.ZERO)
+                            // 처음 생성될 때 trade가 없으면 nullable=false 때문에 에러가 날 수 있으나,
+                            // 바로 아래에서 setTrade를 호출하므로 빌더에서는 생략해도 됩니다.
                             .build();
                 });
 
-        // 2. Null 방어 로직 (DB에 null이 있어도 에러 안 나게 0으로 취급)
+        // 엔티티에 nullable = false가 걸려있어서 이 줄이 없으면 에러가 납니다.
+        invest.setTrade(trade);
+
+        // 2. Null 방어 로직
         BigDecimal currentCount = invest.getInvestCount() == null ? BigDecimal.ZERO : invest.getInvestCount();
         BigDecimal currentAvg = invest.getInvestPrice() == null ? BigDecimal.ZERO : invest.getInvestPrice();
 
@@ -127,11 +131,13 @@ public class InvestService {
 
         // 3. 수량이 0 이하면 DB에서 삭제, 남았으면 저장
         if (invest.getInvestCount().compareTo(BigDecimal.ZERO) <= 0) {
-            if (invest.getInvestId() != null) { // 이미 DB에 있던거면 삭제
+            if (invest.getInvestId() != null) {
+                // 수량이 0이 되어 삭제할 때는 Trade 참조가 필요 없으므로 바로 삭제
                 investRepository.delete(invest);
             }
         } else {
-            investRepository.save(invest); // 저장 (Insert or Update)
+            // Trade가 set 되어 있으므로 정상적으로 저장됨
+            investRepository.save(invest);
         }
     }
 
