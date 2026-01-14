@@ -257,7 +257,7 @@ public class TradeService {
 
         Map<String, Object> trades = new HashMap<>();
         trades.put("price", price.toPlainString());
-        ticker.put("openPrice", openPrice.toPlainString());
+        trades.put("openPrice", openPrice.toPlainString());
         trades.put("count", response.getTradeCount().toPlainString());
         trades.put("type", response.getTakerType());
         trades.put("time", response.getTradeTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
