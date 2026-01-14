@@ -106,24 +106,7 @@ public class OrderService {
                 .toList();
     }
 
-    // 종목별 호가창
-    public void sendOrderBookUpdate(Long categoryId) {
 
-        int limit = 30;
-        // 최신 매수/매도 호가 데이터를 가져옴
-        List<OrderBookResponse> buyOrderBook = getOrderBook(categoryId, OrderType.BUY, limit);
-        List<OrderBookResponse> sellOrderBook = getOrderBook(categoryId, OrderType.SELL, limit);
-
-        // /topic/orderbook/{categoryId} 채널로 구독자 전원에게 전송
-        Map<String, Object> payload = Map.of(
-                "categoryId", categoryId,
-                "buySide", buyOrderBook,
-                "sellSide", sellOrderBook,
-                "serverTime", LocalDateTime.now().toString()
-        );
-        String destination = "/topic/orderbook/" + categoryId;
-        messagingTemplate.convertAndSend(destination, (Object) payload);
-    }
     // 주문 취소
     private void processCancel(Order order) {
         if (order.getOrderStatus() != OrderStatus.OPEN && order.getOrderStatus() != OrderStatus.PARTIAL) {
@@ -174,36 +157,65 @@ public class OrderService {
         }
     }
 
+    // 종목별 호가창
+    public void sendOrderBookUpdate(Long categoryId) {
+
+        int limit = 30;
+        // 최신 매수/매도 호가 데이터를 가져옴
+        List<OrderBookResponse> buyOrderBook = getOrderBook(categoryId, OrderType.BUY, limit);
+        List<OrderBookResponse> sellOrderBook = getOrderBook(categoryId, OrderType.SELL, limit);
+
+        // /topic/orderbook/{categoryId} 채널로 구독자 전원에게 전송
+        Map<String, Object> payload = Map.of(
+                "categoryId", categoryId,
+                "buySide", buyOrderBook,
+                "sellSide", sellOrderBook,
+                "serverTime", LocalDateTime.now().toString()
+        );
+        String destination = "/topic/orderbook/" + categoryId;
+        messagingTemplate.convertAndSend(destination, (Object) payload);
+    }
+
 
     // 호가창 (매수 매도 목록)
     public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType, int limit) {
         List<OrderStatus> activeStatuses = List.of(OrderStatus.OPEN, OrderStatus.PARTIAL);
-        // 주문 목록 조회 (작성한 정렬 순서대로 가져옴)
-        List<Order> orders = orderRepository.findByCategory_CategoryIdAndOrderTypeAndOrderStatusInOrderByOrderPriceAscOrderTimeAsc(categoryId, orderType, activeStatuses);
 
-        // 가격별 잔량(remainingCount) 합산
+        List<Order> orders = (orderType == OrderType.BUY)
+                ? orderRepository.findByCategory_CategoryIdAndOrderTypeAndOrderStatusInOrderByOrderPriceDescOrderTimeAsc(categoryId, orderType, activeStatuses)
+                : orderRepository.findByCategory_CategoryIdAndOrderTypeAndOrderStatusInOrderByOrderPriceAscOrderTimeAsc(categoryId, orderType, activeStatuses);
+
+
         Map<BigDecimal, BigDecimal> priceGroupMap = orders.stream()
-                .collect(Collectors.groupingBy(Order::getOrderPrice,
+                .collect(Collectors.groupingBy(
+                        Order::getOrderPrice,
                         Collectors.reducing(BigDecimal.ZERO, Order::getRemainingCount, BigDecimal::add)
                 ));
 
-        // DTO 변환 (가격과 총 수량 정보만 포함)
-        return priceGroupMap.entrySet().stream()
+        List<OrderBookResponse> result = priceGroupMap.entrySet().stream()
                 .map(entry -> OrderBookResponse.builder()
                         .orderPrice(entry.getKey())
                         .totalRemainingCount(entry.getValue())
                         .build())
-
-                // 가격 정렬 (매수: 높은 가격순, 매도: 낮은 가격순)
                 .sorted((o1, o2) -> {
                     if (orderType == OrderType.BUY) {
-                        return o2.getOrderPrice().compareTo(o1.getOrderPrice());
+                        return o2.getOrderPrice().compareTo(o1.getOrderPrice()); // 큰값부터 내림차순
                     } else {
-                        return o1.getOrderPrice().compareTo(o2.getOrderPrice());
+                        return o1.getOrderPrice().compareTo(o2.getOrderPrice()); // 작은값부터 오름차순
                     }
                 })
                 .limit(limit)
                 .collect(Collectors.toList());
+
+        // 정렬이 맞는지 확인
+        log.info("orderType={}, resultPrices={}",
+                orderType,
+                result.stream().map(OrderBookResponse::getOrderPrice).toList()
+        );
+
+        return result;
     }
+
+
 
 }
