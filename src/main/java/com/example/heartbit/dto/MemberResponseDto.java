@@ -21,4 +21,9 @@ public class MemberResponseDto {
             String memberNickname
     ){}
 
+    @Builder
+    public record MemberReissueDTO(
+            String accessToken,
+            long accessExpiresInSec
+    ){}
 }
