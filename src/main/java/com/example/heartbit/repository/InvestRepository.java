@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * InvestRepository
@@ -23,4 +24,6 @@ public interface InvestRepository extends JpaRepository<Invest, Long> {
 
     @Query("SELECT DISTINCT i.member.memberId FROM Invest i WHERE i.category.categoryId = :categoryId")
     List<Long> findMemberIdsByCategoryId(@Param("categoryId") Long categoryId);
+
+    Optional<Invest> findByMember_MemberIdAndCategory_CategoryId(Long memberId, Long categoryId);
 }

@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 @Entity
 @Table(name = "invest")
 @Getter
+@Setter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
