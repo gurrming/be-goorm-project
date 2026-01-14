@@ -189,6 +189,7 @@ public class InvestService {
                 .symbol(invest.getTrade().getSymbol())
                 .investCount(quantity)
                 .avgPrice(avgPrice)
+                .categoryId(categoryId)
                 .buyAmount(buyAmount)
                 .currentPrice(currentPrice)
                 .evaluationAmount(evalAmount)

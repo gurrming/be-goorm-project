@@ -24,6 +24,7 @@ public class InvestResponse {
 
         private String categoryName;
         private String symbol;
+        private Long categoryId;
         private BigDecimal investCount;  //투자 개수
         private BigDecimal avgPrice;  //매수 평균가
         private BigDecimal buyAmount;  //매수 금액
