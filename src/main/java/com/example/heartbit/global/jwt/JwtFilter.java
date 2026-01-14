@@ -67,6 +67,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 "/api/member/signup",
                 "/api/member/login",
                 "/api/chatroom/",
+                "/api/orders/",
                 "/api/orders/orderbook",
                 "/api/trades/chart",
                 "/api/categories",
