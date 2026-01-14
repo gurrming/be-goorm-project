@@ -35,6 +35,7 @@ public class TradeEngineService {
                         .tradePrice(request.getTradePrice())
                         .tradeCount(request.getTradeCount())
                         .tradeTime(request.getTradeTime())
+                        .takerType(newOrder.getOrderType() == OrderType.BUY ? "BUY" : "SELL")
                         .build())
                 .toList();
     }

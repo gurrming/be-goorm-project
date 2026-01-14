@@ -4,6 +4,7 @@ import com.example.heartbit.domain.Category;
 import com.example.heartbit.domain.Order;
 import com.example.heartbit.domain.Trade;
 import com.example.heartbit.dto.CategoryDto;
+import com.example.heartbit.dto.PriceChangedEvent;
 import com.example.heartbit.dto.TradeRequest;
 import com.example.heartbit.dto.TradeResponse;
 import com.example.heartbit.repository.*;
@@ -12,6 +13,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableArgumentResolver;
@@ -42,6 +45,9 @@ public class TradeService {
 
     private final TradeRepository tradeRepository;
     private final CategoryRepository categoryRepository;
+    private final ApplicationEventPublisher eventPublisher;
+
+    private final InvestService investService;
     private final SimpMessagingTemplate messagingTemplate;
     private final OrderRepository orderRepository;
     private final AssetService assetService;
@@ -149,10 +155,6 @@ public class TradeService {
                     .orElseThrow(() -> new NoSuchElementException("매도 주문을 찾을 수 없습니다."));
 
             // 주문 수량 변경 값 db 저장
-            buyOrder.updateRemainingCount(response.getTradeCount());
-            sellOrder.updateRemainingCount(response.getTradeCount());
-
-            // 자산 정산: 매도자에게 체결 대금 지급
             BigDecimal tradeAmount = response.getTradePrice().multiply(response.getTradeCount());
 
             // 관리자 계정(5L)이 아닌 경우에만 실제 돈을 지급 (유동성 공급용 계정 제외 로직)
@@ -160,6 +162,9 @@ public class TradeService {
                 // 매도 완료 후 현금(Cash)으로 정산
                 assetService.refundCash(sellOrder.getMember().getMemberId(), tradeAmount);
             }
+
+
+
 
             Trade trade = Trade.builder()
                     .tradePrice(response.getTradePrice())
@@ -171,7 +176,29 @@ public class TradeService {
                     .build();
 
             // trade 값 저장
-            tradeRepository.save(trade);
+            Trade savedTrade = tradeRepository.save(trade);
+
+            investService.saveOrUpdateInvest(
+                    buyOrder.getMember().getMemberId(),
+                    savedTrade,    // [수정] Trade 객체 전달
+                    categoryId,
+                    response.getTradeCount(),
+                    response.getTradePrice(),
+                    "BUY"
+            );
+
+            // 3-2. 매도자 자산 업데이트 ("SELL")
+            if (!sellOrder.getMember().getMemberId().equals(1L)) {
+                investService.saveOrUpdateInvest(
+                        sellOrder.getMember().getMemberId(),
+                        savedTrade,    // [수정] Trade 객체 전달
+                        categoryId,
+                        response.getTradeCount(),
+                        response.getTradePrice(),
+                        "SELL"
+                );
+            }
+            eventPublisher.publishEvent(new PriceChangedEvent(categoryId, response.getTradePrice()));
             //종목별 상태 업데이트 및 웹소켓 전송
             updateMarketAndBroadcast(categoryId, response);
         }
@@ -206,6 +233,8 @@ public class TradeService {
         if ("BUY".equals(response.getTakerType())) totalBuyQtys.merge(categoryId, count, BigDecimal::add);
         else totalSellQtys.merge(categoryId, count, BigDecimal::add);
 
+        eventPublisher.publishEvent(new PriceChangedEvent(categoryId, price));
+
         updateCandle(categoryId, price, response.getTradeTime());
         sendWebSocketData(categoryId, response);
     }
@@ -233,7 +262,11 @@ public class TradeService {
         BigDecimal price = response.getTradePrice();
 
         BigDecimal buyQty = totalBuyQtys.getOrDefault(categoryId, BigDecimal.ZERO);
-        BigDecimal sellQty = totalSellQtys.getOrDefault(categoryId, BigDecimal.ONE); // 분모 0 방지
+        BigDecimal sellQty = totalSellQtys.getOrDefault(categoryId, BigDecimal.ONE);
+
+        if (sellQty.compareTo(BigDecimal.ZERO) == 0) {
+            sellQty = BigDecimal.ONE;
+        }// 분모 0 방지
 
         // 체결강도 계산식: (매수체결량 / 매도체결량) * 100
         BigDecimal intensity = buyQty.divide(sellQty, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
