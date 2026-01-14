@@ -58,6 +58,7 @@ public class TradeService {
     private final Map<Long, BigDecimal> accAmounts = new ConcurrentHashMap<>();
     private final Map<Long, BigDecimal> totalBuyQtys = new ConcurrentHashMap<>();
     private final Map<Long, BigDecimal> totalSellQtys = new ConcurrentHashMap<>();
+    private final Map<Long, String> takerType = new ConcurrentHashMap<>();
 
     // 종목별 차트용 변수 (메모리 맵)
     private final Map<Long, BigDecimal> candleOpens = new ConcurrentHashMap<>();
@@ -91,6 +92,9 @@ public class TradeService {
                     .ifPresent(t -> {
                         BigDecimal price = t.getTradePrice();
                         currentPrices.put(id, price);
+
+                        String type = t.getBuyOrder().getOrderTime().isAfter(t.getSellOrder().getOrderTime()) ? "BUY" : "SELL";
+                        takerType.put(id, type);
                         candleOpens.put(id, price);
                         candleHighs.put(id, price);
                         candleLows.put(id, price);
@@ -138,15 +142,21 @@ public class TradeService {
         if (tradeResults.isEmpty()) return;
 
         for (TradeResponse response : tradeResults) {
+            Order buyOrder = orderRepository.findById(response.getBuyOrderId())
+                    .orElseThrow(() -> new NoSuchElementException("매수 주문을 찾을 수 없습니다."));
             // 주문 정보 상세 조회 (자산 처리를 위해 실제 객체 필요)
             Order sellOrder = orderRepository.findById(response.getSellOrderId())
                     .orElseThrow(() -> new NoSuchElementException("매도 주문을 찾을 수 없습니다."));
+
+            // 주문 수량 변경 값 db 저장
+            buyOrder.updateRemainingCount(response.getTradeCount());
+            sellOrder.updateRemainingCount(response.getTradeCount());
 
             // 자산 정산: 매도자에게 체결 대금 지급
             BigDecimal tradeAmount = response.getTradePrice().multiply(response.getTradeCount());
 
             // 관리자 계정(5L)이 아닌 경우에만 실제 돈을 지급 (유동성 공급용 계정 제외 로직)
-            if (!sellOrder.getMember().getMemberId().equals(5L)) {
+            if (!sellOrder.getMember().getMemberId().equals(1L)) {
                 // 매도 완료 후 현금(Cash)으로 정산
                 assetService.refundCash(sellOrder.getMember().getMemberId(), tradeAmount);
             }
@@ -155,14 +165,13 @@ public class TradeService {
                     .tradePrice(response.getTradePrice())
                     .tradeCount(response.getTradeCount())
                     .tradeClosePrice(response.getTradeClosePrice())
-                    .buyOrder(orderRepository.getReferenceById(response.getBuyOrderId()))
+                    .buyOrder(buyOrder)
                     .sellOrder(sellOrder) // 위에서 찾은 sellOrder 활용
                     .tradeTime(response.getTradeTime())
                     .build();
 
-            Trade savedTrade = tradeRepository.save(trade);
-
-
+            // trade 값 저장
+            tradeRepository.save(trade);
             //종목별 상태 업데이트 및 웹소켓 전송
             updateMarketAndBroadcast(categoryId, response);
         }
@@ -184,6 +193,7 @@ public class TradeService {
                 .multiply(new BigDecimal("100"));
 
         // 실시간 맵 데이터 갱신
+        takerType.put(categoryId, response.getTakerType());
         currentPrices.put(categoryId, price);
         changeAmounts.put(categoryId, changeAmount);
         changeRates.put(categoryId, changeRate);
@@ -247,6 +257,7 @@ public class TradeService {
 
         Map<String, Object> trades = new HashMap<>();
         trades.put("price", price.toPlainString());
+        trades.put("openPrice", openPrice.toPlainString());
         trades.put("count", response.getTradeCount().toPlainString());
         trades.put("type", response.getTakerType());
         trades.put("time", response.getTradeTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
@@ -405,6 +416,7 @@ public class TradeService {
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 종목입니다."));
 
+        BigDecimal openPrice = openPrices.getOrDefault(categoryId, BigDecimal.ZERO);
         BigDecimal currentPrice = currentPrices.getOrDefault(categoryId, BigDecimal.ZERO);
         BigDecimal changeAmount = changeAmounts.getOrDefault(categoryId, BigDecimal.ZERO);
         BigDecimal changeRate = changeRates.getOrDefault(categoryId, BigDecimal.ZERO);
@@ -412,7 +424,7 @@ public class TradeService {
         BigDecimal dailyLow = dailyLows.getOrDefault(categoryId, BigDecimal.ZERO);
         BigDecimal accVolume = accVolumes.getOrDefault(categoryId, BigDecimal.ZERO);
         BigDecimal accAmount = accAmounts.getOrDefault(categoryId, BigDecimal.ZERO);
-
+        String type = takerType.getOrDefault(categoryId, "");
 
 
         return CategoryDto.builder()
@@ -420,6 +432,8 @@ public class TradeService {
                 .categoryName(category.getCategoryName())
                 .symbol(category.getSymbol())
                 .tradePrice(currentPrice)
+                .takerType(type)
+                .openPrice(openPrice)
                 .changeAmount(changeAmount)
                 .changeRate(changeRate.setScale(2, RoundingMode.HALF_UP)) // 소수점 2자리 포맷팅
                 .dailyHigh(dailyHigh)
@@ -437,6 +451,7 @@ public class TradeService {
                 .map(category -> {
                     Long id = category.getCategoryId();
 
+                    BigDecimal openPrice = openPrices.getOrDefault(id, BigDecimal.ZERO);
                     BigDecimal price = currentPrices.getOrDefault(id, BigDecimal.ZERO);
                     BigDecimal changeAmount = changeAmounts.getOrDefault(id, BigDecimal.ZERO);
                     BigDecimal changeRate = changeRates.getOrDefault(id, BigDecimal.ZERO);
@@ -444,12 +459,16 @@ public class TradeService {
                     BigDecimal dailyLow = dailyLows.getOrDefault(id, BigDecimal.ZERO);
                     BigDecimal accVolume = accVolumes.getOrDefault(id, BigDecimal.ZERO);
                     BigDecimal accAmount = accAmounts.getOrDefault(id, BigDecimal.ZERO);
+                    String type = takerType.getOrDefault(id, "");
+
 
                     return CategoryDto.builder()
                             .categoryId(id)
                             .categoryName(category.getCategoryName())
                             .symbol(category.getSymbol())
                             .tradePrice(price)
+                            .openPrice(openPrice)
+                            .takerType(type)
                             .changeAmount(changeAmount)
                             .changeRate(changeRate.setScale(2, RoundingMode.HALF_UP))
                             .dailyHigh(dailyHigh)

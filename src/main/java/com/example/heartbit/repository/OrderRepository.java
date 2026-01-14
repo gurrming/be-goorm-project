@@ -32,11 +32,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         """)
     List<Order> findExpiredOrders(@Param("expirationTime") LocalDateTime expirationTime);
 
-    // 호가창: 매수 (가격 내림차순, 시간 오름차순)
-    List<Order> findByCategory_CategoryIdAndOrderTypeAndOrderStatusInOrderByOrderPriceDescOrderTimeAsc(
-            Long categoryId, OrderType orderType, List<OrderStatus> statuses);
 
-    // 호가창: 매도 (가격 오름차순, 시간 오름차순)
+    // 호가창 (가격 오름차순, 시간 오름차순)
     List<Order> findByCategory_CategoryIdAndOrderTypeAndOrderStatusInOrderByOrderPriceAscOrderTimeAsc(
             Long categoryId, OrderType orderType, List<OrderStatus> statuses);
 }

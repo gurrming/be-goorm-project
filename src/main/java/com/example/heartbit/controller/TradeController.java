@@ -50,6 +50,8 @@ public class TradeController {
             @RequestParam Long memberId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
+
+        //int adjustedPage = (page > 0) ? page - 1 : 0;
         // 서비스에서 Pageable을 사용하도록 수정했으므로 파라미터를 맞춰줍니다.
         return ResponseEntity.ok(tradeService.getMyTrade(memberId, page, size));
     }
@@ -59,6 +61,8 @@ public class TradeController {
     public ResponseEntity<List<Map<String, Object>>> getChartData(@RequestParam Long categoryId,
                                                                   @RequestParam(defaultValue = "0")int page,
                                                                   @RequestParam(defaultValue = "10")int size) {
+
+        //int adjustedPage = (page > 0) ? page - 1 : 0;
         return ResponseEntity.ok(tradeService.getInitialCandles(categoryId, page, size));
     }
 
