@@ -23,6 +23,7 @@ public class MemberResponseDto {
 
     @Builder
     public record MemberReissueDTO(
-            String accessToken
+            String accessToken,
+            long accessExpiresInSec
     ){}
 }
