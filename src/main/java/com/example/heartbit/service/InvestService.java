@@ -44,7 +44,6 @@ public class InvestService {
     private final MemberRepository memberRepository;
     private final CategoryRepository categoryRepository;
     private final SimpMessagingTemplate messagingTemplate;
-
     private final TradeService tradeService;
 
     public InvestService(InvestRepository investRepository,
@@ -79,14 +78,14 @@ public class InvestService {
     @Async // (선택사항) 비동기로 실행하여 체결 속도에 영향을 주지 않게 함
     @EventListener
     public void handlePriceChange(PriceChangedEvent event) {
-        // ★ 바로 여기서 호출합니다! ★
+
         broadcastAssetUpdate(event.getCategoryId(), event.getNewPrice());
     }
 
     /**
      * [저장 핵심 로직]
      * TradeService에서 체결 시 호출됨.
-     * 매수 시 평단가를 섞고, 매도 시 수량을 뺍니다.
+     * 매수 시 평단가를 섞고, 매도 시 수량을 뺌
      */
     @Transactional
     public void saveOrUpdateInvest(Long memberId, Long categoryId, BigDecimal tradeCount, BigDecimal tradePrice, String type) {
@@ -194,7 +193,7 @@ public class InvestService {
     }
 
     /**
-     * 전체 요약 정보 빌드
+     * 전체 요약 정보 빌드(개별 종목 요약한거 합산)
      */
     private InvestResponse buildInvestResponse(List<InvestResponse.AssetDetailDto> assetList) {
         BigDecimal totalBuy = assetList.stream()
