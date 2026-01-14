@@ -32,4 +32,10 @@ public class MemberRequestDto {
             String password
     ){ }
 
+
+    public record ReIssue(
+            @NotBlank
+            @Schema(description = "refreshToken")
+            String refreshToken
+    ){}
 }

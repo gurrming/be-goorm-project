@@ -15,4 +15,14 @@ public class MemberResponseDto {
             String refreshToken,
             String memberNickname
     ){}
+
+    @Builder
+    public record MemberInfo(
+            String memberNickname
+    ){}
+
+    @Builder
+    public record MemberReissueDTO(
+            String accessToken
+    ){}
 }
