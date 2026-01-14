@@ -75,7 +75,6 @@ public class InvestService {
         return buildInvestResponse(assetList);
     }
 
-    @Async // (선택사항) 비동기로 실행하여 체결 속도에 영향을 주지 않게 함
     @EventListener
     public void handlePriceChange(PriceChangedEvent event) {
 
