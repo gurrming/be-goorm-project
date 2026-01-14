@@ -14,6 +14,8 @@ public class CategoryDto {
     private Long categoryId;
     private String categoryName;
     private String symbol;
+    private BigDecimal openPrice;
+    private String takerType;
     private BigDecimal tradePrice;
     private BigDecimal changeRate;
     private BigDecimal changeAmount;
