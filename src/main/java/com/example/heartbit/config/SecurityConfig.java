@@ -32,6 +32,7 @@ public class SecurityConfig {
             "/api/member/signup",
             "/api/member/login",
             "/api/member/exists",
+            "/api/member/reissue",
             "/v3/api-docs/**",
             "/api/orders/**",
             "/api/chatroom/**",
