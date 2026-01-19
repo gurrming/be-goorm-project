@@ -91,7 +91,7 @@ public class MemberController {
 
     @Operation(summary = "토큰 재발급", description = "refresh 토큰을 사용하여 토큰 재발급")
     @PostMapping("/reissue")
-    public ResponseEntity<String> reissue(HttpServletRequest request, HttpServletResponse response){
+    public ResponseEntity<MemberResponseDto.MemberReissueDTO> reissue(HttpServletRequest request, HttpServletResponse response){
         IssuedTokens issued = memberCommandService.reissue(request);
 
         ResponseCookie refreshCookie = memberCommandService.buildRefreshCookie(
@@ -105,9 +105,7 @@ public class MemberController {
                 .accessExpiresInSec(issued.accessExpiresInSec())
                 .build();
 
-        return ResponseEntity.ok("토큰 재발급 성공");
-
-
+        return ResponseEntity.ok(memberReissueDTO);
     }
 
 }
