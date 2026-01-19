@@ -12,5 +12,5 @@ public interface MemberQueryService {
 
     MemberResponseDto.MemberInfo getMemberInfo(Long memberId);
     Member getCurrentMember();
-    Boolean isExistsEmail(MemberRequestDto.Exists request);
+    MemberResponseDto.EmailExistsDTO isExistsEmail(MemberRequestDto.Exists request);
 }
