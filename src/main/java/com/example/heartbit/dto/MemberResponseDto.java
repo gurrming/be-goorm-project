@@ -26,4 +26,9 @@ public class MemberResponseDto {
             String accessToken,
             long accessExpiresInSec
     ){}
+
+    @Builder
+    public record EmailExistsDTO(
+            boolean isExists
+    ){}
 }

@@ -3,6 +3,8 @@ package com.example.heartbit.service.member;
 import com.example.heartbit.domain.Member;
 import com.example.heartbit.dto.MemberRequestDto;
 import com.example.heartbit.dto.MemberResponseDto;
+import com.example.heartbit.global.exception.CustomerException;
+import com.example.heartbit.global.exception.ErrorCode;
 import com.example.heartbit.global.jwt.JwtTokenProvider;
 import com.example.heartbit.global.jwt.dto.IssuedTokens;
 import com.example.heartbit.repository.MemberRepository;
@@ -48,9 +50,9 @@ public class MemberCommandServiceImpl implements MemberCommandService{
 
     public MemberResponseDto.MemberTokenDTO login (MemberRequestDto.Login request){
         Member member = memberRepository.findByMemberEmail(request.email())
-                .orElseThrow(()-> new IllegalArgumentException("Email 또는 비밀번호가 일치하지 않습니다."));
+                .orElseThrow(()-> new CustomerException(ErrorCode.MEMBER_NOT_FOUND));
         if(!passwordEncoder.matches(request.password(),member.getMemberPassword())){
-            throw new IllegalArgumentException("Email 또는 비밀번호가 일치하지 않습니다.");
+            throw new CustomerException(ErrorCode.INVALID_PASSWORD);
         }
 
         String memberId = String.valueOf(member.getMemberId());

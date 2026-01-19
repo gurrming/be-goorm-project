@@ -4,6 +4,7 @@ import com.example.heartbit.dto.MemberRequestDto;
 import com.example.heartbit.dto.MemberResponseDto;
 import com.example.heartbit.global.jwt.dto.IssuedTokens;
 import com.example.heartbit.service.member.MemberCommandService;
+import com.example.heartbit.service.member.MemberQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
@@ -30,6 +31,14 @@ import java.util.Map;
 public class MemberController {
 
     private final MemberCommandService memberCommandService;
+    private  final MemberQueryService memberQueryService;
+
+    @Operation(summary = "이메일 중복확인")
+    @PostMapping("/exists")
+    public ResponseEntity<MemberResponseDto.EmailExistsDTO> exists(@Valid @RequestBody MemberRequestDto.Exists requestDto){
+        MemberResponseDto.EmailExistsDTO response = memberQueryService.isExistsEmail(requestDto);
+        return ResponseEntity.ok(response);
+    }
 
     @Operation(summary = "회원가입", description = "이메일, 비밀번호, 닉네임을 입력받아 신규 회원을 등록합니다.")
     @PostMapping("/signup")
