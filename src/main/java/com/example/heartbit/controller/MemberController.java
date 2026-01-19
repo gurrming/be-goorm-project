@@ -3,6 +3,7 @@ package com.example.heartbit.controller;
 import com.example.heartbit.dto.MemberRequestDto;
 import com.example.heartbit.dto.MemberResponseDto;
 import com.example.heartbit.global.jwt.dto.IssuedTokens;
+import com.example.heartbit.global.response.ApiResponse;
 import com.example.heartbit.service.member.MemberCommandService;
 import com.example.heartbit.service.member.MemberQueryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,7 +50,7 @@ public class MemberController {
 
     @Operation(summary = "로그인", description = "입력된 정보로 로그인 처리합니다.(토큰을 쿠키에 저장)")
     @PostMapping("/login")
-    public ResponseEntity<Map<String, Object>> login(@Valid @RequestBody MemberRequestDto.Login requestDto, HttpServletResponse response) {
+    public ResponseEntity<ApiResponse<MemberResponseDto.MemberTokenDTO>> login(@Valid @RequestBody MemberRequestDto.Login requestDto, HttpServletResponse response) {
         MemberResponseDto.MemberTokenDTO tokenDTO = memberCommandService.login(requestDto);
 
         Cookie accessCookie = new Cookie("accessToken", tokenDTO.accessToken());
@@ -65,11 +66,7 @@ public class MemberController {
         response.addCookie(accessCookie);
         response.addCookie(refreshCookie);
 
-        Map<String, Object> responseBody = new HashMap<>();
-        responseBody.put("message", "로그인 성공");
-        responseBody.put("data", tokenDTO);
-
-        return ResponseEntity.ok(responseBody);
+        return ResponseEntity.ok(ApiResponse.onSuccess(tokenDTO));
     }
 
     @Operation(summary = "로그아웃", description = "현재 로그인된 사용자의 세션/인증 정보를 종료합니다.(쿠키 삭제)")
