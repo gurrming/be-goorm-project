@@ -20,7 +20,12 @@ public enum ErrorCode implements BaseErrorCode{
 
     // 로그인
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND,"MEMBER404" ,"등록되지 않은 이메일입니다."),
-    INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, "MEMBER401","비밀번호가 일치하지 않습니다.");
+    INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, "MEMBER401","비밀번호가 일치하지 않습니다."),
+    EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "MEMBER409", "이미 사용 중인 이메일 입니다."),
+
+    // 토큰 (Auth)
+    REFRESH_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "AUTH404", "Refresh Token이 존재하지 않습니다."),
+    INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH401", "유효하지 않은 토큰입니다.");
 
     private final HttpStatus status;
     private final String code;
