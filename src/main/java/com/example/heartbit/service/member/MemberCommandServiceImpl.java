@@ -38,7 +38,7 @@ public class MemberCommandServiceImpl implements MemberCommandService{
     @Override
     public void signup(MemberRequestDto.Signup request){
         if(memberRepository.existsByMemberEmail(request.email())){
-            throw new IllegalArgumentException("이미 사용 중인 이메일 입니다.");
+            throw new CustomerException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
         String encodedPassword = passwordEncoder.encode(request.password());
         Member member = Member.builder().memberEmail(request.email())
@@ -68,10 +68,14 @@ public class MemberCommandServiceImpl implements MemberCommandService{
     }
 
     public IssuedTokens reissue (HttpServletRequest request){
+        // 쿠키에서 토큰 꺼냄
         String refreshToken = extractRefreshFromCookie(request);
 
         if(refreshToken == null){
-            throw new IllegalArgumentException("Refresh Token이 존재하지 않습니다.");
+            throw new CustomerException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
+        }
+        if(!jwtTokenProvider.validateToken(refreshToken)){
+            throw new CustomerException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
         Claims claims = jwtTokenProvider.getClaims(refreshToken);
