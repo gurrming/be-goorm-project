@@ -28,7 +28,10 @@ public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
     private final ServerTokenFilter serverTokenFilter;
 
-    public static final String[] ALLOWED_URLS = {"/api/member/signup", "/api/member/login",
+    public static final String[] ALLOWED_URLS = {
+            "/api/member/signup",
+            "/api/member/login",
+            "/api/member/exists",
             "/v3/api-docs/**",
             "/api/orders/**",
             "/api/chatroom/**",
