@@ -134,6 +134,30 @@ public class TradeService {
                 totalBuyQtys.put(id, buyVol);
                 totalSellQtys.put(id, sellVol);
 
+                BigDecimal currentPrice = currentPrices.getOrDefault(id, BigDecimal.ZERO);
+                BigDecimal openPrice = openPrices.getOrDefault(id, BigDecimal.ZERO);
+
+                // 만약 오전 9시 이전 데이터가 없어서 시가가 0인데, 현재가는 있는 경우 (신규 상장 or 데이터 유실 등)
+                // 시가를 현재가로 맞춰주어 변동률을 0%로 시작하게 함 (방어 로직)
+                if (openPrice.compareTo(BigDecimal.ZERO) == 0 && currentPrice.compareTo(BigDecimal.ZERO) > 0) {
+                    openPrice = currentPrice;
+                    openPrices.put(id, openPrice);
+                }
+
+                // 시가가 존재할 때만 계산 수행
+                if (openPrice.compareTo(BigDecimal.ZERO) > 0) {
+                    // 변동금 = 현재가 - 시가
+                    BigDecimal changeAmount = currentPrice.subtract(openPrice);
+
+                    // 변동률 = (변동금 / 시가) * 100
+                    BigDecimal changeRate = changeAmount.divide(openPrice, 10, RoundingMode.HALF_UP)
+                            .multiply(new BigDecimal("100"));
+
+                    // **여기서 맵에 넣어줘야 REST API 호출 시 0이 안 나옴**
+                    changeAmounts.put(id, changeAmount);
+                    changeRates.put(id, changeRate);
+                }
+
 
             }
         }
@@ -420,7 +444,6 @@ public class TradeService {
 
     /**
      * 특정 종목(categoryId)의 실시간 현재가 정보를 반환합니다.
-     * 반환 타입은 InvestService에서 바로 사용할 수 있도록 TradeResponse로 구성합니다.
      */
     public TradeResponse getCurrentTrade(Long categoryId) {
 
