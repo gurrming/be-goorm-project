@@ -48,9 +48,9 @@ public class MemberCommandServiceImpl implements MemberCommandService{
 
     public MemberResponseDto.MemberTokenDTO login (MemberRequestDto.Login request){
         Member member = memberRepository.findByMemberEmail(request.email())
-                .orElseThrow(()-> new IllegalArgumentException("Email 또는 비밀번호가 일치하지 않습니다."));
+                .orElseThrow(()-> new IllegalArgumentException("등록되지 않은 Email 입니다."));
         if(!passwordEncoder.matches(request.password(),member.getMemberPassword())){
-            throw new IllegalArgumentException("Email 또는 비밀번호가 일치하지 않습니다.");
+            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
         }
 
         String memberId = String.valueOf(member.getMemberId());
