@@ -40,7 +40,7 @@ public class MemberRequestDto {
     ){}
 
     public record Exists(
-            @NotBlank
+            @Email @NotBlank
             @Schema(description = "이메일", example = "test@example.com")
             String email
     ) {
