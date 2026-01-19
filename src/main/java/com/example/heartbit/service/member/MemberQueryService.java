@@ -1,6 +1,7 @@
 package com.example.heartbit.service.member;
 
 import com.example.heartbit.domain.Member;
+import com.example.heartbit.dto.MemberRequestDto;
 import com.example.heartbit.dto.MemberResponseDto;
 import org.springframework.stereotype.Service;
 
@@ -11,4 +12,5 @@ public interface MemberQueryService {
 
     MemberResponseDto.MemberInfo getMemberInfo(Long memberId);
     Member getCurrentMember();
+    Boolean isExistsEmail(MemberRequestDto.Exists request);
 }
