@@ -405,7 +405,7 @@ public class TradeService {
 
             // DB에서 Desc로 가져왔기 때문에 리스트의 끝[size-1]이 그 분의 첫 거래
             BigDecimal open = minuteTrades.get(minuteTrades.size() - 1).getTradePrice(); // 시가
-            BigDecimal close = minuteTrades.get(0).getTradePrice();                       // 종가
+            BigDecimal close = minuteTrades.get(0).getTradePrice(); // 종가
 
             BigDecimal high = minuteTrades.stream()
                     .map(Trade::getTradePrice)
@@ -414,12 +414,17 @@ public class TradeService {
                     .map(Trade::getTradePrice)
                     .min(BigDecimal::compareTo).orElse(BigDecimal.ZERO);
 
+            Long minTradeIdInCandle = minuteTrades.stream()
+                    .map(Trade::getTradeId)
+                    .min(Long::compareTo).orElse(0L);
+
             Map<String, Object> candle = new HashMap<>();
             candle.put("t", minute.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
             candle.put("o", open.toPlainString());
             candle.put("h", high.toPlainString());
             candle.put("l", low.toPlainString());
             candle.put("c", close.toPlainString());
+            candle.put("tradeId", minTradeIdInCandle);
 
             return candle;
         }).collect(Collectors.toList());

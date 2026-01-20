@@ -23,7 +23,7 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
     "WHERE t.buyOrder.category.categoryId = :categoryID " +
     "AND t.tradeId < :lastId " +
     "ORDER BY t.tradeId DESC")
-            List<Trade> findTradesByCursor(
+    List<Trade> findTradesByCursor(
     @Param("categoryID") Long categoryID,
     @Param("lastId") Long lastId,
     Pageable pageable);
