@@ -52,9 +52,11 @@ public class OrderController {
     public ResponseEntity<List<OrderBookResponse>> orderBook(
             @RequestParam Long categoryId,
             @RequestParam OrderType orderType,
-            Pageable pageable) {
+            @RequestParam(defaultValue = "30") int limit) {
+
+        // 현재가 기준 호가 데이터를 반환
         return ResponseEntity.ok(
-                orderService.getOrderBook(categoryId, orderType, pageable.getPageSize())
+                orderService.getOrderBookWithPriceFilter(categoryId, orderType, limit)
         );
     }
 
