@@ -56,14 +56,14 @@ public class TradeController {
         return ResponseEntity.ok(tradeService.getMyTrade(memberId, page, size));
     }
 
-    @Operation(summary = "차트 초기 데이터 조회", description = "종목의 체결 내역을 차트 렌더링용으로 조회합니다.")
+    @Operation(summary = "차트 초기 데이터 조회(커서기반)", description = "마지막 데이터 ID를 기준으로 이전 체결 내역을 조회합니다.")
     @GetMapping("/chart")
     public ResponseEntity<List<Map<String, Object>>> getChartData(@RequestParam Long categoryId,
-                                                                  @RequestParam(defaultValue = "0")int page,
-                                                                  @RequestParam(defaultValue = "10")int size) {
+                                                                  @RequestParam(required = false) Long lastId,
+                                                                  @RequestParam(defaultValue = "20") int size) {
 
         //int adjustedPage = (page > 0) ? page - 1 : 0;
-        return ResponseEntity.ok(tradeService.getInitialCandles(categoryId, page, size));
+        return ResponseEntity.ok(tradeService.getInitialCandles(categoryId, lastId, size));
     }
 
 }

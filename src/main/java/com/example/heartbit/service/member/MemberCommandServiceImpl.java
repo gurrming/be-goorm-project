@@ -3,6 +3,8 @@ package com.example.heartbit.service.member;
 import com.example.heartbit.domain.Member;
 import com.example.heartbit.dto.MemberRequestDto;
 import com.example.heartbit.dto.MemberResponseDto;
+import com.example.heartbit.global.exception.CustomerException;
+import com.example.heartbit.global.exception.ErrorCode;
 import com.example.heartbit.global.jwt.JwtTokenProvider;
 import com.example.heartbit.global.jwt.dto.IssuedTokens;
 import com.example.heartbit.repository.MemberRepository;
@@ -36,7 +38,7 @@ public class MemberCommandServiceImpl implements MemberCommandService{
     @Override
     public void signup(MemberRequestDto.Signup request){
         if(memberRepository.existsByMemberEmail(request.email())){
-            throw new IllegalArgumentException("이미 사용 중인 이메일 입니다.");
+            throw new CustomerException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
         String encodedPassword = passwordEncoder.encode(request.password());
         Member member = Member.builder().memberEmail(request.email())
@@ -48,9 +50,9 @@ public class MemberCommandServiceImpl implements MemberCommandService{
 
     public MemberResponseDto.MemberTokenDTO login (MemberRequestDto.Login request){
         Member member = memberRepository.findByMemberEmail(request.email())
-                .orElseThrow(()-> new IllegalArgumentException("Email 또는 비밀번호가 일치하지 않습니다."));
+                .orElseThrow(()-> new CustomerException(ErrorCode.MEMBER_NOT_FOUND));
         if(!passwordEncoder.matches(request.password(),member.getMemberPassword())){
-            throw new IllegalArgumentException("Email 또는 비밀번호가 일치하지 않습니다.");
+            throw new CustomerException(ErrorCode.INVALID_PASSWORD);
         }
 
         String memberId = String.valueOf(member.getMemberId());
@@ -66,10 +68,14 @@ public class MemberCommandServiceImpl implements MemberCommandService{
     }
 
     public IssuedTokens reissue (HttpServletRequest request){
+        // 쿠키에서 토큰 꺼냄
         String refreshToken = extractRefreshFromCookie(request);
 
         if(refreshToken == null){
-            throw new IllegalArgumentException("Refresh Token이 존재하지 않습니다.");
+            throw new CustomerException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
+        }
+        if(!jwtTokenProvider.validateToken(refreshToken)){
+            throw new CustomerException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
         Claims claims = jwtTokenProvider.getClaims(refreshToken);

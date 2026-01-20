@@ -13,6 +13,21 @@ import java.util.Optional;
 
 public interface TradeRepository extends JpaRepository<Trade, Long> {
 
+
+    @Query("SELECT t FROM Trade t " +
+    "WHERE t.buyOrder.category.categoryId = :categoryID " +
+    "ORDER BY t.tradeId DESC")
+    List<Trade> findLatestTrades(@Param("categoryID") Long categoryID, Pageable pageable);
+
+    @Query("SELECT t FROM Trade t " +
+    "WHERE t.buyOrder.category.categoryId = :categoryID " +
+    "AND t.tradeId < :lastId " +
+    "ORDER BY t.tradeId DESC")
+    List<Trade> findTradesByCursor(
+    @Param("categoryID") Long categoryID,
+    @Param("lastId") Long lastId,
+    Pageable pageable);
+
     // 1. 특정 주문(OrderId)에 연관된 모든 체결 내역 조회
     List<Trade> findByBuyOrder_OrderIdOrSellOrder_OrderId(Long buyOrderId, Long sellOrderId);
 
@@ -38,10 +53,6 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
     Page<Trade> findByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(Long categoryId, Pageable pageable);
 
 
-    // 6. 9시 기준가 로드용 (특정 시점 이전의 마지막 체결가)
-
-
-        // ... 기존 메서드들 ...
 
         // 6. 9시 기준가 로드용 (특정 종목의 특정 시점 이전 마지막 체결가)
         // 파라미터에 categoryId를 추가하여 해당 종목의 전일 종가를 정확히 가져오도록 합니다.

@@ -134,6 +134,30 @@ public class TradeService {
                 totalBuyQtys.put(id, buyVol);
                 totalSellQtys.put(id, sellVol);
 
+                BigDecimal currentPrice = currentPrices.getOrDefault(id, BigDecimal.ZERO);
+                BigDecimal openPrice = openPrices.getOrDefault(id, BigDecimal.ZERO);
+
+                // 만약 오전 9시 이전 데이터가 없어서 시가가 0인데, 현재가는 있는 경우 (신규 상장 or 데이터 유실 등)
+                // 시가를 현재가로 맞춰주어 변동률을 0%로 시작하게 함 (방어 로직)
+                if (openPrice.compareTo(BigDecimal.ZERO) == 0 && currentPrice.compareTo(BigDecimal.ZERO) > 0) {
+                    openPrice = currentPrice;
+                    openPrices.put(id, openPrice);
+                }
+
+                // 시가가 존재할 때만 계산 수행
+                if (openPrice.compareTo(BigDecimal.ZERO) > 0) {
+                    // 변동금 = 현재가 - 시가
+                    BigDecimal changeAmount = currentPrice.subtract(openPrice);
+
+                    // 변동률 = (변동금 / 시가) * 100
+                    BigDecimal changeRate = changeAmount.divide(openPrice, 10, RoundingMode.HALF_UP)
+                            .multiply(new BigDecimal("100"));
+
+                    // **여기서 맵에 넣어줘야 REST API 호출 시 0이 안 나옴**
+                    changeAmounts.put(id, changeAmount);
+                    changeRates.put(id, changeRate);
+                }
+
 
             }
         }
@@ -354,18 +378,23 @@ public class TradeService {
 
 
     //사용자가 처음에 접속했을때 텅빈 화면이 뜨는것을 방지하기 위해 db에서 지난 차트 데이터들을 REST API로 불러오기
-    public List<Map<String, Object>> getInitialCandles(Long categoryId, int page, int size) {
+    public List<Map<String, Object>> getInitialCandles(Long categoryId, Long lastId, int size) {
 
-        Pageable pageable = PageRequest.of(page, size);
-        List<Trade> trades = tradeRepository.findByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(categoryId, pageable).getContent();
+        Pageable pageable = PageRequest.of(0, size);
+        List<Trade> trades;
+
+        if(lastId == null || lastId == 0) {
+            trades = tradeRepository.findLatestTrades(categoryId, pageable);
+        } else {
+            trades = tradeRepository.findTradesByCursor(categoryId, lastId, pageable);
+        }
 
         if (trades.isEmpty()) return Collections.emptyList();
 
+        //1분봉으로 그룹핑
         Map<LocalDateTime, List<Trade>> groupedTrades = trades.stream()
                 .collect(Collectors.groupingBy(
                         t -> t.getTradeTime().withSecond(0).withNano(0),
-                        // Supplier 부분: 명시적으로 타입을 지정하거나,
-                        // 에러가 지속되면 TreeMap 대신 아래와 같이 작성합니다.
                         () -> new TreeMap<LocalDateTime, List<Trade>>(Comparator.reverseOrder()),
                         Collectors.toList()
                 ));
@@ -376,7 +405,7 @@ public class TradeService {
 
             // DB에서 Desc로 가져왔기 때문에 리스트의 끝[size-1]이 그 분의 첫 거래
             BigDecimal open = minuteTrades.get(minuteTrades.size() - 1).getTradePrice(); // 시가
-            BigDecimal close = minuteTrades.get(0).getTradePrice();                       // 종가
+            BigDecimal close = minuteTrades.get(0).getTradePrice(); // 종가
 
             BigDecimal high = minuteTrades.stream()
                     .map(Trade::getTradePrice)
@@ -385,12 +414,17 @@ public class TradeService {
                     .map(Trade::getTradePrice)
                     .min(BigDecimal::compareTo).orElse(BigDecimal.ZERO);
 
+            Long minTradeIdInCandle = minuteTrades.stream()
+                    .map(Trade::getTradeId)
+                    .min(Long::compareTo).orElse(0L);
+
             Map<String, Object> candle = new HashMap<>();
             candle.put("t", minute.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
             candle.put("o", open.toPlainString());
             candle.put("h", high.toPlainString());
             candle.put("l", low.toPlainString());
             candle.put("c", close.toPlainString());
+            candle.put("tradeId", minTradeIdInCandle);
 
             return candle;
         }).collect(Collectors.toList());
@@ -420,7 +454,6 @@ public class TradeService {
 
     /**
      * 특정 종목(categoryId)의 실시간 현재가 정보를 반환합니다.
-     * 반환 타입은 InvestService에서 바로 사용할 수 있도록 TradeResponse로 구성합니다.
      */
     public TradeResponse getCurrentTrade(Long categoryId) {
 

@@ -38,4 +38,11 @@ public class MemberRequestDto {
             @Schema(description = "refreshToken")
             String refreshToken
     ){}
+
+    public record Exists(
+            @Email @NotBlank
+            @Schema(description = "이메일", example = "test@example.com")
+            String email
+    ) {
+    }
 }

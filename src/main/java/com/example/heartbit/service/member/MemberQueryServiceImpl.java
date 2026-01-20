@@ -48,4 +48,10 @@ public class MemberQueryServiceImpl implements MemberQueryService{
         return getMemberByMemberId(memberId);
     }
 
+    public MemberResponseDto.EmailExistsDTO isExistsEmail(MemberRequestDto.Exists request){
+        boolean isExists = memberRepository.existsByMemberEmail(request.email());
+
+        return MemberResponseDto.EmailExistsDTO.builder().isExists(isExists).build();
+    }
+
 }

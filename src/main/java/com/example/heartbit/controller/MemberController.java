@@ -3,7 +3,9 @@ package com.example.heartbit.controller;
 import com.example.heartbit.dto.MemberRequestDto;
 import com.example.heartbit.dto.MemberResponseDto;
 import com.example.heartbit.global.jwt.dto.IssuedTokens;
+import com.example.heartbit.global.response.ApiResponse;
 import com.example.heartbit.service.member.MemberCommandService;
+import com.example.heartbit.service.member.MemberQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
@@ -30,6 +32,14 @@ import java.util.Map;
 public class MemberController {
 
     private final MemberCommandService memberCommandService;
+    private  final MemberQueryService memberQueryService;
+
+    @Operation(summary = "이메일 중복확인")
+    @PostMapping("/exists")
+    public ResponseEntity<MemberResponseDto.EmailExistsDTO> exists(@Valid @RequestBody MemberRequestDto.Exists requestDto){
+        MemberResponseDto.EmailExistsDTO response = memberQueryService.isExistsEmail(requestDto);
+        return ResponseEntity.ok(response);
+    }
 
     @Operation(summary = "회원가입", description = "이메일, 비밀번호, 닉네임을 입력받아 신규 회원을 등록합니다.")
     @PostMapping("/signup")
@@ -40,7 +50,7 @@ public class MemberController {
 
     @Operation(summary = "로그인", description = "입력된 정보로 로그인 처리합니다.(토큰을 쿠키에 저장)")
     @PostMapping("/login")
-    public ResponseEntity<Map<String, Object>> login(@Valid @RequestBody MemberRequestDto.Login requestDto, HttpServletResponse response) {
+    public ResponseEntity<ApiResponse<MemberResponseDto.MemberTokenDTO>> login(@Valid @RequestBody MemberRequestDto.Login requestDto, HttpServletResponse response) {
         MemberResponseDto.MemberTokenDTO tokenDTO = memberCommandService.login(requestDto);
 
         Cookie accessCookie = new Cookie("accessToken", tokenDTO.accessToken());
@@ -56,11 +66,7 @@ public class MemberController {
         response.addCookie(accessCookie);
         response.addCookie(refreshCookie);
 
-        Map<String, Object> responseBody = new HashMap<>();
-        responseBody.put("message", "로그인 성공");
-        responseBody.put("data", tokenDTO);
-
-        return ResponseEntity.ok(responseBody);
+        return ResponseEntity.ok(ApiResponse.onSuccess(tokenDTO));
     }
 
     @Operation(summary = "로그아웃", description = "현재 로그인된 사용자의 세션/인증 정보를 종료합니다.(쿠키 삭제)")
@@ -82,7 +88,7 @@ public class MemberController {
 
     @Operation(summary = "토큰 재발급", description = "refresh 토큰을 사용하여 토큰 재발급")
     @PostMapping("/reissue")
-    public ResponseEntity<String> reissue(HttpServletRequest request, HttpServletResponse response){
+    public ResponseEntity<MemberResponseDto.MemberReissueDTO> reissue(HttpServletRequest request, HttpServletResponse response){
         IssuedTokens issued = memberCommandService.reissue(request);
 
         ResponseCookie refreshCookie = memberCommandService.buildRefreshCookie(
@@ -96,9 +102,7 @@ public class MemberController {
                 .accessExpiresInSec(issued.accessExpiresInSec())
                 .build();
 
-        return ResponseEntity.ok("토큰 재발급 성공");
-
-
+        return ResponseEntity.ok(memberReissueDTO);
     }
 
 }
