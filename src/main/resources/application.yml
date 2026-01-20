@@ -35,7 +35,7 @@ springdoc:
 
 jwt:
   secret-key: "c3ByaW5nLWJvb3Qtc2VjdXJpdHktand0LXR1dG9yaWFsLWppd29vbi1sprbmctYm9vdC1zZWN1cml0eS1qd3QtdHV0b3JpYWwK"
-  expiration-time: 18000000
+  expiration-time: 1800000
   refresh-token-expiration-time: 604800000
   
 server:
