@@ -378,18 +378,23 @@ public class TradeService {
 
 
     //사용자가 처음에 접속했을때 텅빈 화면이 뜨는것을 방지하기 위해 db에서 지난 차트 데이터들을 REST API로 불러오기
-    public List<Map<String, Object>> getInitialCandles(Long categoryId, int page, int size) {
+    public List<Map<String, Object>> getInitialCandles(Long categoryId, Long lastId, int size) {
 
-        Pageable pageable = PageRequest.of(page, size);
-        List<Trade> trades = tradeRepository.findByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(categoryId, pageable).getContent();
+        Pageable pageable = PageRequest.of(0, size);
+        List<Trade> trades;
+
+        if(lastId == null || lastId == 0) {
+            trades = tradeRepository.findLatestTrades(categoryId, pageable);
+        } else {
+            trades = tradeRepository.findTradesByCursor(categoryId, lastId, pageable);
+        }
 
         if (trades.isEmpty()) return Collections.emptyList();
 
+        //1분봉으로 그룹핑
         Map<LocalDateTime, List<Trade>> groupedTrades = trades.stream()
                 .collect(Collectors.groupingBy(
                         t -> t.getTradeTime().withSecond(0).withNano(0),
-                        // Supplier 부분: 명시적으로 타입을 지정하거나,
-                        // 에러가 지속되면 TreeMap 대신 아래와 같이 작성합니다.
                         () -> new TreeMap<LocalDateTime, List<Trade>>(Comparator.reverseOrder()),
                         Collectors.toList()
                 ));
