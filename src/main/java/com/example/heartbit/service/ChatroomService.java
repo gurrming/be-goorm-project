@@ -10,6 +10,7 @@ import com.example.heartbit.repository.ChatroomRepository;
 import com.example.heartbit.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,24 +20,45 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ChatroomService {
+
     private final MemberRepository memberRepository;
     private final ChatroomRepository chatroomRepository;
     private final CategoryRepository categoryRepository;
 
-    // 채팅 목록 조회
-    public List<ChatResponseDto> getChatroomsByCategory(Long categoryId) {
+    /**
+         lastChatroomId -> cursor (없으면 null)
+         size -> 가져올 개수
+     */
+    public List<ChatResponseDto> getChatroomsByCategory(
+            Long categoryId,
+            Long lastChatroomId,
+            int size
+    ) {
+        Pageable pageable = PageRequest.of(0, size);
 
-        List<Chatroom> chats = chatroomRepository.findByCategoryId(
-                categoryId,
-                PageRequest.of(0, 50)
-        );
+        List<Chatroom> chats;
+
+        if (lastChatroomId == null) {
+            // 채팅방 첫 입장 시
+            chats = chatroomRepository.findLatestChatsByCategory(
+                    categoryId,
+                    pageable
+            );
+        } else {
+            // cursor 있으면 이전 채팅 더 가져오기
+            chats = chatroomRepository.findOlderChatsByCategory(
+                    categoryId,
+                    lastChatroomId,
+                    pageable
+            );
+        }
 
         return chats.stream()
                 .map(ChatResponseDto::from)
                 .toList();
     }
 
-    // 채팅쓰기
+    // 채팅 쓰기
     @Transactional
     public ChatResponseDto writeChat(ChatRequestDto requestDto) {
 
@@ -53,7 +75,4 @@ public class ChatroomService {
 
         return ChatResponseDto.from(saved);
     }
-
-
-
 }
