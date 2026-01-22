@@ -67,3 +67,4 @@ logging:
   level:
     org.springframework.messaging: TRACE
     org.springframework.web.socket: TRACE
+
