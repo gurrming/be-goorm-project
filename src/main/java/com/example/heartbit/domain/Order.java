@@ -42,9 +42,6 @@ public class Order {
     @Column(name = "order_status", nullable = false, length = 10)
     private OrderStatus orderStatus;
 
-    @Column(name = "is_bot", nullable = false)
-    private Boolean isBot = false;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id", nullable = true)
     private Member member;
@@ -68,7 +65,6 @@ public class Order {
         this.remainingCount = (remainingCount != null) ? remainingCount : orderCount;
         this.orderType = orderType;
         this.orderStatus = (orderStatus != null) ? orderStatus : OrderStatus.OPEN;
-        this.isBot = (isBot != null) ? isBot : false;
         this.member = member;
         this.category = category;
     }

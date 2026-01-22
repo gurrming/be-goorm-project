@@ -526,7 +526,6 @@ public class TradeService {
         return categoryRepository.findAll()
                 .stream()
                 // 삭제되지 않은 종목만 필터링
-                .filter(category -> !Boolean.TRUE.equals(category.getCategoryDelete()))
                 .map(category -> {
                     Long id = category.getCategoryId();
 

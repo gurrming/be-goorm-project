@@ -24,9 +24,6 @@ public class Category {
     @Column(name = "symbol", length = 20)
     private String symbol;
 
-    @Column(name = "category_delete")
-    private Boolean categoryDelete;
-
 
 }
 
