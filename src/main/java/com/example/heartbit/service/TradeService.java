@@ -17,6 +17,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.web.PageableArgumentResolver;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -37,6 +39,8 @@ import com.example.heartbit.repository.TradeRepository;
 
 import java.util.*;
 
+import static com.example.heartbit.util.RedisKeyUtils.getTickerKey;
+
 
 @Slf4j
 @Service
@@ -51,6 +55,8 @@ public class TradeService {
     private final SimpMessagingTemplate messagingTemplate;
     private final OrderRepository orderRepository;
     private final AssetService assetService;
+
+    private final StringRedisTemplate redisTemplate;
 
 
     // 종목별 실시간 시세 상태 관리 (메모리 맵)
@@ -231,6 +237,10 @@ public class TradeService {
     //값이 바뀌면 값들 갱신하고 웹소켓으로 쏴주는 매서드 호출
     private void updateMarketAndBroadcast(Long categoryId, TradeResponse response) {
         BigDecimal price = response.getTradePrice();
+        String key = getTickerKey(categoryId);
+
+        // Redis에 현재가 저장 (String 타입)
+        redisTemplate.opsForValue().set(key, price.toPlainString());
         BigDecimal count = response.getTradeCount();
         BigDecimal openPrice = openPrices.getOrDefault(categoryId, price);
 
@@ -456,24 +466,27 @@ public class TradeService {
      * 특정 종목(categoryId)의 실시간 현재가 정보를 반환합니다.
      */
     public TradeResponse getCurrentTrade(Long categoryId) {
+        String key = getTickerKey(categoryId);
 
-        // 1. 메모리(currentPrices)에서 해당 종목의 실시간 가격 추출
-        BigDecimal price = currentPrices.getOrDefault(categoryId, BigDecimal.ZERO);
+        // 1. Redis에서 가격 조회
+        Object cachedPrice = redisTemplate.opsForValue().get(key);
+        BigDecimal price;
 
-        // 2. 만약 메모리에 가격 정보가 없다면(서버 재시작 직후 등), DB에서 가장 최근 체결 기록을 조회 (방어 로직)
-        if (price.compareTo(BigDecimal.ZERO) == 0) {
+        if (cachedPrice != null) {
+            price = new BigDecimal(cachedPrice.toString());
+        } else {
+            // 2. Redis에 없으면 DB에서 최신 체결가 가져오기 (방어 로직)
             TradeResponse recent = getRecentTrade(categoryId);
-            if (recent != null) {
-                price = recent.getTradePrice();
+            price = (recent != null) ? recent.getTradePrice() : BigDecimal.ZERO;
+
+            // 3. DB에서 가져온 값을 다시 Redis에 캐싱 (다음 조회를 위해)
+            if (price.compareTo(BigDecimal.ZERO) > 0) {
+                redisTemplate.opsForValue().set(key, price.toPlainString());
             }
         }
 
-        // 3. InvestService 계산에 필요한 가격 데이터를 TradeResponse 객체에 담아 반환
-        return TradeResponse.builder()
-                .tradePrice(price)
-                .build();
+        return TradeResponse.builder().tradePrice(price).build();
     }
-
     /**
      * 종목 단건 조회 (투자용)
      */
@@ -513,7 +526,6 @@ public class TradeService {
         return categoryRepository.findAll()
                 .stream()
                 // 삭제되지 않은 종목만 필터링
-                .filter(category -> !Boolean.TRUE.equals(category.getCategoryDelete()))
                 .map(category -> {
                     Long id = category.getCategoryId();
 

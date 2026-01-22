@@ -17,14 +17,18 @@ public class ChatroomController {
 
     private final ChatroomService chatroomService;
 
-    // 채팅 가져오기
-    @Operation(summary = "채팅 내역 조회", description = "종목ID로 해당 채팅방의 채팅 로그들을 불러옵니다.")
+    @Operation(summary = "채팅 내역 조회", description = "종목별 채팅 내역을 종목 ID로 조회합니다.")
     @GetMapping("/{categoryId}")
-    public List<ChatResponseDto> getChats(@PathVariable Long categoryId) {
-        return chatroomService.getChatroomsByCategory(categoryId);
+    public List<ChatResponseDto> getChats(@PathVariable Long categoryId,
+            @RequestParam(required = false) Long lastChatroomId,
+            @RequestParam(defaultValue = "50") int size
+    ) {
+        return chatroomService.getChatroomsByCategory(
+                categoryId,
+                lastChatroomId,
+                size
+        );
     }
-
-
 
 
 }

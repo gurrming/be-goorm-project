@@ -47,10 +47,9 @@ public class OrderService {
         Member member = memberRepository.findById(request.getMemberId())
                 .orElseThrow(() -> new IllegalArgumentException("멤버 정보를 찾을 수 없습니다."));
 
-        boolean isBot = Boolean.TRUE.equals(request.getIsBot());
 
         // 자산 차감 로직 (매수일 때)
-        if (!isBot && request.getOrderType() == OrderType.BUY) {
+        if (request.getOrderType() == OrderType.BUY) {
             BigDecimal totalAmount = request.getOrderPrice().multiply(request.getOrderCount());
             assetService.deductCash(request.getMemberId(), totalAmount);
         }
@@ -65,7 +64,6 @@ public class OrderService {
                 .remainingCount(request.getOrderCount())
                 .orderType(request.getOrderType())
                 .orderStatus(OrderStatus.OPEN)
-                .isBot(isBot)
                 .build();
 
         orderRepository.save(newOrder);
