@@ -43,7 +43,6 @@ public class OrderRequest {
                 .remainingCount(this.orderCount)
                 .orderType(this.orderType)
                 .orderStatus(OrderStatus.OPEN)
-                .isBot(this.isBot)
                 .member(member)
                 .category(category)
                 .build();

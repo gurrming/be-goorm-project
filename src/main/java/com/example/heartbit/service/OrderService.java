@@ -160,7 +160,7 @@ public class OrderService {
     public void sendOrderBookUpdate(Long categoryId) {
         int limit = 30;
 
-        // DB에서 가장 최근 체결가 조회
+        // 가장 최근 체결가 조회
         BigDecimal lastPrice = tradeRepository
                 .findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(categoryId)
                 .map(Trade::getTradePrice)
@@ -203,6 +203,7 @@ public class OrderService {
                         .totalRemainingCount(e.getValue())
                         .build()
                 )
+                // 정렬
                 .sorted((o1, o2) -> orderType == OrderType.SELL
                         ? o1.getOrderPrice().compareTo(o2.getOrderPrice())
                         : o2.getOrderPrice().compareTo(o1.getOrderPrice()))
@@ -211,6 +212,7 @@ public class OrderService {
     }
 
 
+    // 소수점 아래 삭제 / 십의 자리 수는 소수점 한자리 / 일의 자리 수는 소수점 두자리
     private BigDecimal integerOrderPrice(BigDecimal price) {
         if (price.compareTo(BigDecimal.TEN) < 0) {
             return price.setScale(2, RoundingMode.FLOOR);
@@ -221,8 +223,6 @@ public class OrderService {
         }
     }
 
-
-
     public List<OrderBookResponse> getOrderBookWithPriceFilter(Long categoryId, OrderType orderType, int limit) {
         // 현재 체결가 조회
         BigDecimal lastPrice = tradeRepository.findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(categoryId)
@@ -232,7 +232,7 @@ public class OrderService {
         // 현재가 기준 정렬
         List<OrderBookResponse> result = getOrderBook(categoryId, orderType, limit);
 
-        // 매도(SELL)의 경우, 화면 위쪽이 고가가 되도록 리스트를 뒤집어 반환
+        // SELL의 경우 리스트를 뒤집어 반환
         if (orderType == OrderType.SELL) {
             Collections.reverse(result);
         }
