@@ -56,7 +56,6 @@ public class Order {
                  BigDecimal remainingCount,
                  OrderType orderType,
                  OrderStatus orderStatus,
-                 Boolean isBot,
                  Member member,
                  Category category) {
 

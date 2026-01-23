@@ -97,7 +97,8 @@ public class TradeEngineService {
 
         // 수량 차감
         private BigDecimal executeTrade(
-                Order taker, PriorityQueue<Order> makerOrders, PriorityQueue<BigDecimal> priceQueue, List<TradeRequest> tradeList, BigDecimal remaining) {
+                Order taker, PriorityQueue<Order> makerOrders, PriorityQueue<BigDecimal> priceQueue,
+                List<TradeRequest> tradeList, BigDecimal remaining) {
             while (remaining.compareTo(BigDecimal.ZERO) > 0 && !makerOrders.isEmpty()) {
                 Order maker = makerOrders.peek();
                 BigDecimal tradeCount = remaining.min(maker.getRemainingCount());
@@ -106,6 +107,7 @@ public class TradeEngineService {
                         taker.getOrderType() == OrderType.BUY ? taker.getOrderId() : maker.getOrderId(),
                         taker.getOrderType() == OrderType.SELL ? taker.getOrderId() : maker.getOrderId(), LocalDateTime.now()));
 
+                //
                 maker.updateRemainingCount(tradeCount);
                 taker.updateRemainingCount(tradeCount);
                 remaining = taker.getRemainingCount();

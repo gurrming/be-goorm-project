@@ -337,9 +337,10 @@ public class TradeService {
         candle.put("c", price.toPlainString());
         messagingTemplate.convertAndSend("/topic/charts" + suffix, (Object)candle);
 
+        Map<String, Object> lastPrice = new HashMap<>();
+        lastPrice.put("price", price.toPlainString());
         messagingTemplate.convertAndSend("/topic/orderbook/lastPrice/" + categoryId, price.toPlainString());
     }
-
 
 
     //최근 체결 기록(limit으로 개수 설정 가능)
