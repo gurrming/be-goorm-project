@@ -48,23 +48,30 @@ public class TradeEngineService {
         // 가격들마다의 수량의 순서를 관리
         private final PriorityQueue<BigDecimal> buyPrices = new PriorityQueue<>(Comparator.reverseOrder());
         private final PriorityQueue<BigDecimal> sellPrices = new PriorityQueue<>();
+        // 가격 조회
+        private final Set<BigDecimal> isBuyPrices = new HashSet<>();
+        private final Set<BigDecimal> isSellPrices = new HashSet<>();
 
         // 주문된 가격이 있는지 확인 후 호가창에 추가
         private void addOrderBook(Order order) {
             BigDecimal price = order.getOrderPrice();
-            Comparator<Order> orderFifo = Comparator
-                    .comparing(Order::getOrderTime)
-                    .thenComparing(Order::getOrderId);
-
             if (order.getOrderType() == OrderType.BUY) {
-                buyOrderBook.computeIfAbsent(price, k -> new PriorityQueue<>(orderFifo)).add(order);
-                if (!buyPrices.contains(price)) buyPrices.add(price);
+                // 매수 주문
+                buyOrderBook.computeIfAbsent(price, key -> new PriorityQueue<>(Comparator.comparing(Order::getOrderId)))
+                        .add(order);
+                // buyPrices에 추가
+                if (isBuyPrices.add(price)) {
+                    buyPrices.add(price);
+                }
             } else {
-                sellOrderBook.computeIfAbsent(price, k -> new PriorityQueue<>(orderFifo)).add(order);
-                if (!sellPrices.contains(price)) sellPrices.add(price);
+                // 매도 주문
+                sellOrderBook.computeIfAbsent(price, key -> new PriorityQueue<>(Comparator.comparing(Order::getOrderId)))
+                        .add(order);
+                if (isSellPrices.add(price)) {
+                    sellPrices.add(price);
+                }
             }
         }
-
         /// TODO:
         /// 1. 여러개의 종목을 매칭하는것으로 바꿔보자
         /// 2. 테스트를 충분히해보자
@@ -99,23 +106,37 @@ public class TradeEngineService {
         private BigDecimal executeTrade(
                 Order taker, PriorityQueue<Order> makerOrders, PriorityQueue<BigDecimal> priceQueue,
                 List<TradeRequest> tradeList, BigDecimal remaining) {
+
             while (remaining.compareTo(BigDecimal.ZERO) > 0 && !makerOrders.isEmpty()) {
                 Order maker = makerOrders.peek();
                 BigDecimal tradeCount = remaining.min(maker.getRemainingCount());
 
+                // 체결 리스트 가져오기
                 tradeList.add(new TradeRequest(maker.getOrderPrice(), tradeCount, taker.getCategory().getCategoryId(),
                         taker.getOrderType() == OrderType.BUY ? taker.getOrderId() : maker.getOrderId(),
                         taker.getOrderType() == OrderType.SELL ? taker.getOrderId() : maker.getOrderId(), LocalDateTime.now()));
 
-                //
+                // 수량 등록
                 maker.updateRemainingCount(tradeCount);
                 taker.updateRemainingCount(tradeCount);
                 remaining = taker.getRemainingCount();
 
+                // 수량이 0이 되면 제거
                 if (maker.getRemainingCount().compareTo(BigDecimal.ZERO) == 0) makerOrders.poll();
             }
+            //
             if (makerOrders.isEmpty()) {
-                priceQueue.poll();
+                // 큐에서 제거
+                BigDecimal zeroPrice = priceQueue.poll();
+
+                // HashSet에서 제거
+                if (taker.getOrderType() == OrderType.BUY) {
+                    // taker가 매수일때 매도창 주문 체결
+                    isSellPrices.remove(zeroPrice);
+                } else {
+                    // taker가 매도일때 매수창 주문 체결
+                    isBuyPrices.remove(zeroPrice);
+                }
             }
             return remaining;
         }

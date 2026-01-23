@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -25,6 +26,14 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Slice<Order> findByMember_MemberIdAndOrderStatusInOrderByOrderTimeDesc(
             Long memberId, Collection<OrderStatus> statuses,  Pageable pageable
     );
+
+    // 특정 회원의 미체결(OPEN, PARTIAL) 주문 수량 총합
+    @Query("""
+        SELECT COUNT(o) FROM Order o 
+        WHERE o.member.memberId = :memberId 
+        AND o.orderStatus IN :statuses
+        """)
+    Long countOpenOrdersByMember(Long memberId, List<OrderStatus> statuses);
 
     // 만료된 주문 조회 (스케줄러용)
     @Query("""

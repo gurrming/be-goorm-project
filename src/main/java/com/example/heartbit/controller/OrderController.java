@@ -1,6 +1,7 @@
 package com.example.heartbit.controller;
 
 import com.example.heartbit.domain.OrderType;
+import com.example.heartbit.dto.order.MemberOpenOrderResponse;
 import com.example.heartbit.dto.order.OrderBookResponse;
 import com.example.heartbit.dto.order.OrderRequest;
 import com.example.heartbit.dto.order.OrderResponse;
@@ -32,17 +33,7 @@ public class OrderController {
     public ResponseEntity<OrderResponse> createOrder(
             @Valid @RequestBody OrderRequest request
     ) {
-        log.info(
-                "CREATE ORDER | isBot={} | memberId={} | categoryId={} | type={} | price={} | count={}",
-                request.getIsBot(),
-                request.getMemberId(),
-                request.getCategoryId(),
-                request.getOrderType(),
-                request.getOrderPrice(),
-                request.getOrderCount()
-        );
-
-        // ✅ 서비스 결과 그대로 반환
+        // 서비스 결과 그대로 반환
         OrderResponse response = orderService.createOrder(request);
 
         return ResponseEntity.ok(response);
@@ -74,7 +65,7 @@ public class OrderController {
 
     @Operation(summary = "회원 미체결 주문 조회")
     @GetMapping("/open")
-    public ResponseEntity<Slice<OrderResponse>> getOpenMyOrders(
+    public ResponseEntity<MemberOpenOrderResponse> getOpenMyOrders(
             @RequestParam Long memberId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size

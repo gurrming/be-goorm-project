@@ -46,9 +46,7 @@ public class OrderResponse {
         BigDecimal totalAmount = order.getOrderPrice().multiply(total);
 
         String formattedTime = order.getOrderTime() != null
-                ? order.getOrderTime().format(
-                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-        )
+                ? order.getOrderTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 : "";
 
         Category category = order.getCategory();
