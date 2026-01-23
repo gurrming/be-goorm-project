@@ -13,6 +13,9 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -46,7 +49,6 @@ public class OrderService {
     public OrderResponse createOrder(@Valid OrderRequest request) {
         Member member = memberRepository.findById(request.getMemberId())
                 .orElseThrow(() -> new IllegalArgumentException("멤버 정보를 찾을 수 없습니다."));
-
 
         // 자산 차감 로직 (매수일 때)
         if (request.getOrderType() == OrderType.BUY) {
@@ -93,14 +95,16 @@ public class OrderService {
 
     // 회원 미체결 내역 리스트
     @Transactional(readOnly = true)
-    public List<OrderResponse> getOpenOrderByMember(Long memberId) {
+    public Slice<OrderResponse> getOpenOrderByMember(Long memberId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
         List<OrderStatus> openStatus = List.of(OrderStatus.OPEN, OrderStatus.PARTIAL);
 
-        return orderRepository.findByMember_MemberIdAndOrderStatusInOrderByOrderTimeDesc(memberId, openStatus)
-                .stream()
-                .map(OrderResponse::from)
-                .toList();
+        return orderRepository
+                .findByMember_MemberIdAndOrderStatusInOrderByOrderTimeDesc(memberId, openStatus, pageable)
+                .map(OrderResponse::from);
+
     }
+
 
     // 주문 취소
     private void processCancel(Order order) {
@@ -152,53 +156,72 @@ public class OrderService {
         }
     }
 
+    // 실시간 호가창 조회
     public void sendOrderBookUpdate(Long categoryId) {
         int limit = 30;
 
         // DB에서 가장 최근 체결가 조회
-        BigDecimal lastPrice = tradeRepository.findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(categoryId)
+        BigDecimal lastPrice = tradeRepository
+                .findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(categoryId)
                 .map(Trade::getTradePrice)
                 .orElse(BigDecimal.ZERO);
 
         // 현재가 기준 필터링된 호가 데이터 조회
-        List<OrderBookResponse> buyOrderBook = getOrderBook(categoryId, OrderType.BUY, limit, lastPrice);
-        List<OrderBookResponse> sellOrderBook = getOrderBook(categoryId, OrderType.SELL, limit, lastPrice);
+        List<OrderBookResponse> buyOrderBook = getOrderBook(categoryId, OrderType.BUY, limit);
+        List<OrderBookResponse> sellOrderBook = getOrderBook(categoryId, OrderType.SELL, limit);
 
         // 매도(SELL) 리스트 내림차순 정렬
-        java.util.Collections.reverse(sellOrderBook);
+        Collections.reverse(sellOrderBook);
 
         Map<String, Object> payload = Map.of(
                 "categoryId", categoryId,
-                // ******* 확인 필요
-                "buySide", sellOrderBook,
-                "sellSide", buyOrderBook,
+                "buySide", buyOrderBook,
+                "sellSide", sellOrderBook,
+                "lastPrice", lastPrice,
                 "serverTime", LocalDateTime.now().toString()
         );
 
         messagingTemplate.convertAndSend("/topic/orderbook/" + categoryId, (Object) payload);
     }
 
-    public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType, int limit, BigDecimal lastPrice) {
+
+    // 호가창 조회
+    public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType, int limit) {
         List<OrderStatus> activeStatuses = List.of(OrderStatus.OPEN, OrderStatus.PARTIAL);
-        List<Order> orders = orderRepository.findByCategory_CategoryIdAndOrderTypeAndOrderStatusIn(categoryId, orderType, activeStatuses);
+
+        List<Order> orders = orderRepository
+                .findByCategory_CategoryIdAndOrderTypeAndOrderStatusIn(categoryId, orderType, activeStatuses);
 
         return orders.stream()
-                // 그룹화
                 .collect(Collectors.groupingBy(
-                        order -> order.getOrderPrice().setScale(0, RoundingMode.FLOOR).stripTrailingZeros(),
+                        o -> o.getOrderPrice().setScale(0, RoundingMode.FLOOR),
                         Collectors.reducing(BigDecimal.ZERO, Order::getRemainingCount, BigDecimal::add)
                 ))
                 .entrySet().stream()
-                .map(e -> OrderBookResponse.builder().orderPrice(e.getKey()).totalRemainingCount(e.getValue()).build())
-                // 현재가 기준 매도는 현재가 이상, 매수는 현재가 이하만 가져오기
-                .filter(o -> orderType == OrderType.SELL ? o.getOrderPrice().compareTo(lastPrice) >= 0
-                        : o.getOrderPrice().compareTo(lastPrice) <= 0)
-                // 정렬
-                .sorted((o1, o2) -> orderType == OrderType.SELL ? o1.getOrderPrice().compareTo(o2.getOrderPrice()) // 싼 것부터
-                        : o2.getOrderPrice().compareTo(o1.getOrderPrice())) // 비싼 것부터
+                .map(e -> OrderBookResponse.builder()
+                        .orderPrice(integerOrderPrice(e.getKey()))
+                        .totalRemainingCount(e.getValue())
+                        .build()
+                )
+                .sorted((o1, o2) -> orderType == OrderType.SELL
+                        ? o1.getOrderPrice().compareTo(o2.getOrderPrice())
+                        : o2.getOrderPrice().compareTo(o1.getOrderPrice()))
                 .limit(limit)
                 .collect(Collectors.toList());
     }
+
+
+    private BigDecimal integerOrderPrice(BigDecimal price) {
+        if (price.compareTo(BigDecimal.TEN) < 0) {
+            return price.setScale(2, RoundingMode.FLOOR);
+        } else if (price.compareTo(BigDecimal.valueOf(100)) < 0) {
+            return price.setScale(1, RoundingMode.FLOOR);
+        } else {
+            return price.setScale(0, RoundingMode.FLOOR);
+        }
+    }
+
+
 
     public List<OrderBookResponse> getOrderBookWithPriceFilter(Long categoryId, OrderType orderType, int limit) {
         // 현재 체결가 조회
@@ -207,7 +230,7 @@ public class OrderService {
                 .orElse(BigDecimal.ZERO);
 
         // 현재가 기준 정렬
-        List<OrderBookResponse> result = getOrderBook(categoryId, orderType, limit, lastPrice);
+        List<OrderBookResponse> result = getOrderBook(categoryId, orderType, limit);
 
         // 매도(SELL)의 경우, 화면 위쪽이 고가가 되도록 리스트를 뒤집어 반환
         if (orderType == OrderType.SELL) {

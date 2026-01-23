@@ -25,7 +25,7 @@ public class TradeEngineService {
 
         // 매칭 후 매도/매수 수량이 남았다면 호가창에 등록
         if (newOrder.getRemainingCount().compareTo(BigDecimal.ZERO) > 0) {
-            orderBook.addOrderToBook(newOrder);
+            orderBook.addOrderBook(newOrder);
         }
 
         // takerType을 주문한 사람 타입으로 고정하여 반환
@@ -50,18 +50,21 @@ public class TradeEngineService {
         private final PriorityQueue<BigDecimal> sellPrices = new PriorityQueue<>();
 
         // 주문된 가격이 있는지 확인 후 호가창에 추가
-        private void addOrderToBook(Order order) {
+        private void addOrderBook(Order order) {
             BigDecimal price = order.getOrderPrice();
+            Comparator<Order> orderFifo = Comparator
+                    .comparing(Order::getOrderTime)
+                    .thenComparing(Order::getOrderId);
+
             if (order.getOrderType() == OrderType.BUY) {
-                buyOrderBook.computeIfAbsent(price, key -> new PriorityQueue<>(Comparator.comparing(Order::getOrderId)))
-                        .add(order);
+                buyOrderBook.computeIfAbsent(price, k -> new PriorityQueue<>(orderFifo)).add(order);
                 if (!buyPrices.contains(price)) buyPrices.add(price);
             } else {
-                sellOrderBook.computeIfAbsent(price, key -> new PriorityQueue<>(Comparator.comparing(Order::getOrderId)))
-                        .add(order);
+                sellOrderBook.computeIfAbsent(price, k -> new PriorityQueue<>(orderFifo)).add(order);
                 if (!sellPrices.contains(price)) sellPrices.add(price);
             }
         }
+
         /// TODO:
         /// 1. 여러개의 종목을 매칭하는것으로 바꿔보자
         /// 2. 테스트를 충분히해보자

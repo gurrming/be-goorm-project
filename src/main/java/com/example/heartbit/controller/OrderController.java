@@ -10,7 +10,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -72,10 +74,12 @@ public class OrderController {
 
     @Operation(summary = "회원 미체결 주문 조회")
     @GetMapping("/open")
-    public ResponseEntity<List<OrderResponse>> getOpenMyOrders(
-            @RequestParam Long memberId
+    public ResponseEntity<Slice<OrderResponse>> getOpenMyOrders(
+            @RequestParam Long memberId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
-        return ResponseEntity.ok(orderService.getOpenOrderByMember(memberId));
+        return ResponseEntity.ok(orderService.getOpenOrderByMember(memberId, page, size));
     }
 
     @Operation(summary = "주문 취소")
