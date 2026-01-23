@@ -2,6 +2,7 @@ package com.example.heartbit.service;
 
 import com.example.heartbit.domain.*;
 import com.example.heartbit.dto.TradeResponse;
+import com.example.heartbit.dto.order.MemberOpenOrderResponse;
 import com.example.heartbit.dto.order.OrderBookResponse;
 import com.example.heartbit.dto.order.OrderRequest;
 import com.example.heartbit.dto.order.OrderResponse;
@@ -95,15 +96,24 @@ public class OrderService {
 
     // 회원 미체결 내역 리스트
     @Transactional(readOnly = true)
-    public Slice<OrderResponse> getOpenOrderByMember(Long memberId, int page, int size) {
+    public MemberOpenOrderResponse getOpenOrderByMember(Long memberId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         List<OrderStatus> openStatus = List.of(OrderStatus.OPEN, OrderStatus.PARTIAL);
 
-        return orderRepository
+        // 페이징된 주문 리스트
+        Slice<OrderResponse> orderSlice = orderRepository
                 .findByMember_MemberIdAndOrderStatusInOrderByOrderTimeDesc(memberId, openStatus, pageable)
                 .map(OrderResponse::from);
 
+        // 미체결된 주문의 총 개수
+        Long openOrderCount = orderRepository.countOpenOrdersByMember(memberId, openStatus);
+
+        return MemberOpenOrderResponse.builder()
+                .orders(orderSlice)
+                .totalOpenOrderCount(openOrderCount != null ? openOrderCount : 0L)
+                .build();
     }
+    
 
 
     // 주문 취소
@@ -160,12 +170,6 @@ public class OrderService {
     public void sendOrderBookUpdate(Long categoryId) {
         int limit = 30;
 
-        // 가장 최근 체결가 조회
-        BigDecimal lastPrice = tradeRepository
-                .findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(categoryId)
-                .map(Trade::getTradePrice)
-                .orElse(BigDecimal.ZERO);
-
         // 현재가 기준 필터링된 호가 데이터 조회
         List<OrderBookResponse> buyOrderBook = getOrderBook(categoryId, OrderType.BUY, limit);
         List<OrderBookResponse> sellOrderBook = getOrderBook(categoryId, OrderType.SELL, limit);
@@ -177,7 +181,6 @@ public class OrderService {
                 "categoryId", categoryId,
                 "buySide", buyOrderBook,
                 "sellSide", sellOrderBook,
-                "lastPrice", lastPrice,
                 "serverTime", LocalDateTime.now().toString()
         );
 

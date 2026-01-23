@@ -31,9 +31,7 @@ public class OrderRequest {
     @NotNull(message = "주문 타입(BUY/SELL)은 필수입니다.")
     private OrderType orderType;
 
-    @JsonProperty("isBot")
-    // @NotNull(message = "BOT 여부는 필수입니다.")
-    private Boolean isBot;
+
 
     // DTO → Entity 변환
     public Order toEntity(Member member, Category category) {
