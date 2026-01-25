@@ -2,11 +2,13 @@ package com.example.heartbit.service;
 
 import com.example.heartbit.domain.Order;
 import com.example.heartbit.domain.OrderType;
-import com.example.heartbit.dto.TradeRequest;
+import com.example.heartbit.dto.order.EngineMatchResult;
 import com.example.heartbit.dto.TradeResponse;
+import com.example.heartbit.dto.order.OrderBookResponse;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,12 +18,31 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TradeEngineService {
     private final Map<Long, MatchingOrder> machingOrderBooks = new ConcurrentHashMap<>();
 
+    public MatchingOrder getMatchingOrder(Long categoryId) {
+        return machingOrderBooks.get(categoryId);
+    }
+
+    public BigDecimal normalizePrice(BigDecimal price) {
+        if (price == null) return BigDecimal.ZERO;
+        if (price.compareTo(new BigDecimal("100")) >= 0) {
+            return price.setScale(0, RoundingMode.FLOOR);
+        }
+        else if (price.compareTo(new BigDecimal("10")) >= 0) {
+            return price.setScale(1, RoundingMode.FLOOR);
+        }
+        else {
+            return price.setScale(2, RoundingMode.FLOOR);
+        }
+    }
+
     public synchronized List<TradeResponse> processOrder(Order newOrder) {
+        newOrder.setOrderPrice(normalizePrice(newOrder.getOrderPrice()));
+
         Long categoryId = newOrder.getCategory().getCategoryId();
         MatchingOrder orderBook = machingOrderBooks.computeIfAbsent(categoryId, id -> new MatchingOrder());
 
         // 새 주문이 들어오면 기존 호가창 대기 물량과 비교
-        List<TradeRequest> tradeRequests = orderBook.match(newOrder);
+        List<EngineMatchResult> engineResults = orderBook.match(newOrder);
 
         // 매칭 후 매도/매수 수량이 남았다면 호가창에 등록
         if (newOrder.getRemainingCount().compareTo(BigDecimal.ZERO) > 0) {
@@ -29,19 +50,26 @@ public class TradeEngineService {
         }
 
         // takerType을 주문한 사람 타입으로 고정하여 반환
-        return tradeRequests.stream()
-                .map(request -> TradeResponse.builder()
-                        .buyOrderId(request.getBuyOrderId())
-                        .sellOrderId(request.getSellOrderId())
-                        .tradePrice(request.getTradePrice())
-                        .tradeCount(request.getTradeCount())
-                        .tradeTime(request.getTradeTime())
+        return engineResults.stream()
+            .map(result -> {
+                // Taker(새주문)가 BUY면 Maker는 SELL
+                boolean isTakerBuy = result.getTaker().getOrderType() == OrderType.BUY;
+
+                return TradeResponse.builder()
+                        .buyOrderId(isTakerBuy ? result.getTaker().getOrderId() : result.getMaker().getOrderId())
+                        .sellOrderId(isTakerBuy ? result.getMaker().getOrderId() : result.getTaker().getOrderId())
+                        .buyOrderEntity(isTakerBuy ? result.getTaker() : result.getMaker())
+                        .sellOrderEntity(isTakerBuy ? result.getMaker() : result.getTaker())
+                        .tradePrice(result.getTradePrice())
+                        .tradeCount(result.getTradeCount())
+                        .tradeTime(result.getTradeTime())
                         .takerType(newOrder.getOrderType().name())
-                        .build())
+                        .build();
+                })
                 .toList();
     }
 
-    private static class MatchingOrder {
+    public static class MatchingOrder {
         // 매수 매도 값
         private final Map<BigDecimal, PriorityQueue<Order>> buyOrderBook = new HashMap<>();
         private final Map<BigDecimal, PriorityQueue<Order>> sellOrderBook = new HashMap<>();
@@ -51,6 +79,25 @@ public class TradeEngineService {
         // 가격 조회
         private final Set<BigDecimal> isBuyPrices = new HashSet<>();
         private final Set<BigDecimal> isSellPrices = new HashSet<>();
+
+        public List<OrderBookResponse> getSnapshot(OrderType type, int limit) {
+            PriorityQueue<BigDecimal> prices = (type == OrderType.BUY) ? buyPrices : sellPrices;
+            Map<BigDecimal, PriorityQueue<Order>> book = (type == OrderType.BUY) ? buyOrderBook : sellOrderBook;
+
+            List<BigDecimal> sortedPrices = new ArrayList<>(prices);
+
+            sortedPrices.sort(Comparator.reverseOrder());
+
+            return sortedPrices.stream()
+                    .limit(limit)
+                    .map(price -> OrderBookResponse.builder()
+                            .orderPrice(price)
+                            .totalRemainingCount(book.get(price).stream()
+                                    .map(Order::getRemainingCount)
+                                    .reduce(BigDecimal.ZERO, BigDecimal::add))
+                            .build())
+                    .toList();
+        }
 
         // 주문된 가격이 있는지 확인 후 호가창에 추가
         private void addOrderBook(Order order) {
@@ -78,8 +125,8 @@ public class TradeEngineService {
         /// 3. Order 부분 확인 및 uid도 확인 필요!(수정될거같음)
 
         // 매칭
-        public List<TradeRequest> match(Order newOrder) {
-            List<TradeRequest> tradeList = new ArrayList<>();
+        public List<EngineMatchResult> match(Order newOrder) {
+            List<EngineMatchResult> tradeList = new ArrayList<>();
             BigDecimal remaining = newOrder.getRemainingCount();
 
             if (newOrder.getOrderType() == OrderType.BUY) {
@@ -105,16 +152,20 @@ public class TradeEngineService {
         // 수량 차감
         private BigDecimal executeTrade(
                 Order taker, PriorityQueue<Order> makerOrders, PriorityQueue<BigDecimal> priceQueue,
-                List<TradeRequest> tradeList, BigDecimal remaining) {
+                List<EngineMatchResult> tradeList, BigDecimal remaining) { // 리스트 타입을 EngineMatchResult로 변경
 
             while (remaining.compareTo(BigDecimal.ZERO) > 0 && !makerOrders.isEmpty()) {
                 Order maker = makerOrders.peek();
                 BigDecimal tradeCount = remaining.min(maker.getRemainingCount());
 
                 // 체결 리스트 가져오기
-                tradeList.add(new TradeRequest(maker.getOrderPrice(), tradeCount, taker.getCategory().getCategoryId(),
-                        taker.getOrderType() == OrderType.BUY ? taker.getOrderId() : maker.getOrderId(),
-                        taker.getOrderType() == OrderType.SELL ? taker.getOrderId() : maker.getOrderId(), LocalDateTime.now()));
+                tradeList.add(new EngineMatchResult(
+                        taker,
+                        maker,
+                        maker.getOrderPrice(),
+                        tradeCount,
+                        LocalDateTime.now()
+                ));
 
                 // 수량 등록
                 maker.updateRemainingCount(tradeCount);
@@ -129,13 +180,15 @@ public class TradeEngineService {
                 // 큐에서 제거
                 BigDecimal zeroPrice = priceQueue.poll();
 
-                // HashSet에서 제거
+                // HashSet에서도 제거
                 if (taker.getOrderType() == OrderType.BUY) {
-                    // taker가 매수일때 매도창 주문 체결
+                    // Taker가 매수면 매도 호가창의 가격 사라짐
                     isSellPrices.remove(zeroPrice);
+                    sellOrderBook.remove(zeroPrice);
                 } else {
-                    // taker가 매도일때 매수창 주문 체결
+                    // Taker가 매도면 매수 호가창의 가격이 사라짐
                     isBuyPrices.remove(zeroPrice);
+                    buyOrderBook.remove(zeroPrice);
                 }
             }
             return remaining;

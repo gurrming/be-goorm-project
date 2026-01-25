@@ -1,5 +1,6 @@
 package com.example.heartbit.dto;
 
+import com.example.heartbit.domain.Order;
 import com.example.heartbit.domain.OrderType;
 import com.example.heartbit.domain.Trade;
 import lombok.Builder;
@@ -8,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+
 
 @Getter
 @NoArgsConstructor
@@ -22,6 +24,9 @@ public class TradeResponse {
 
     private Long buyOrderId;
     private Long sellOrderId;
+
+    private Order buyOrderEntity;
+    private Order sellOrderEntity;
     // 추가
     private String takerType;
 
@@ -39,7 +44,9 @@ public class TradeResponse {
             Long buyOrderId,
             Long sellOrderId,
             String takerType,
-            OrderType myOrderType
+            OrderType myOrderType,
+            Order buyOrderEntity,
+            Order sellOrderEntity
     ) {
         this.tradeId = tradeId;
         this.tradeTime = tradeTime;
@@ -51,6 +58,8 @@ public class TradeResponse {
         this.sellOrderId = sellOrderId;
         this.takerType = takerType;
         this.myOrderType = myOrderType;
+        this.buyOrderEntity = buyOrderEntity;
+        this.sellOrderEntity = sellOrderEntity;
     }
 
 

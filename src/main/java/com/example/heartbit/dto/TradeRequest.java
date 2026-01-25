@@ -1,5 +1,6 @@
 package com.example.heartbit.dto;
 
+import com.example.heartbit.domain.Order;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -25,5 +26,6 @@ public class TradeRequest {
     private Long sellOrderId;
     @NotNull
     private LocalDateTime tradeTime;
+
 
 }
