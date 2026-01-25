@@ -188,8 +188,16 @@ public class TradeService {
 
             // 관리자 계정(5L)이 아닌 경우에만 실제 돈을 지급 (유동성 공급용 계정 제외 로직)
             // 매도 완료 후 현금(Cash)으로 정산
-            assetService.refundCash(sellOrder.getMember().getMemberId(), tradeAmount);
 
+            // 1. 매수자(Buyer): '주문 가능 금액'은 주문 시 이미 깎였으므로, '실제 보유 자산(Cash)'을 차감
+            if (buyOrder.getMember().getMemberId() != 5L) {
+                assetService.settleBuyTrade(buyOrder.getMember().getMemberId(), tradeAmount);
+            }
+
+            // 2. 매도자(Seller): 판매 대금 입금 (Cash 증가 & CanOrder 증가)
+            if (sellOrder.getMember().getMemberId() != 5L) {
+                assetService.settleSellTrade(sellOrder.getMember().getMemberId(), tradeAmount);
+            }
 
 
 

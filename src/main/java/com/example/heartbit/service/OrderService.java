@@ -6,10 +6,7 @@ import com.example.heartbit.dto.order.MemberOpenOrderResponse;
 import com.example.heartbit.dto.order.OrderBookResponse;
 import com.example.heartbit.dto.order.OrderRequest;
 import com.example.heartbit.dto.order.OrderResponse;
-import com.example.heartbit.repository.CategoryRepository;
-import com.example.heartbit.repository.MemberRepository;
-import com.example.heartbit.repository.OrderRepository;
-import com.example.heartbit.repository.TradeRepository;
+import com.example.heartbit.repository.*;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -39,6 +37,7 @@ public class OrderService {
     private final MemberRepository memberRepository;
     private final CategoryRepository categoryRepository;
     private final TradeRepository tradeRepository;
+    private final AssetRepository assetRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
     private final TradeEngineService tradeEngineService;
@@ -54,7 +53,7 @@ public class OrderService {
         // 자산 차감 로직 (매수일 때)
         if (request.getOrderType() == OrderType.BUY) {
             BigDecimal totalAmount = request.getOrderPrice().multiply(request.getOrderCount());
-            assetService.deductCash(request.getMemberId(), totalAmount);
+            assetService.blockCash(request.getMemberId(), totalAmount);
         }
 
         Category category = categoryRepository.findById(request.getCategoryId()).orElseThrow();
@@ -124,7 +123,7 @@ public class OrderService {
         // 매수 환불
         if (order.getOrderType() == OrderType.BUY) {
             BigDecimal refundAmount = order.getOrderPrice().multiply(order.getRemainingCount());
-            assetService.refundCash(order.getMember().getMemberId(), refundAmount);
+            assetService.restoreCash(order.getMember().getMemberId(), refundAmount);
         }
         order.cancel();
     }

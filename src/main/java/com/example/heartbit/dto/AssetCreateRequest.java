@@ -21,6 +21,7 @@ public class AssetCreateRequest {
         return Asset.builder()
                 .member(member)
                 .assetCash(this.assetCash)
+                .assetCanOrder(this.assetCash)
                 .build();
     }
 }
