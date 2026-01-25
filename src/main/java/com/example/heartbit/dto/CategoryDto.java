@@ -21,6 +21,8 @@ public class CategoryDto {
     private BigDecimal changeAmount;
     private BigDecimal dailyHigh;
     private BigDecimal dailyLow;
+    private BigDecimal changeRateHigh;
+    private BigDecimal changeRateLow;
     private BigDecimal accVolume;
     private BigDecimal accAmount;
 

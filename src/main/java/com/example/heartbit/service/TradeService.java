@@ -77,7 +77,6 @@ public class TradeService {
     private final Map<Long, BigDecimal> candleHighs = new ConcurrentHashMap<>();
     private final Map<Long, BigDecimal> candleLows = new ConcurrentHashMap<>();
     private final Map<Long, LocalDateTime> currentMinutes = new ConcurrentHashMap<>();
-    private final PageableArgumentResolver pageableArgumentResolver;
 
     /**
      * 서버 재시작 시 오늘 오전 9시 이후의 시세 데이터를 DB에서 복구
@@ -309,6 +308,17 @@ public class TradeService {
         BigDecimal changeRate = openPrice.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO :
                 changeAmount.divide(openPrice, 10, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
 
+        BigDecimal dailyHigh = dailyHighs.getOrDefault(categoryId, price);
+        BigDecimal dailyLow = dailyLows.getOrDefault(categoryId, price);
+
+        BigDecimal changeAmountHigh = dailyHigh.subtract(openPrice);
+        BigDecimal changeAmountLow = dailyLow.subtract(openPrice);
+
+        BigDecimal changeRateHigh = openPrice.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO :
+                changeAmountHigh.divide(openPrice, 10, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+        BigDecimal changeRateLow = openPrice.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO :
+                changeAmountLow.divide(openPrice, 10, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+
         Map<String, Object> ticker = new HashMap<>();
         ticker.put("price", price.toPlainString());
         ticker.put("changeAmount", changeAmount.toPlainString());
@@ -327,6 +337,8 @@ public class TradeService {
         trades.put("type", response.getTakerType());
         trades.put("time", response.getTradeTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
         trades.put("intensity", intensity.setScale(2, RoundingMode.HALF_UP).toPlainString());
+        trades.put("changeRateHigh", changeRateHigh.setScale(2, RoundingMode.HALF_UP).toPlainString());
+        trades.put("changeRateLow", changeRateLow.setScale(2, RoundingMode.HALF_UP).toPlainString());
         messagingTemplate.convertAndSend("/topic/trades" + suffix, (Object)trades);
 
         Map<String, Object> candle = new HashMap<>();
@@ -462,7 +474,7 @@ public class TradeService {
     }
 
     /**
-     * 특정 종목(categoryId)의 실시간 현재가 정보를 반환합니다.
+     * 특정 종목(categoryId)의 실시간 현재가 정보를 반환
      */
     public TradeResponse getCurrentTrade(Long categoryId) {
         String key = getTickerKey(categoryId);
@@ -504,6 +516,14 @@ public class TradeService {
         BigDecimal accAmount = accAmounts.getOrDefault(categoryId, BigDecimal.ZERO);
         String type = takerType.getOrDefault(categoryId, "");
 
+        BigDecimal changeAmountHigh = dailyHigh.subtract(openPrice);
+        BigDecimal changeAmountLow = dailyLow.subtract(openPrice);
+
+        BigDecimal changeRateHigh = openPrice.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO :
+                changeAmountHigh.divide(openPrice, 10, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+        BigDecimal changeRateLow = openPrice.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO :
+                changeAmountLow.divide(openPrice, 10, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+
 
         return CategoryDto.builder()
                 .categoryId(category.getCategoryId())
@@ -516,6 +536,8 @@ public class TradeService {
                 .changeRate(changeRate.setScale(2, RoundingMode.HALF_UP)) // 소수점 2자리 포맷팅
                 .dailyHigh(dailyHigh)
                 .dailyLow(dailyLow)
+                .changeRateHigh(changeRateHigh.setScale(2, RoundingMode.HALF_UP))
+                .changeRateLow(changeRateLow.setScale(2, RoundingMode.HALF_UP))
                 .accVolume(accVolume)
                 .accAmount(accAmount)
                 .build();
