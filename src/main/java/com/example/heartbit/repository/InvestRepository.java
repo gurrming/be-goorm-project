@@ -5,6 +5,7 @@ import com.example.heartbit.domain.Invest;
 import com.example.heartbit.domain.Member;
 import com.example.heartbit.domain.Trade;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,8 +21,9 @@ import java.util.Optional;
  */
 public interface InvestRepository extends JpaRepository<Invest, Long> {
 
-
     List<Invest> findAllByMember_MemberId(Long memberId);
+
+    Slice<Invest> findAllByMember_MemberId(Long memberId, Pageable pageable);
 
     @Query("SELECT DISTINCT i.member.memberId FROM Invest i WHERE i.category.categoryId = :categoryId")
     List<Long> findMemberIdsByCategoryId(@Param("categoryId") Long categoryId);

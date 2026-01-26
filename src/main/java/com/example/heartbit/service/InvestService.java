@@ -8,6 +8,8 @@ import com.example.heartbit.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -60,17 +62,36 @@ public class InvestService {
      * [REST API] 사용자의 현재 투자 현황을 전체 조회 (초기 진입용)
      */
     @Transactional(readOnly = true)
-    public InvestResponse getInvestSummary(Long memberId) {
-        // 1. 해당 유저의 모든 보유 종목 가져오기
-        List<Invest> investList = investRepository.findAllByMember_MemberId(memberId);
+    public InvestResponse getInvestSummary(Long memberId, Pageable pageable) {
+        List<Invest> allInvestList = investRepository.findAllByMember_MemberId(memberId);
 
-        // 2. 각 종목별 실시간 시세 반영 및 상세 계산
-        List<InvestResponse.AssetDetailDto> assetList = investList.stream()
+        // 2. [목록 표시용] 현재 페이지에 해당하는 종목만 가져오기 (Slice)
+        Slice<Invest> investSlice = investRepository.findAllByMember_MemberId(memberId, pageable);
+
+        // 3. 페이징된 데이터(Slice)를 DTO 리스트로 변환
+        List<InvestResponse.AssetDetailDto> pagedAssetList = investSlice.stream()
                 .map(this::convertToAssetDetailDto)
                 .collect(Collectors.toList());
 
-        // 3. 상단 요약 정보(총합) 계산
-        return buildInvestResponse(assetList);
+        // 4. 전체 리스트를 기준으로 상단 요약 정보 계산 (기존 로직 활용)
+        //    주의: buildInvestResponse는 기존에 리스트 합계를 냈으므로,
+        //    전체 리스트를 DTO로 변환해서 합산을 구하거나, 별도 합산 로직을 써야 함.
+        //    여기서는 재사용성을 위해 전체 리스트를 변환하여 합계를 구함.
+        List<InvestResponse.AssetDetailDto> allAssetDetailList = allInvestList.stream()
+                .map(this::convertToAssetDetailDto)
+                .collect(Collectors.toList());
+
+        InvestResponse summaryResponse = buildInvestResponse(allAssetDetailList);
+
+        // 5. 최종 응답 생성 (요약 정보 + 페이징된 리스트 + hasNext)
+        return InvestResponse.builder()
+                .totalBuyAmount(summaryResponse.getTotalBuyAmount())
+                .totalEvaluation(summaryResponse.getTotalEvaluation())
+                .totalProfit(summaryResponse.getTotalProfit())
+                .totalProfitRate(summaryResponse.getTotalProfitRate())
+                .assetList(pagedAssetList) // ★ 여기에는 페이징된 리스트를 넣음
+                .hasNext(investSlice.hasNext()) // ★ 다음 페이지 여부
+                .build();
     }
 
     @EventListener
@@ -152,7 +173,7 @@ public class InvestService {
         // 2. 각 유저별로 전체 자산 현황을 재계산해서 웹소켓 전송
         for (Long memberId : memberIds) {
             try {
-                InvestResponse totalSummary = getInvestSummary(memberId);
+                InvestResponse totalSummary = getInvestSummary(memberId, Pageable.unpaged());
 
                 // 개인용 채널로 전송 (/topic/asset/1, /topic/asset/2 ...)
                 messagingTemplate.convertAndSend("/topic/invest/" + memberId, totalSummary);

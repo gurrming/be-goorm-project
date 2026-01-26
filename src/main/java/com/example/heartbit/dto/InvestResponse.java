@@ -18,6 +18,8 @@ public class InvestResponse {
 
     private List<AssetDetailDto> assetList;// 총 평가수익률
 
+    private boolean hasNext;
+
     @Getter
     @Builder
     public static class AssetDetailDto {
