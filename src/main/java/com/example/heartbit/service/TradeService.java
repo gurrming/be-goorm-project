@@ -195,7 +195,8 @@ public class TradeService {
 
             if (buyOrder.getMember() != null) {
                 // 회원이면 자산 정산 수행
-                assetService.settleBuyTrade(buyOrder.getMember().getMemberId(), tradeAmount);
+                BigDecimal blockedAmount = buyOrder.getOrderPrice().multiply(response.getTradeCount());
+                assetService.settleBuyTrade(buyOrder.getMember().getMemberId(), tradeAmount, blockedAmount);
             } else if (buyOrder.getBots() != null) {
                 // 봇이면 자산 차감 로직 스킵
                 log.debug("Bot(ID: {}) 매수 체결 - 자산 처리 스킵", buyOrder.getBots().getBotId());

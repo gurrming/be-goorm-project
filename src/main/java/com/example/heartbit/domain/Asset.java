@@ -50,11 +50,17 @@ public class Asset {
     }
 
     // [매수 체결 시] 실제 보유 자산(Cash) 차감 (CanOrder는 주문 시 이미 차감됨)
-    public void confirmBuyOrder(BigDecimal amount) {
-        if (this.assetCash.compareTo(amount) < 0) {
-            throw new IllegalStateException("데이터 불일치: 보유 자산보다 체결 금액이 큽니다.");
+    public void confirmBuyOrder(BigDecimal executionAmount, BigDecimal blockedAmount) {
+        // 1. 실제 자산 차감
+        this.assetCash = this.assetCash.subtract(executionAmount);
+
+        // 2. 차액(거스름돈) 계산: 1000 - 900 = 100원
+        BigDecimal change = blockedAmount.subtract(executionAmount);
+
+        // 3. 차액만큼 주문 가능 금액 복구
+        if (change.compareTo(BigDecimal.ZERO) > 0) {
+            this.assetCanOrder = this.assetCanOrder.add(change);
         }
-        this.assetCash = this.assetCash.subtract(amount);
     }
 
     // [매도 체결 시] 정산금 입금 (Cash와 CanOrder 모두 증가)

@@ -86,10 +86,12 @@ public class AssetService {
 
     // 3. 매수 체결 정산 (보유 자산 실차감 - 현금 감소)
     @Transactional
-    public void settleBuyTrade(Long memberId, BigDecimal amount) {
+    public void settleBuyTrade(Long memberId, BigDecimal executionAmount, BigDecimal blockedAmount) {
         Asset asset = assetRepository.findByMember_MemberId(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("자산을 찾을 수 없습니다."));
-        asset.confirmBuyOrder(amount);
+
+        // 수정된 메서드 호출
+        asset.confirmBuyOrder(executionAmount, blockedAmount);
     }
 
     // 4. 매도 체결 정산 (판매 대금 입금 - 현금 & 주문가능금액 증가)
