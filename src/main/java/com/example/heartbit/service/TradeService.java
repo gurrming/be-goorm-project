@@ -191,8 +191,7 @@ public class TradeService {
             // 주문 수량 변경 값 db 저장
             BigDecimal tradeAmount = response.getTradePrice().multiply(response.getTradeCount());
 
-            // 관리자 계정(5L)이 아닌 경우에만 실제 돈을 지급 (유동성 공급용 계정 제외 로직)
-            // 매도 완료 후 현금(Cash)으로 정산
+            String takerType = buyOrder.getOrderTime().isAfter(sellOrder.getOrderTime()) ? "BUY" : "SELL";
 
             if (buyOrder.getMember() != null) {
                 // 회원이면 자산 정산 수행
@@ -221,6 +220,7 @@ public class TradeService {
                     .buyOrder(buyOrder)
                     .sellOrder(sellOrder) // 위에서 찾은 sellOrder 활용
                     .tradeTime(response.getTradeTime())
+                    .takerType(takerType)
                     .build();
 
             // trade 값 저장

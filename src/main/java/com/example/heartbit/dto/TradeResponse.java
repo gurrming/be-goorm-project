@@ -65,8 +65,6 @@ public class TradeResponse {
 
     public static TradeResponse fromEntity(Trade trade) {
 
-        String takerType = trade.getBuyOrder().getOrderTime().isAfter(trade.getSellOrder().getOrderTime())
-                ? "BUY" : "SELL";
         return TradeResponse.builder()
                 .tradeId(trade.getTradeId())
                 .tradeTime(trade.getTradeTime())
@@ -74,7 +72,7 @@ public class TradeResponse {
                 .tradeCount(trade.getTradeCount())
                 .tradeClosePrice(trade.getTradeClosePrice())
                 .symbol(trade.getSymbol())
-                .takerType(takerType)
+                .takerType(trade.getTakerType())
                 .buyOrderId(trade.getBuyOrder().getOrderId())
                 .sellOrderId(trade.getSellOrder().getOrderId())
                 .build();

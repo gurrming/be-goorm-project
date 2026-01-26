@@ -34,6 +34,9 @@ public class Trade {
     @Column(name = "trade_close", precision = 18, scale = 8)
     private BigDecimal tradeClosePrice;
 
+    @Column(name = "taker_type", length = 10)
+    private String takerType;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trade_buy_id", nullable = false)
     private Order buyOrder;
@@ -43,14 +46,17 @@ public class Trade {
     private Order sellOrder;
 
 
+
+
     @Builder
-    public Trade (BigDecimal tradePrice, LocalDateTime tradeTime, BigDecimal tradeCount, BigDecimal tradeClosePrice, Order buyOrder, Order sellOrder ) {
+    public Trade (BigDecimal tradePrice, LocalDateTime tradeTime, BigDecimal tradeCount, BigDecimal tradeClosePrice, Order buyOrder, Order sellOrder, String takerType) {
         this.tradePrice = tradePrice;
         this.tradeTime = tradeTime;
         this.tradeCount = tradeCount;
         this.tradeClosePrice = tradeClosePrice;
         this.buyOrder = buyOrder;
         this.sellOrder = sellOrder;
+        this.takerType = takerType;
         validateOrderTypes();
     }
 
