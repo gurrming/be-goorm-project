@@ -23,6 +23,7 @@ import org.springframework.data.web.PageableArgumentResolver;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -177,22 +178,24 @@ public class TradeService {
         if (tradeResults.isEmpty()) return;
 
         for (TradeResponse response : tradeResults) {
-            Order buyOrder = orderRepository.findById(response.getBuyOrderId())
-                    .orElseThrow(() -> new NoSuchElementException("매수 주문을 찾을 수 없습니다."));
+            Order buyOrder = (response.getBuyOrderEntity() != null) ?
+                    response.getBuyOrderEntity() :
+                    orderRepository.findById(response.getBuyOrderId())
+                            .orElseThrow(() -> new NoSuchElementException("매수 주문을 찾을 수 없습니다."));
             // 주문 정보 상세 조회 (자산 처리를 위해 실제 객체 필요)
-            Order sellOrder = orderRepository.findById(response.getSellOrderId())
-                    .orElseThrow(() -> new NoSuchElementException("매도 주문을 찾을 수 없습니다."));
+            Order sellOrder = (response.getSellOrderEntity() != null) ?
+                    response.getSellOrderEntity() :
+                    orderRepository.findById(response.getSellOrderId())
+                            .orElseThrow(() -> new NoSuchElementException("매도 주문을 찾을 수 없습니다."));
 
             // 주문 수량 변경 값 db 저장
             BigDecimal tradeAmount = response.getTradePrice().multiply(response.getTradeCount());
 
             // 관리자 계정(5L)이 아닌 경우에만 실제 돈을 지급 (유동성 공급용 계정 제외 로직)
             // 매도 완료 후 현금(Cash)으로 정산
-            assetService.refundCash(sellOrder.getMember().getMemberId(), tradeAmount);
-
-
-
-
+            if (sellOrder.getMember() != null) {
+                assetService.refundCash(sellOrder.getMember().getMemberId(), tradeAmount);
+            }
 
             Trade trade = Trade.builder()
                     .tradePrice(response.getTradePrice())
@@ -206,24 +209,29 @@ public class TradeService {
             // trade 값 저장
             Trade savedTrade = tradeRepository.save(trade);
 
-            investService.saveOrUpdateInvest(
-                    buyOrder.getMember().getMemberId(),
-                    savedTrade,    // [수정] Trade 객체 전달
-                    categoryId,
-                    response.getTradeCount(),
-                    response.getTradePrice(),
-                    "BUY"
-            );
+            // 3-2. 매수자 자산 업데이트 ("BUY")
+            if (buyOrder.getMember() != null) {
+                investService.saveOrUpdateInvest(
+                        buyOrder.getMember().getMemberId(),
+                        savedTrade,    // [수정] Trade 객체 전달
+                        categoryId,
+                        response.getTradeCount(),
+                        response.getTradePrice(),
+                        "BUY"
+                );
+                }
 
             // 3-2. 매도자 자산 업데이트 ("SELL")
-            investService.saveOrUpdateInvest(
-                    sellOrder.getMember().getMemberId(),
-                    savedTrade,    // [수정] Trade 객체 전달
-                    categoryId,
-                    response.getTradeCount(),
-                    response.getTradePrice(),
-                    "SELL"
-            );
+            if (sellOrder.getMember() != null) {
+                investService.saveOrUpdateInvest(
+                        sellOrder.getMember().getMemberId(),
+                        savedTrade,    // [수정] Trade 객체 전달
+                        categoryId,
+                        response.getTradeCount(),
+                        response.getTradePrice(),
+                        "SELL"
+                );
+            }
 
             eventPublisher.publishEvent(new PriceChangedEvent(categoryId, response.getTradePrice()));
             //종목별 상태 업데이트 및 웹소켓 전송
@@ -353,6 +361,7 @@ public class TradeService {
         lastPrice.put("price", price.toPlainString());
         messagingTemplate.convertAndSend("/topic/orderbook/lastPrice/" + categoryId, price.toPlainString());
     }
+
 
 
     //최근 체결 기록(limit으로 개수 설정 가능)

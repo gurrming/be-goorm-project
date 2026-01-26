@@ -15,7 +15,9 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class OrderRequest {
 
+
     private Long memberId;
+    private Long botId;
 
     @NotNull(message = "카테고리 ID는 필수입니다.")
     private Long categoryId;
@@ -34,7 +36,7 @@ public class OrderRequest {
 
 
     // DTO → Entity 변환
-    public Order toEntity(Member member, Category category) {
+    public Order toEntity(Member member, Category category, Bots bots) {
         return Order.builder()
                 .orderPrice(this.orderPrice)
                 .orderCount(this.orderCount)
@@ -43,6 +45,7 @@ public class OrderRequest {
                 .orderStatus(OrderStatus.OPEN)
                 .member(member)
                 .category(category)
+                .bots(bots)
                 .build();
     }
 }

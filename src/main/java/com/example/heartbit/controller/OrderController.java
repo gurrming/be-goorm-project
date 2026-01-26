@@ -6,17 +6,16 @@ import com.example.heartbit.dto.order.OrderBookResponse;
 import com.example.heartbit.dto.order.OrderRequest;
 import com.example.heartbit.dto.order.OrderResponse;
 import com.example.heartbit.service.OrderService;
+import com.example.heartbit.service.TradeEngineService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 
 @Slf4j   // ✅ 추가
@@ -27,6 +26,7 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+    private final TradeEngineService tradeEngineService;
 
     @Operation(summary = "신규 주문 생성")
     @PostMapping
@@ -47,10 +47,15 @@ public class OrderController {
             @RequestParam OrderType orderType,
             @RequestParam(defaultValue = "30") int limit) {
 
-        // 현재가 기준 호가 데이터를 반환
-        return ResponseEntity.ok(
-                orderService.getOrderBookWithPriceFilter(categoryId, orderType, limit)
-        );
+        // 엔진에서 해당 종목의 호가창을 가져옴
+        TradeEngineService.MatchingOrder engineBook = tradeEngineService.getMatchingOrder(categoryId);
+        if (engineBook == null) {
+            return ResponseEntity.ok(Collections.emptyList());
+        }
+        // 엔진 메모리의 스냅샷을 반환
+        List<OrderBookResponse> snapshot = engineBook.getSnapshot(orderType, limit);
+
+        return ResponseEntity.ok(snapshot);
     }
 
     @Operation(summary = "회원 주문 조회")

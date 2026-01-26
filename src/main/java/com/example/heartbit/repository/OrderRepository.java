@@ -7,14 +7,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
@@ -35,16 +31,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         """)
     Long countOpenOrdersByMember(Long memberId, List<OrderStatus> statuses);
 
-    // 만료된 주문 조회 (스케줄러용)
-    @Query("""
-        SELECT o FROM Order o 
-        WHERE o.orderTime <= :expirationTime 
-        AND (o.orderStatus = 'OPEN' OR o.orderStatus = 'PARTIAL')
-        """)
-    List<Order> findExpiredOrders(@Param("expirationTime") LocalDateTime expirationTime);
+    List<Order> findByOrderStatusInOrderByOrderTimeAsc(List<OrderStatus> statuses);
 
-
-    List<Order> findByCategory_CategoryIdAndOrderTypeAndOrderStatusIn(
-            Long categoryId, OrderType orderType, List<OrderStatus> activeStatuses);
 }
 

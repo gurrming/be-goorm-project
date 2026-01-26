@@ -60,7 +60,6 @@ public class OrderResponse {
 
                 // 표시용
                 .categoryName(category != null ? category.getCategoryName() : "알 수 없음")
-
                 .orderType(order.getOrderType())
                 .orderStatus(order.getOrderStatus())
                 .orderPrice(order.getOrderPrice())

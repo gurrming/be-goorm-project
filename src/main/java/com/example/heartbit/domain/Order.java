@@ -1,10 +1,7 @@
 package com.example.heartbit.domain;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
@@ -12,6 +9,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Getter
+@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "orders")
 public class Order {
@@ -50,6 +48,10 @@ public class Order {
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "bot_id", nullable = true)
+    private Bots bots;
+
     @Builder
     public Order(BigDecimal orderPrice,
                  BigDecimal orderCount,
@@ -57,7 +59,8 @@ public class Order {
                  OrderType orderType,
                  OrderStatus orderStatus,
                  Member member,
-                 Category category) {
+                 Category category,
+                 Bots bots) {
 
         this.orderPrice = orderPrice;
         this.orderCount = orderCount;
@@ -66,11 +69,16 @@ public class Order {
         this.orderStatus = (orderStatus != null) ? orderStatus : OrderStatus.OPEN;
         this.member = member;
         this.category = category;
+        this.bots = bots;
     }
 
     public void updateRemainingCount(BigDecimal executedCount) {
-        this.remainingCount = this.remainingCount.subtract(executedCount);
-        if (this.remainingCount.compareTo(BigDecimal.ZERO) == 0) {
+        BigDecimal result = this.remainingCount.subtract(executedCount);
+        if (result.compareTo(BigDecimal.ZERO) < 0) {
+            result = BigDecimal.ZERO;
+        }
+        this.remainingCount = result;
+        if (this.remainingCount.compareTo(BigDecimal.ZERO) <= 0) {
             this.orderStatus = OrderStatus.FILLED;
         } else {
             this.orderStatus = OrderStatus.PARTIAL;
