@@ -260,8 +260,8 @@ public class TradeService {
     private void updateMarketAndBroadcast(Long categoryId, TradeResponse response) {
         BigDecimal price = response.getTradePrice();
 
-        // String key = getTickerKey(categoryId);
-        // redisTemplate.opsForValue().set(key, price.toPlainString());
+         String key = getTickerKey(categoryId);
+         redisTemplate.opsForValue().set(key, price.toPlainString());
 
         BigDecimal count = response.getTradeCount();
 

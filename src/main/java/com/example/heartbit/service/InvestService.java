@@ -142,6 +142,10 @@ public class InvestService {
                 .build();
     }
 
+    public void reduceInvestCount() {
+
+    }
+
 
     @EventListener
     public void handlePriceChange(PriceChangedEvent event) {
