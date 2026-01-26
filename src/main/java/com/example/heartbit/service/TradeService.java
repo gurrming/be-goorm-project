@@ -401,7 +401,7 @@ public class TradeService {
 
         Map<String, Object> lastPrice = new HashMap<>();
         lastPrice.put("price", price.toPlainString());
-        messagingTemplate.convertAndSend("/topic/orderbook/lastPrice/" + categoryId, price.toPlainString());
+        messagingTemplate.convertAndSend("/topic/orderbook/lastPrice/" + categoryId, (Object)lastPrice);
     }
 
 
