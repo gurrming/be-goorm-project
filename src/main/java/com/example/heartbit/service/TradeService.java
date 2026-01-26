@@ -259,38 +259,63 @@ public class TradeService {
     //값이 바뀌면 값들 갱신하고 웹소켓으로 쏴주는 매서드 호출
     private void updateMarketAndBroadcast(Long categoryId, TradeResponse response) {
         BigDecimal price = response.getTradePrice();
-        String key = getTickerKey(categoryId);
 
-        // Redis에 현재가 저장 (String 타입)
-        redisTemplate.opsForValue().set(key, price.toPlainString());
+        // String key = getTickerKey(categoryId);
+        // redisTemplate.opsForValue().set(key, price.toPlainString());
+
         BigDecimal count = response.getTradeCount();
-        BigDecimal openPrice = openPrices.getOrDefault(categoryId, price);
 
-        if (openPrice.compareTo(BigDecimal.ZERO) <= 0) {
+        BigDecimal openPrice;
+
+        // 1. 이미 맵에 시가가 저장되어 있는지 확인
+        if (openPrices.containsKey(categoryId)) {
+            openPrice = openPrices.get(categoryId);
+
+            // (방어 코드) 혹시라도 저장된 값이 0원이라면 현재가로 보정
+            if (openPrice.compareTo(BigDecimal.ZERO) == 0) {
+                openPrice = price;
+                openPrices.put(categoryId, price);
+            }
+        } else {
+            // 2. 맵에 값이 없다면(서버 재시작 후 첫 거래 등), 현재가를 시가로 '확정' 후 저장
             openPrice = price;
             openPrices.put(categoryId, price);
         }
+        // -------------------------------------------------------------
 
+        // 변동금 = 현재가 - 시가
         BigDecimal changeAmount = price.subtract(openPrice);
-        BigDecimal changeRate = changeAmount.divide(openPrice, 10, RoundingMode.HALF_UP)
-                .multiply(new BigDecimal("100"));
+
+        // 변동률 계산 (시가가 0일 경우 0% 처리하여 나누기 에러 방지)
+        BigDecimal changeRate = (openPrice.compareTo(BigDecimal.ZERO) == 0) ? BigDecimal.ZERO :
+                changeAmount.divide(openPrice, 10, RoundingMode.HALF_UP)
+                        .multiply(new BigDecimal("100"));
 
         // 실시간 맵 데이터 갱신
         takerType.put(categoryId, response.getTakerType());
         currentPrices.put(categoryId, price);
         changeAmounts.put(categoryId, changeAmount);
         changeRates.put(categoryId, changeRate);
+
+        // 고가/저가 갱신
         dailyHighs.merge(categoryId, price, (old, val) -> val.compareTo(old) > 0 ? val : old);
         dailyLows.merge(categoryId, price, (old, val) -> val.compareTo(old) < 0 ? val : old);
+
+        // 거래량/거래대금 누적
         accVolumes.merge(categoryId, count, BigDecimal::add);
         accAmounts.merge(categoryId, price.multiply(count), BigDecimal::add);
 
-        // 체결강도 계산용 수량 업데이트
-        if ("BUY".equals(response.getTakerType())) totalBuyQtys.merge(categoryId, count, BigDecimal::add);
-        else totalSellQtys.merge(categoryId, count, BigDecimal::add);
+        // 체결강도 계산용 매수/매도 거래량 누적
+        if ("BUY".equals(response.getTakerType())) {
+            totalBuyQtys.merge(categoryId, count, BigDecimal::add);
+        } else {
+            totalSellQtys.merge(categoryId, count, BigDecimal::add);
+        }
 
+        // 이벤트 발행
         eventPublisher.publishEvent(new PriceChangedEvent(categoryId, price));
 
+        // 차트(캔들) 및 웹소켓 데이터 전송
         updateCandle(categoryId, price, response.getTradeTime());
         sendWebSocketData(categoryId, response);
     }
