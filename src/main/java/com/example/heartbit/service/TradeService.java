@@ -565,7 +565,13 @@ public class TradeService {
         BigDecimal dailyLow = dailyLows.getOrDefault(categoryId, BigDecimal.ZERO);
         BigDecimal accVolume = accVolumes.getOrDefault(categoryId, BigDecimal.ZERO);
         BigDecimal accAmount = accAmounts.getOrDefault(categoryId, BigDecimal.ZERO);
-        String type = takerType.getOrDefault(categoryId, "");
+        String type = "";
+        Trade lastTrade = tradeRepository.findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(categoryId)
+                .orElse(null);
+
+        if (lastTrade != null && lastTrade.getTakerType() != null) {
+            type = lastTrade.getTakerType();
+        }
 
         BigDecimal changeAmountHigh = dailyHigh.subtract(openPrice);
         BigDecimal changeAmountLow = dailyLow.subtract(openPrice);
