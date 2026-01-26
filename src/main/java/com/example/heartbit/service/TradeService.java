@@ -194,14 +194,21 @@ public class TradeService {
             // 관리자 계정(5L)이 아닌 경우에만 실제 돈을 지급 (유동성 공급용 계정 제외 로직)
             // 매도 완료 후 현금(Cash)으로 정산
 
-            // 1. 매수자(Buyer): '주문 가능 금액'은 주문 시 이미 깎였으므로, '실제 보유 자산(Cash)'을 차감
-            if (buyOrder.getMember().getMemberId() != 5L) {
+            if (buyOrder.getMember() != null) {
+                // 회원이면 자산 정산 수행
                 assetService.settleBuyTrade(buyOrder.getMember().getMemberId(), tradeAmount);
+            } else if (buyOrder.getBots() != null) {
+                // 봇이면 자산 차감 로직 스킵
+                log.debug("Bot(ID: {}) 매수 체결 - 자산 처리 스킵", buyOrder.getBots().getBotId());
             }
 
-            // 2. 매도자(Seller): 판매 대금 입금 (Cash 증가 & CanOrder 증가)
-            if (sellOrder.getMember().getMemberId() != 5L) {
+            // 3. 매도자(Seller) 자산 정산 (입금)
+            if (sellOrder.getMember() != null) {
+                // 회원이면 자산 정산 수행
                 assetService.settleSellTrade(sellOrder.getMember().getMemberId(), tradeAmount);
+            } else if (sellOrder.getBots() != null) {
+                // 봇이면 자산 정산 로직 스킵
+                log.debug("Bot(ID: {}) 매도 체결 - 자산 처리 스킵", sellOrder.getBots().getBotId());
             }
 
 

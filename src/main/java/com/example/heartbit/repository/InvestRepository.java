@@ -4,6 +4,7 @@ import com.example.heartbit.domain.Category;
 import com.example.heartbit.domain.Invest;
 import com.example.heartbit.domain.Member;
 import com.example.heartbit.domain.Trade;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

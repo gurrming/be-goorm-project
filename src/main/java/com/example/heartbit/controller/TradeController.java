@@ -20,7 +20,7 @@ public class TradeController {
     private final TradeService tradeService;
 
     // 1) 종목별 최신 체결 리스트
-    @Operation(summary = "종목별 최신 체크 리스트", description = "종목 ID를 통해 종목별 체결 리스트를 조회합니다.")
+    @Operation(summary = "종목별 최신 체결 리스트", description = "종목 ID를 통해 종목별 체결 리스트를 조회합니다.")
     @GetMapping
     public ResponseEntity<List<TradeResponse>> tradeByCategory(
             @RequestParam Long categoryId, @RequestParam(defaultValue = "20") int limit) {
