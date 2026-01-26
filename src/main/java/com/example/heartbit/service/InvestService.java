@@ -97,8 +97,6 @@ public class InvestService {
                             .category(category)
                             .investCount(BigDecimal.ZERO)
                             .investPrice(BigDecimal.ZERO)
-                            // 처음 생성될 때 trade가 없으면 nullable=false 때문에 에러가 날 수 있으나,
-                            // 바로 아래에서 setTrade를 호출하므로 빌더에서는 생략해도 됩니다.
                             .build();
                 });
 

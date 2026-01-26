@@ -26,6 +26,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -36,6 +37,8 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final MemberRepository memberRepository;
     private final CategoryRepository categoryRepository;
+    private final TradeRepository tradeRepository;
+    private final AssetRepository assetRepository;
     private final BotsRepository  botsRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -72,11 +75,11 @@ public class OrderService {
             Member member = memberRepository.findById(request.getMemberId())
                     .orElseThrow(() -> new IllegalArgumentException("멤버 정보를 찾을 수 없습니다."));
 
-            // 매수 주문 시 현금 선차감
-            if (request.getOrderType() == OrderType.BUY) {
-                BigDecimal totalAmount = request.getOrderPrice().multiply(request.getOrderCount());
-                assetService.deductCash(request.getMemberId(), totalAmount);
-            }
+        // 자산 차감 로직 (매수일 때)
+        if (request.getOrderType() == OrderType.BUY) {
+            BigDecimal totalAmount = request.getOrderPrice().multiply(request.getOrderCount());
+            assetService.blockCash(request.getMemberId(), totalAmount);
+        }
 
             newOrder = Order.builder()
                     .category(category)
@@ -140,7 +143,7 @@ public class OrderService {
         // 매수 환불
         if (order.getOrderType() == OrderType.BUY && order.getMember() != null) {
             BigDecimal refundAmount = order.getOrderPrice().multiply(order.getRemainingCount());
-            assetService.refundCash(order.getMember().getMemberId(), refundAmount);
+            assetService.restoreCash(order.getMember().getMemberId(), refundAmount);
         }
         order.cancel();
     }
