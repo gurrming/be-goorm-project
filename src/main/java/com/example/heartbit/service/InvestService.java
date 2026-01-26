@@ -59,40 +59,89 @@ public class InvestService {
     }
 
     /**
-     * [REST API] 사용자의 현재 투자 현황을 전체 조회 (초기 진입용)
+     * 보유 자산 요약 및 목록 조회 (무한 스크롤 적용)
+     * - 상단 요약(합계): 페이징 없이 전체 보유 코인 기준으로 계산 (스크롤 할 때마다 최신 시세 반영)
+     * - 하단 목록(리스트): 요청된 페이지(Slice)만큼만 반환
      */
     @Transactional(readOnly = true)
     public InvestResponse getInvestSummary(Long memberId, Pageable pageable) {
-        List<Invest> allInvestList = investRepository.findAllByMember_MemberId(memberId);
 
-        // 2. [목록 표시용] 현재 페이지에 해당하는 종목만 가져오기 (Slice)
-        Slice<Invest> investSlice = investRepository.findAllByMember_MemberId(memberId, pageable);
+        // 1. [전체 요약용] 페이징 없이 해당 유저의 '모든' 투자 내역 조회
+        List<Invest> allInvests = investRepository.findAllByMember_MemberId(memberId);
 
-        // 3. 페이징된 데이터(Slice)를 DTO 리스트로 변환
-        List<InvestResponse.AssetDetailDto> pagedAssetList = investSlice.stream()
-                .map(this::convertToAssetDetailDto)
+        // 2. [목록 표시용] 페이징 적용된 투자 내역 조회 (Slice 사용)
+        Slice<Invest> pagedInvests = investRepository.findAllByMember_MemberId(memberId, pageable);
+
+
+        // --- A. 전체 자산 합계 계산 (allInvests 사용) ---
+        BigDecimal totalBuyAmount = BigDecimal.ZERO;    // 총 매수금액
+        BigDecimal totalEvaluation = BigDecimal.ZERO;   // 총 평가금액
+
+        for (Invest invest : allInvests) {
+            // 현재가 조회 (TradeService -> Redis/DB)
+            BigDecimal currentPrice = tradeService.getCurrentTrade(invest.getCategory().getCategoryId())
+                    .getTradePrice();
+
+            // 개별 종목의 매수금액 = 평단가 * 보유수량
+            BigDecimal buyAmt = invest.getInvestPrice().multiply(invest.getInvestCount());
+            // 개별 종목의 평가금액 = 현재가 * 보유수량
+            BigDecimal evalAmt = currentPrice.multiply(invest.getInvestCount());
+
+            totalBuyAmount = totalBuyAmount.add(buyAmt);
+            totalEvaluation = totalEvaluation.add(evalAmt);
+        }
+
+        // 전체 평가손익 = 총 평가금액 - 총 매수금액
+        BigDecimal totalProfit = totalEvaluation.subtract(totalBuyAmount);
+
+        // 전체 수익률 = (총 평가손익 / 총 매수금액) * 100
+        BigDecimal totalProfitRate = (totalBuyAmount.compareTo(BigDecimal.ZERO) == 0) ? BigDecimal.ZERO :
+                totalProfit.divide(totalBuyAmount, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+
+
+        // --- B. 리스트 변환 (pagedInvests 사용) ---
+        List<InvestResponse.AssetDetailDto> assetList = pagedInvests.stream()
+                .map(invest -> {
+                    // 현재가 조회
+                    BigDecimal currentPrice = tradeService.getCurrentTrade(invest.getCategory().getCategoryId())
+                            .getTradePrice();
+
+                    // 개별 계산
+                    BigDecimal buyAmount = invest.getInvestPrice().multiply(invest.getInvestCount()); // 매수금액
+                    BigDecimal evaluationAmount = currentPrice.multiply(invest.getInvestCount());     // 평가금액
+                    BigDecimal evaluationProfit = evaluationAmount.subtract(buyAmount);               // 평가손익
+
+                    // 개별 수익률
+                    BigDecimal profitRate = (buyAmount.compareTo(BigDecimal.ZERO) == 0) ? BigDecimal.ZERO :
+                            evaluationProfit.divide(buyAmount, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+
+                    // DTO 매핑
+                    return InvestResponse.AssetDetailDto.builder()
+                            .categoryId(invest.getCategory().getCategoryId())
+                            .categoryName(invest.getCategory().getCategoryName())
+                            .symbol(invest.getCategory().getSymbol())
+                            .investCount(invest.getInvestCount())
+                            .avgPrice(invest.getInvestPrice()) // 평단가
+                            .buyAmount(buyAmount)
+                            .currentPrice(currentPrice)
+                            .evaluationAmount(evaluationAmount)
+                            .evaluationProfit(evaluationProfit)
+                            .profitRate(profitRate)
+                            .build();
+                })
                 .collect(Collectors.toList());
 
-        // 4. 전체 리스트를 기준으로 상단 요약 정보 계산 (기존 로직 활용)
-        //    주의: buildInvestResponse는 기존에 리스트 합계를 냈으므로,
-        //    전체 리스트를 DTO로 변환해서 합산을 구하거나, 별도 합산 로직을 써야 함.
-        //    여기서는 재사용성을 위해 전체 리스트를 변환하여 합계를 구함.
-        List<InvestResponse.AssetDetailDto> allAssetDetailList = allInvestList.stream()
-                .map(this::convertToAssetDetailDto)
-                .collect(Collectors.toList());
-
-        InvestResponse summaryResponse = buildInvestResponse(allAssetDetailList);
-
-        // 5. 최종 응답 생성 (요약 정보 + 페이징된 리스트 + hasNext)
+        // 3. 최종 응답 빌드
         return InvestResponse.builder()
-                .totalBuyAmount(summaryResponse.getTotalBuyAmount())
-                .totalEvaluation(summaryResponse.getTotalEvaluation())
-                .totalProfit(summaryResponse.getTotalProfit())
-                .totalProfitRate(summaryResponse.getTotalProfitRate())
-                .assetList(pagedAssetList) // ★ 여기에는 페이징된 리스트를 넣음
-                .hasNext(investSlice.hasNext()) // ★ 다음 페이지 여부
+                .totalBuyAmount(totalBuyAmount)
+                .totalEvaluation(totalEvaluation)
+                .totalProfit(totalProfit)
+                .totalProfitRate(totalProfitRate)
+                .assetList(assetList)
+                .hasNext(pagedInvests.hasNext()) // 다음 페이지 존재 여부 (무한 스크롤용)
                 .build();
     }
+
 
     @EventListener
     public void handlePriceChange(PriceChangedEvent event) {
