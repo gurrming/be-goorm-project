@@ -1,9 +1,7 @@
 package com.example.heartbit.domain;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -11,13 +9,9 @@ import java.time.LocalDateTime;
 @Table(name = "chatroom")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
 public class Chatroom {
-
-//    private Long chatroomId;
-//    private Long categoryId;
-//    private LocalDateTime chatroomTime;
-//    private String chatroomContent;
-//    private Long memberId;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
