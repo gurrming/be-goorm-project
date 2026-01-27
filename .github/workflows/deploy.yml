@@ -60,7 +60,7 @@ jobs:
             echo "현재 위치 확인..."
             cd /home/***/app
 
-            sudo docker-compose down
+            sudo docker compose down
             
             echo "이미지 갱신 시도..."
             sudo docker compose pull
