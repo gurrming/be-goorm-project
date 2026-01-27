@@ -253,6 +253,32 @@ public class TradeService {
                 );
             }
 
+            try {
+                // 매수자 알림 전송
+                String buyMsg;
+                if (buyOrder.getRemainingCount().compareTo(BigDecimal.ZERO) > 0) {
+                    buyMsg = String.format("[%s] 매수 부분 체결! (%s주 체결되었고, %s주 남았어요.)",
+                            buyOrder.getCategory().getCategoryName(), response.getTradeCount(), buyOrder.getRemainingCount());
+                } else {
+                    buyMsg = String.format("[%s] 매수 체결 완료! (총 %s주)",
+                            buyOrder.getCategory().getCategoryName(), response.getTradeCount());
+                }
+                notificationService.send(buyOrder.getMember(), buyMsg, NotificationType.TRADE);
+
+                // 매도자 알림 전송
+                String sellMsg;
+                if (sellOrder.getRemainingCount().compareTo(BigDecimal.ZERO) > 0) {
+                    sellMsg = String.format("[%s] 매도 부분 체결! (%s주 체결되었고, %s주 남았어요.)",
+                            sellOrder.getCategory().getCategoryName(), response.getTradeCount(), sellOrder.getRemainingCount());
+                } else {
+                    sellMsg = String.format("[%s] 매도 체결 완료! (총 %s주)",
+                            sellOrder.getCategory().getCategoryName(), response.getTradeCount());
+                }
+                notificationService.send(sellOrder.getMember(), sellMsg, NotificationType.TRADE);
+            } catch (Exception e) {
+                // 로그만 남기고 다음 시세 업데이트 로직으로 넘어가도록 함
+                log.error("알림 전송 중 오류발생, 체결은 유지됩니다. 에러내용: {}", e.getMessage());
+            }
 
 
             eventPublisher.publishEvent(new PriceChangedEvent(categoryId, response.getTradePrice()));
