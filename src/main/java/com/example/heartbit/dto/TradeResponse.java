@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 public class TradeResponse {
 
     private Long tradeId;
+    private Long categoryId;
     private String symbol;
     private LocalDateTime tradeTime;
     private BigDecimal tradePrice;
@@ -36,6 +37,7 @@ public class TradeResponse {
     @Builder
     private TradeResponse(
             Long tradeId,
+            Long categoryId,
             LocalDateTime tradeTime,
             BigDecimal tradePrice,
             BigDecimal tradeCount,
@@ -49,6 +51,7 @@ public class TradeResponse {
             Order sellOrderEntity
     ) {
         this.tradeId = tradeId;
+        this.categoryId = categoryId;
         this.tradeTime = tradeTime;
         this.tradePrice = tradePrice;
         this.tradeCount = tradeCount;
