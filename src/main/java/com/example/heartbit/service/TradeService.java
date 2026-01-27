@@ -266,8 +266,18 @@ public class TradeService {
     private void updateMarketAndBroadcast(Long categoryId, TradeResponse response) {
         BigDecimal price = response.getTradePrice();
 
-         String key = getTickerKey(categoryId);
-         redisTemplate.opsForValue().set(key, price.toPlainString());
+//         String key = getTickerKey(categoryId);
+//         redisTemplate.opsForValue().set(key, price.toPlainString());
+
+        try {
+            String key = getTickerKey(categoryId);
+            redisTemplate.opsForValue().set(key, price.toPlainString());
+        } catch (Exception e) {
+            // Redis가 죽어도 핵심 로직(메모리 갱신, DB 저장)은 돌아가도록 로그만 남기고 무시
+            log.warn("Redis 업데이트 실패 (시세 조회에는 영향 없음): {}", e.getMessage());
+        }
+
+
 
         BigDecimal count = response.getTradeCount();
 
@@ -537,19 +547,31 @@ public class TradeService {
         String key = getTickerKey(categoryId);
 
         // 1. Redis에서 가격 조회
-        Object cachedPrice = redisTemplate.opsForValue().get(key);
-        BigDecimal price;
+//        Object cachedPrice = redisTemplate.opsForValue().get(key);
+//        BigDecimal price;
+//
+//        if (cachedPrice != null) {
+//            price = new BigDecimal(cachedPrice.toString());
+//        } else {
+//            // 2. Redis에 없으면 DB에서 최신 체결가 가져오기 (방어 로직)
+//            TradeResponse recent = getRecentTrade(categoryId);
+//            price = (recent != null) ? recent.getTradePrice() : BigDecimal.ZERO;
+//
+//            // 3. DB에서 가져온 값을 다시 Redis에 캐싱 (다음 조회를 위해)
+//            if (price.compareTo(BigDecimal.ZERO) > 0) {
+//                redisTemplate.opsForValue().set(key, price.toPlainString());
+//            }
+//        }
+        BigDecimal price = currentPrices.get(categoryId);
 
-        if (cachedPrice != null) {
-            price = new BigDecimal(cachedPrice.toString());
-        } else {
-            // 2. Redis에 없으면 DB에서 최신 체결가 가져오기 (방어 로직)
+        // 2. 메모리에 값이 없다면 DB에서 최신 체결가 가져오기 (서버 재시작 직후 등 대비)
+        if (price == null) {
             TradeResponse recent = getRecentTrade(categoryId);
             price = (recent != null) ? recent.getTradePrice() : BigDecimal.ZERO;
 
-            // 3. DB에서 가져온 값을 다시 Redis에 캐싱 (다음 조회를 위해)
+            // 3. 가져온 값을 메모리에 캐싱 (다음 조회부터는 1번에서 걸림)
             if (price.compareTo(BigDecimal.ZERO) > 0) {
-                redisTemplate.opsForValue().set(key, price.toPlainString());
+                currentPrices.put(categoryId, price);
             }
         }
 
