@@ -18,20 +18,20 @@ public class OrderBookService {
     private final TradeEngineService tradeEngineService;
     private final SimpMessagingTemplate messagingTemplate;
 
-    // 호가창 데이터를 정제해서 전송하는 역할만 수행
+    // 호가창 데이터를 정제해서 전송하는 역할
     public void broadcastOrderBook(Long categoryId) {
-        TradeEngineService.MatchingOrder engineBook = tradeEngineService.getMatchingOrder(categoryId);
-        if (engineBook == null) return;
+        TradeEngineService.MatchingOrder engineOrderBook = tradeEngineService.getMatchingOrder(categoryId);
+        if (engineOrderBook == null) return;
 
-        // map을 사용하여 포맷팅된 새로운 리스트를 생성
-        List<OrderBookResponse> buySide = engineBook.getSnapshot(OrderType.BUY, 30).stream()
+        // map을 사용하여 새로운 리스트를 생성
+        List<OrderBookResponse> buyOrderBook = engineOrderBook.getSnapshot(OrderType.BUY, 30).stream()
                 .map(o -> OrderBookResponse.builder()
                         .orderPrice(formatPrice(o.getOrderPrice()))
                         .totalRemainingCount(o.getTotalRemainingCount())
                         .build())
                 .toList();
 
-        List<OrderBookResponse> sellSide = engineBook.getSnapshot(OrderType.SELL, 30).stream()
+        List<OrderBookResponse> sellOrderBook = engineOrderBook.getSnapshot(OrderType.SELL, 30).stream()
                 .map(o -> OrderBookResponse.builder()
                         .orderPrice(formatPrice(o.getOrderPrice()))
                         .totalRemainingCount(o.getTotalRemainingCount())
@@ -40,8 +40,8 @@ public class OrderBookService {
 
         Map<String, Object> payload = Map.of(
                 "categoryId", categoryId,
-                "buySide", buySide,
-                "sellSide", sellSide,
+                "buySide", buyOrderBook,
+                "sellSide", sellOrderBook,
                 "serverTime", LocalDateTime.now().toString()
         );
         messagingTemplate.convertAndSend("/topic/orderbook/" + categoryId, (Object) payload);

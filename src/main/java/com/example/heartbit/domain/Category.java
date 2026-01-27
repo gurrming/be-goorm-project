@@ -3,6 +3,7 @@ package com.example.heartbit.domain;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -24,7 +25,11 @@ public class Category {
     @Column(name = "symbol", length = 20)
     private String symbol;
 
-
+    @Builder
+    public Category(Long categoryId, String symbol) {
+        this.categoryId = categoryId;
+        this.symbol = symbol;
+    }
 }
 
 

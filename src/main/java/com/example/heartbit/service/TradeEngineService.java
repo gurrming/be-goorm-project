@@ -152,7 +152,7 @@ public class TradeEngineService {
         // 수량 차감
         private BigDecimal executeTrade(
                 Order taker, PriorityQueue<Order> makerOrders, PriorityQueue<BigDecimal> priceQueue,
-                List<EngineMatchResult> tradeList, BigDecimal remaining) { // 리스트 타입을 EngineMatchResult로 변경
+                List<EngineMatchResult> tradeList, BigDecimal remaining) {
 
             while (remaining.compareTo(BigDecimal.ZERO) > 0 && !makerOrders.isEmpty()) {
                 Order maker = makerOrders.peek();
@@ -186,11 +186,17 @@ public class TradeEngineService {
                     isSellPrices.remove(zeroPrice);
                     sellOrderBook.remove(zeroPrice);
                 } else {
-                    // Taker가 매도면 매수 호가창의 가격이 사라짐
+                    // Taker가 매도면 매수 호가창의 가격 사라짐
                     isBuyPrices.remove(zeroPrice);
                     buyOrderBook.remove(zeroPrice);
                 }
             }
             return remaining;
         }
-    }}
+    }
+
+    public void deleteAllOrders() {
+        machingOrderBooks.clear();
+    }
+
+}
