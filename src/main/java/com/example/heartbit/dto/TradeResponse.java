@@ -37,7 +37,6 @@ public class TradeResponse {
     @Builder
     private TradeResponse(
             Long tradeId,
-            Long categoryId,
             LocalDateTime tradeTime,
             BigDecimal tradePrice,
             BigDecimal tradeCount,
@@ -51,7 +50,6 @@ public class TradeResponse {
             Order sellOrderEntity
     ) {
         this.tradeId = tradeId;
-        this.categoryId = categoryId;
         this.tradeTime = tradeTime;
         this.tradePrice = tradePrice;
         this.tradeCount = tradeCount;
@@ -83,14 +81,18 @@ public class TradeResponse {
 
     public static TradeResponse fromEntityWithOrderType(Trade trade, Long memberId) {
 
-        OrderType myOrderType;
-        if (trade.getBuyOrder().getMember().getMemberId().equals(memberId)) {
+        OrderType myOrderType = null;
+
+
+        // 1. 매수 주문 확인 (봇일 수 있으므로 getMember() null 체크 필수)
+        if (trade.getBuyOrder().getMember() != null &&
+                trade.getBuyOrder().getMember().getMemberId().equals(memberId)) {
             myOrderType = OrderType.BUY;
-        } else if (trade.getSellOrder().getMember().getMemberId().equals(memberId)) {
+        }
+        // 2. 매도 주문 확인 (매도 주문의 memberId 비교)
+        else if (trade.getSellOrder().getMember() != null &&
+                trade.getSellOrder().getMember().getMemberId().equals(memberId)) {
             myOrderType = OrderType.SELL;
-        } else {
-            // 쿼리상 내 체결만 가져오니까 보통 여기 안 탐 (방어)
-            myOrderType = null;
         }
 
         String takerType = trade.getBuyOrder().getOrderTime().isAfter(trade.getSellOrder().getOrderTime())

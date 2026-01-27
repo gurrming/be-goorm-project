@@ -36,6 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import com.example.heartbit.repository.CategoryRepository;
 import com.example.heartbit.repository.TradeRepository;
+import com.example.heartbit.domain.NotificationType;
 
 
 import java.util.*;
@@ -59,6 +60,7 @@ public class TradeService {
 
     private final StringRedisTemplate redisTemplate;
 
+    private final NotificationService notificationService;
 
     // 종목별 실시간 시세 상태 관리 (메모리 맵)
     private final Map<Long, BigDecimal> openPrices = new ConcurrentHashMap<>();
@@ -178,17 +180,17 @@ public class TradeService {
         if (tradeResults.isEmpty()) return;
 
         for (TradeResponse response : tradeResults) {
-            Order buyOrder = (response.getBuyOrderEntity() != null) ?
-                    response.getBuyOrderEntity() :
-                    orderRepository.findById(response.getBuyOrderId())
-                            .orElseThrow(() -> new NoSuchElementException("매수 주문을 찾을 수 없습니다."));
-            // 주문 정보 상세 조회 (자산 처리를 위해 실제 객체 필요)
-            Order sellOrder = (response.getSellOrderEntity() != null) ?
-                    response.getSellOrderEntity() :
-                    orderRepository.findById(response.getSellOrderId())
-                            .orElseThrow(() -> new NoSuchElementException("매도 주문을 찾을 수 없습니다."));
+            Order buyOrder = orderRepository.findById(response.getBuyOrderId())
+                    .orElseThrow(() -> new NoSuchElementException("매수 주문을 찾을 수 없습니다."));
 
+            Order sellOrder = orderRepository.findById(response.getSellOrderId())
+                    .orElseThrow(() -> new NoSuchElementException("매도 주문을 찾을 수 없습니다."));
             // 주문 수량 변경 값 db 저장
+
+            buyOrder.updateRemainingCount(response.getTradeCount()); // Order 엔티티에 해당 메서드가 있다고 가정
+            sellOrder.updateRemainingCount(response.getTradeCount());
+
+
             BigDecimal tradeAmount = response.getTradePrice().multiply(response.getTradeCount());
 
             String takerType = buyOrder.getOrderTime().isAfter(sellOrder.getOrderTime()) ? "BUY" : "SELL";
@@ -250,6 +252,8 @@ public class TradeService {
                         "SELL"
                 );
             }
+
+
 
             eventPublisher.publishEvent(new PriceChangedEvent(categoryId, response.getTradePrice()));
             //종목별 상태 업데이트 및 웹소켓 전송
