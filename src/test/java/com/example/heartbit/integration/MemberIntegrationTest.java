@@ -38,8 +38,8 @@ class MemberIntegrationTest {
     @Mock
     private JwtTokenProvider jwtTokenProvider; // 가짜 토큰 발급기
 
-//    @Mock
-//    private AssetService assetService;
+    @Mock
+    private AssetService assetService;
 
     @Test
     @DisplayName("회원가입 시 비밀번호가 암호화되어 저장소에 저장된다.")

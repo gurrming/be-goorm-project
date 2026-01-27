@@ -35,7 +35,7 @@ public class NotificationService {
     // 내 알림 목록 보기
     @Transactional(readOnly = true)
     public List<NotificationResponseDto> getNotifications(Long memberId) {
-        return notificationRepository.findNotificationsByMemberId(memberId)
+        return notificationRepository.findNotificationsByMember_MemberId(memberId)
                 .stream()
                 .map(NotificationResponseDto::from)
                 .collect(Collectors.toList());
