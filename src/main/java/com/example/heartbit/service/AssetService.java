@@ -41,12 +41,12 @@ public class AssetService {
         Asset asset = assetRepository.findByMember_MemberId(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 회원의 자산 정보를 찾을 수 없습니다."));
 
-        BigDecimal totalEvaluateAmount = investRepository.findAllByMember_MemberId(memberId)
+        BigDecimal totalAsset = investRepository.findAllByMember_MemberId(memberId)
                 .stream()
                 .map(invest -> invest.getInvestCount().multiply(invest.getInvestPrice()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        return AssetResponse.from(asset, totalEvaluateAmount);
+        return AssetResponse.from(asset, totalAsset);
     }
 
     // 5초마다 실시간 전송을 담당하던 스케줄러
