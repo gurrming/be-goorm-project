@@ -37,7 +37,6 @@ public class TradeResponse {
     @Builder
     private TradeResponse(
             Long tradeId,
-            Long categoryId,
             LocalDateTime tradeTime,
             BigDecimal tradePrice,
             BigDecimal tradeCount,

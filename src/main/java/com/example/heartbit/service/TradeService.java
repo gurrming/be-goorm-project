@@ -180,17 +180,17 @@ public class TradeService {
         if (tradeResults.isEmpty()) return;
 
         for (TradeResponse response : tradeResults) {
-            Order buyOrder = (response.getBuyOrderEntity() != null) ?
-                    response.getBuyOrderEntity() :
-                    orderRepository.findById(response.getBuyOrderId())
-                            .orElseThrow(() -> new NoSuchElementException("매수 주문을 찾을 수 없습니다."));
-            // 주문 정보 상세 조회 (자산 처리를 위해 실제 객체 필요)
-            Order sellOrder = (response.getSellOrderEntity() != null) ?
-                    response.getSellOrderEntity() :
-                    orderRepository.findById(response.getSellOrderId())
-                            .orElseThrow(() -> new NoSuchElementException("매도 주문을 찾을 수 없습니다."));
+            Order buyOrder = orderRepository.findById(response.getBuyOrderId())
+                    .orElseThrow(() -> new NoSuchElementException("매수 주문을 찾을 수 없습니다."));
 
+            Order sellOrder = orderRepository.findById(response.getSellOrderId())
+                    .orElseThrow(() -> new NoSuchElementException("매도 주문을 찾을 수 없습니다."));
             // 주문 수량 변경 값 db 저장
+
+            buyOrder.updateRemainingCount(response.getTradeCount()); // Order 엔티티에 해당 메서드가 있다고 가정
+            sellOrder.updateRemainingCount(response.getTradeCount());
+
+
             BigDecimal tradeAmount = response.getTradePrice().multiply(response.getTradeCount());
 
             String takerType = buyOrder.getOrderTime().isAfter(sellOrder.getOrderTime()) ? "BUY" : "SELL";
@@ -252,28 +252,6 @@ public class TradeService {
                         "SELL"
                 );
             }
-
-            // 매수자 알림 전송
-            String buyMsg;
-            if (buyOrder.getRemainingCount().compareTo(BigDecimal.ZERO) > 0) {
-                buyMsg = String.format("[%s] 매수 부분 체결! (%s주 체결되었고, %s주 남았어요.)",
-                        buyOrder.getCategory().getCategoryName(), response.getTradeCount(), buyOrder.getRemainingCount());
-            } else {
-                buyMsg = String.format("[%s] 매수 체결 완료! (총 %s주)",
-                        buyOrder.getCategory().getCategoryName(), response.getTradeCount());
-            }
-            notificationService.send(buyOrder.getMember(), buyMsg, NotificationType.TRADE);
-
-            // 매도자 알림 전송
-            String sellMsg;
-            if (sellOrder.getRemainingCount().compareTo(BigDecimal.ZERO) > 0) {
-                sellMsg = String.format("[%s] 매도 부분 체결! (%s주 체결되었고, %s주 남았어요.)",
-                        sellOrder.getCategory().getCategoryName(), response.getTradeCount(), sellOrder.getRemainingCount());
-            } else {
-                sellMsg = String.format("[%s] 매도 체결 완료! (총 %s주)",
-                        sellOrder.getCategory().getCategoryName(), response.getTradeCount());
-            }
-            notificationService.send(sellOrder.getMember(), sellMsg, NotificationType.TRADE);
 
 
 
