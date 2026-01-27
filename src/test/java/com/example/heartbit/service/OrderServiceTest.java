@@ -84,7 +84,7 @@ class OrderServiceTest {
                         tuple(new BigDecimal("50000"), new BigDecimal("1"), OrderType.BUY)
                 );
 
-        verify(assetService, never()).deductCash(anyLong(), any(BigDecimal.class));
+        verify(assetService, never()).blockCash(anyLong(), any(BigDecimal.class));
 
     }
 
@@ -134,7 +134,7 @@ class OrderServiceTest {
                 );
 
         ArgumentCaptor<BigDecimal> orderArgumentCaptor = ArgumentCaptor.forClass(BigDecimal.class);
-        verify(assetService, times(1)).deductCash(
+        verify(assetService, times(1)).blockCash(
                 eq(member.getMemberId()),
                 orderArgumentCaptor.capture()
         );
@@ -171,7 +171,7 @@ class OrderServiceTest {
         orderService.createOrder(request);
 
         // then
-        verify(assetService).deductCash(eq(member.getMemberId()), eq(new BigDecimal("100000")));
+        verify(assetService).blockCash(eq(member.getMemberId()), eq(new BigDecimal("100000")));
     }
 
 
@@ -245,7 +245,7 @@ class OrderServiceTest {
         orderService.cancelOrder(savedOrder.getOrderId());
 
         // then
-        verify(assetService, times(1)).refundCash(
+        verify(assetService, times(1)).restoreCash(
                 eq(member.getMemberId()),
                 argThat(amount -> amount.compareTo(new BigDecimal("10000")) == 0)
         );
@@ -283,7 +283,7 @@ class OrderServiceTest {
                         OrderStatus.CANCELLED,
                         OrderStatus.FILLED
                 );
-        verify(assetService, times(2)).refundCash(
+        verify(assetService, times(2)).restoreCash(
                 eq(member.getMemberId()),
                 argThat(amount -> amount.compareTo(BigDecimal.ZERO) > 0));
     }
@@ -317,7 +317,7 @@ class OrderServiceTest {
 
 
         doThrow(new IllegalArgumentException("잔액이 부족합니다."))
-                .when(assetService).deductCash(eq(member.getMemberId()), any(BigDecimal.class));
+                .when(assetService).blockCash(eq(member.getMemberId()), any(BigDecimal.class));
 
         // when
         assertThatThrownBy(() -> orderService.createOrder(request))
@@ -364,30 +364,30 @@ class OrderServiceTest {
 //        assertThat(orders).isEmpty();
 //    }
 
-    /// 다수 사용자
-    @DisplayName("다수의 사용자가 동시에 주문을 생성한다.")
-    @Test
-    void manyMemberCreateOrder() {
-        //given
-        Member member = memberRepository.save(Member.builder()
-                .memberEmail("test@test.com")
-                .memberNickname("유진")
-                .memberPassword("1234")
-                .build());
-
-        assetRepository.save(Asset.builder()
-                .member(member)
-                .assetCash(new BigDecimal("1000"))
-                .build());
-        Category category = categoryRepository.save(Category.builder()
-                .symbol("BTC")
-                .build());
-
-
-        // when
-
-        // then
-    }
+//    /// 다수 사용자
+//    @DisplayName("다수의 사용자가 동시에 주문을 생성한다.")
+//    @Test
+//    void manyMemberCreateOrder() {
+//        //given
+//        Member member = memberRepository.save(Member.builder()
+//                .memberEmail("test@test.com")
+//                .memberNickname("유진")
+//                .memberPassword("1234")
+//                .build());
+//
+//        assetRepository.save(Asset.builder()
+//                .member(member)
+//                .assetCash(new BigDecimal("1000"))
+//                .build());
+//        Category category = categoryRepository.save(Category.builder()
+//                .symbol("BTC")
+//                .build());
+//
+//
+//        // when
+//
+//        // then
+//    }
 
 
     private Order createOrder(Member member, Category category, OrderStatus status, String price, String remaining) {

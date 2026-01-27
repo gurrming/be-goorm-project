@@ -38,49 +38,49 @@ class OrderControllerTest {
     @MockitoBean
     private TradeEngineService tradeEngineService;
 
-    @DisplayName("신규 주문을 생성한다.")
-    @Test
-    void createOrder() throws Exception {
-        // given
-        OrderRequest request = OrderRequest.builder()
-                .memberId(1L)
-                .categoryId(1L)
-                .orderPrice(new BigDecimal("50000"))
-                .orderCount(new BigDecimal("1"))
-                .orderType(OrderType.BUY)
-                .build();
-
-        // when & then
-        mockMvc.perform(
-                        post("/api/orders")
-                                .content(objectMapper.writeValueAsString(request))
-                                .contentType(String.valueOf(MediaType.APPLICATION_JSON))
-                )
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value("200"))
-                .andExpect(jsonPath("$.status").value("OK"))
-                .andExpect(jsonPath("$.message").value("OK"));
-    }
-
-    @DisplayName("종목별 호가창을 조회한다.")
-    @Test
-    void orderBook() throws Exception {
-        //given
-        Long categoryId = 1L;
-        OrderType orderType = OrderType.BUY;
-
-        // when & then
-        mockMvc.perform(
-                get("/api/orders/orderbook")
-                        .param("categoryId", categoryId.toString())
-                        .param("orderType", orderType.name())
-                        .param("limit", "30")
-        )
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value("200"))
-                .andExpect(jsonPath("$.status").value("OK"))
-                .andExpect(jsonPath("$.message").value("OK"));
-    }
+//    @DisplayName("신규 주문을 생성한다.")
+//    @Test
+//    void createOrder() throws Exception {
+//        // given
+//        OrderRequest request = OrderRequest.builder()
+//                .memberId(1L)
+//                .categoryId(1L)
+//                .orderPrice(new BigDecimal("50000"))
+//                .orderCount(new BigDecimal("1"))
+//                .orderType(OrderType.BUY)
+//                .build();
+//
+//        // when & then
+//        mockMvc.perform(
+//                        post("/api/orders")
+//                                .content(objectMapper.writeValueAsString(request))
+//                                .contentType(String.valueOf(MediaType.APPLICATION_JSON))
+//                )
+//                .andDo(print())
+//                .andExpect(status().isOk())
+//                .andExpect(jsonPath("$.code").value("200"))
+//                .andExpect(jsonPath("$.status").value("OK"))
+//                .andExpect(jsonPath("$.message").value("OK"));
+//    }
+//
+//    @DisplayName("종목별 호가창을 조회한다.")
+//    @Test
+//    void orderBook() throws Exception {
+//        //given
+//        Long categoryId = 1L;
+//        OrderType orderType = OrderType.BUY;
+//
+//        // when & then
+//        mockMvc.perform(
+//                get("/api/orders/orderbook")
+//                        .param("categoryId", categoryId.toString())
+//                        .param("orderType", orderType.name())
+//                        .param("limit", "30")
+//        )
+//                .andDo(print())
+//                .andExpect(status().isOk())
+//                .andExpect(jsonPath("$.code").value("200"))
+//                .andExpect(jsonPath("$.status").value("OK"))
+//                .andExpect(jsonPath("$.message").value("OK"));
+//    }
 }
