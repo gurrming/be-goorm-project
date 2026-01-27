@@ -43,6 +43,7 @@ public class SecurityConfig {
             "/api/trades/chart",
             "/api/category",
             "/api/categories",
+            "/api/analysis/**",
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/swagger-resources/**",
