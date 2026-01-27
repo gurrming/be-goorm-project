@@ -7,7 +7,9 @@ import com.example.heartbit.dto.NotificationResponseDto;
 import com.example.heartbit.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -21,7 +23,8 @@ public class NotificationService {
     private final SimpMessagingTemplate messagingTemplate; // WebSocket 전송 도구
 
     // 알림 후 실시간 전송
-    @Transactional
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW) // 새로운 트랜잭션에서 실행
     public void send(Member member, String content, NotificationType type) {
 
         Notification notification = new Notification(member, content, type);
