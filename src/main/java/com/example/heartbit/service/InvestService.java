@@ -8,6 +8,8 @@ import com.example.heartbit.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -57,21 +59,93 @@ public class InvestService {
     }
 
     /**
-     * [REST API] 사용자의 현재 투자 현황을 전체 조회 (초기 진입용)
+     * 보유 자산 요약 및 목록 조회 (무한 스크롤 적용)
+     * - 상단 요약(합계): 페이징 없이 전체 보유 코인 기준으로 계산 (스크롤 할 때마다 최신 시세 반영)
+     * - 하단 목록(리스트): 요청된 페이지(Slice)만큼만 반환
      */
     @Transactional(readOnly = true)
-    public InvestResponse getInvestSummary(Long memberId) {
-        // 1. 해당 유저의 모든 보유 종목 가져오기
-        List<Invest> investList = investRepository.findAllByMember_MemberId(memberId);
+    public InvestResponse getInvestSummary(Long memberId, Pageable pageable) {
 
-        // 2. 각 종목별 실시간 시세 반영 및 상세 계산
-        List<InvestResponse.AssetDetailDto> assetList = investList.stream()
-                .map(this::convertToAssetDetailDto)
+        // 1. [전체 요약용] 페이징 없이 해당 유저의 '모든' 투자 내역 조회
+        List<Invest> allInvests = investRepository.findAllByMember_MemberId(memberId);
+
+        // 2. [목록 표시용] 페이징 적용된 투자 내역 조회 (Slice 사용)
+        Slice<Invest> pagedInvests = investRepository.findAllByMember_MemberId(memberId, pageable);
+
+
+        // --- A. 전체 자산 합계 계산 (allInvests 사용) ---
+        BigDecimal totalBuyAmount = BigDecimal.ZERO;    // 총 매수금액
+        BigDecimal totalEvaluation = BigDecimal.ZERO;   // 총 평가금액
+
+        for (Invest invest : allInvests) {
+            // 현재가 조회 (TradeService -> Redis/DB)
+            BigDecimal currentPrice = tradeService.getCurrentTrade(invest.getCategory().getCategoryId())
+                    .getTradePrice();
+
+            // 개별 종목의 매수금액 = 평단가 * 보유수량
+            BigDecimal buyAmt = invest.getInvestPrice().multiply(invest.getInvestCount());
+            // 개별 종목의 평가금액 = 현재가 * 보유수량
+            BigDecimal evalAmt = currentPrice.multiply(invest.getInvestCount());
+
+            totalBuyAmount = totalBuyAmount.add(buyAmt);
+            totalEvaluation = totalEvaluation.add(evalAmt);
+        }
+
+        // 전체 평가손익 = 총 평가금액 - 총 매수금액
+        BigDecimal totalProfit = totalEvaluation.subtract(totalBuyAmount);
+
+        // 전체 수익률 = (총 평가손익 / 총 매수금액) * 100
+        BigDecimal totalProfitRate = (totalBuyAmount.compareTo(BigDecimal.ZERO) == 0) ? BigDecimal.ZERO :
+                totalProfit.divide(totalBuyAmount, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+
+
+        // --- B. 리스트 변환 (pagedInvests 사용) ---
+        List<InvestResponse.AssetDetailDto> assetList = pagedInvests.stream()
+                .map(invest -> {
+                    // 현재가 조회
+                    BigDecimal currentPrice = tradeService.getCurrentTrade(invest.getCategory().getCategoryId())
+                            .getTradePrice();
+
+                    // 개별 계산
+                    BigDecimal buyAmount = invest.getInvestPrice().multiply(invest.getInvestCount()); // 매수금액
+                    BigDecimal evaluationAmount = currentPrice.multiply(invest.getInvestCount());     // 평가금액
+                    BigDecimal evaluationProfit = evaluationAmount.subtract(buyAmount);               // 평가손익
+
+                    // 개별 수익률
+                    BigDecimal profitRate = (buyAmount.compareTo(BigDecimal.ZERO) == 0) ? BigDecimal.ZERO :
+                            evaluationProfit.divide(buyAmount, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+
+                    // DTO 매핑
+                    return InvestResponse.AssetDetailDto.builder()
+                            .categoryId(invest.getCategory().getCategoryId())
+                            .categoryName(invest.getCategory().getCategoryName())
+                            .symbol(invest.getCategory().getSymbol())
+                            .investCount(invest.getInvestCount())
+                            .avgPrice(invest.getInvestPrice()) // 평단가
+                            .buyAmount(buyAmount)
+                            .currentPrice(currentPrice)
+                            .evaluationAmount(evaluationAmount)
+                            .evaluationProfit(evaluationProfit)
+                            .profitRate(profitRate)
+                            .build();
+                })
                 .collect(Collectors.toList());
 
-        // 3. 상단 요약 정보(총합) 계산
-        return buildInvestResponse(assetList);
+        // 3. 최종 응답 빌드
+        return InvestResponse.builder()
+                .totalBuyAmount(totalBuyAmount)
+                .totalEvaluation(totalEvaluation)
+                .totalProfit(totalProfit)
+                .totalProfitRate(totalProfitRate)
+                .assetList(assetList)
+                .hasNext(pagedInvests.hasNext()) // 다음 페이지 존재 여부 (무한 스크롤용)
+                .build();
     }
+
+    public void reduceInvestCount() {
+
+    }
+
 
     @EventListener
     public void handlePriceChange(PriceChangedEvent event) {
@@ -97,8 +171,6 @@ public class InvestService {
                             .category(category)
                             .investCount(BigDecimal.ZERO)
                             .investPrice(BigDecimal.ZERO)
-                            // 처음 생성될 때 trade가 없으면 nullable=false 때문에 에러가 날 수 있으나,
-                            // 바로 아래에서 setTrade를 호출하므로 빌더에서는 생략해도 됩니다.
                             .build();
                 });
 
@@ -154,7 +226,7 @@ public class InvestService {
         // 2. 각 유저별로 전체 자산 현황을 재계산해서 웹소켓 전송
         for (Long memberId : memberIds) {
             try {
-                InvestResponse totalSummary = getInvestSummary(memberId);
+                InvestResponse totalSummary = getInvestSummary(memberId, Pageable.unpaged());
 
                 // 개인용 채널로 전송 (/topic/asset/1, /topic/asset/2 ...)
                 messagingTemplate.convertAndSend("/topic/invest/" + memberId, totalSummary);

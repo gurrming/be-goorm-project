@@ -57,6 +57,7 @@ public class Order {
                  BigDecimal orderPrice,
                  BigDecimal orderCount,
                  BigDecimal remainingCount,
+                 LocalDateTime orderTime,
                  OrderType orderType,
                  OrderStatus orderStatus,
                  Member member,
@@ -71,6 +72,7 @@ public class Order {
         this.orderType = orderType;
         this.orderStatus = (orderStatus != null) ? orderStatus : OrderStatus.OPEN;
         this.member = member;
+        this.orderTime = orderTime;
         this.category = category;
         this.bots = bots;
     }

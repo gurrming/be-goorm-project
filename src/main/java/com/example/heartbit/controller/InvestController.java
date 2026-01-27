@@ -4,6 +4,8 @@ import com.example.heartbit.dto.InvestResponse;
 import com.example.heartbit.service.InvestService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,8 +24,11 @@ public class InvestController {
     private final InvestService investService;
 
     @GetMapping("/summary")
-    public ResponseEntity<InvestResponse> getInvestSummary(@RequestParam Long memberId) {
-        InvestResponse response = investService.getInvestSummary(memberId);
+    public ResponseEntity<InvestResponse> getInvestSummary(@RequestParam Long memberId,
+                                                           @RequestParam(defaultValue = "0") int page, // 페이지 번호 (0부터 시작)
+                                                           @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        InvestResponse response = investService.getInvestSummary(memberId, pageable);
 
         return ResponseEntity.ok(response);
     }

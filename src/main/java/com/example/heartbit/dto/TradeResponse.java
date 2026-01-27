@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 public class TradeResponse {
 
     private Long tradeId;
+    private Long categoryId;
     private String symbol;
     private LocalDateTime tradeTime;
     private BigDecimal tradePrice;
@@ -36,6 +37,7 @@ public class TradeResponse {
     @Builder
     private TradeResponse(
             Long tradeId,
+            Long categoryId,
             LocalDateTime tradeTime,
             BigDecimal tradePrice,
             BigDecimal tradeCount,
@@ -49,6 +51,7 @@ public class TradeResponse {
             Order sellOrderEntity
     ) {
         this.tradeId = tradeId;
+        this.categoryId = categoryId;
         this.tradeTime = tradeTime;
         this.tradePrice = tradePrice;
         this.tradeCount = tradeCount;
@@ -65,8 +68,6 @@ public class TradeResponse {
 
     public static TradeResponse fromEntity(Trade trade) {
 
-        String takerType = trade.getBuyOrder().getOrderTime().isAfter(trade.getSellOrder().getOrderTime())
-                ? "BUY" : "SELL";
         return TradeResponse.builder()
                 .tradeId(trade.getTradeId())
                 .tradeTime(trade.getTradeTime())
@@ -74,7 +75,7 @@ public class TradeResponse {
                 .tradeCount(trade.getTradeCount())
                 .tradeClosePrice(trade.getTradeClosePrice())
                 .symbol(trade.getSymbol())
-                .takerType(takerType)
+                .takerType(trade.getTakerType())
                 .buyOrderId(trade.getBuyOrder().getOrderId())
                 .sellOrderId(trade.getSellOrder().getOrderId())
                 .build();
