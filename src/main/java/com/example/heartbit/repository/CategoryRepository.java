@@ -10,4 +10,5 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     // symbol 기준 대소문자 무시 조회
     Optional<Category> findBySymbolIgnoreCase(String symbol);
 
+    <T> ScopedValue<T> findByCategoryId(Long categoryId);
 }

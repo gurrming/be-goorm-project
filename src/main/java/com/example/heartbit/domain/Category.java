@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
+@ToString
 public class Category {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
