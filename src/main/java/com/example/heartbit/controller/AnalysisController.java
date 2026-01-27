@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/analysis") //프론트가 호출하는 url
 @RequiredArgsConstructor
@@ -23,9 +25,8 @@ public class AnalysisController {
 
     @Operation(summary = "감성 분석(긍/부정) 조회", description = "각 symbol마다 감성 분석에 대한 결과를 나타냅니다.")
     @GetMapping("/{categoryID}")
-    public ResponseEntity<AnalysisDTO> getMyAsset(@PathVariable Long categoryID) {
-        AnalysisDTO result = analysisService.getSentimentData(categoryID);
-        return ResponseEntity.ok(result); // 데이터를 담아서 리턴해야 합니다!
+    public ResponseEntity<List<AnalysisDTO>> getSentiment(@PathVariable Long categoryID) {
+        return ResponseEntity.ok(analysisService.getSentimentData(categoryID));
     }
 
 }
