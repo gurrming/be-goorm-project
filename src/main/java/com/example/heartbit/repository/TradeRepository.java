@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -73,4 +74,7 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
             @Param("categoryId") Long categoryId,
             @Param("afterTime") LocalDateTime afterTime
     );
+
+    @Query(value = "SELECT trade_price FROM trade WHERE category_id = :categoryId ORDER BY trade_time DESC LIMIT 1", nativeQuery = true)
+    Optional<BigDecimal> findLatestPriceByCategoryId(@Param("categoryId") Long categoryId);
 }

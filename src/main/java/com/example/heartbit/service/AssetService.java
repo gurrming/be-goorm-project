@@ -5,6 +5,7 @@ import com.example.heartbit.domain.Member;
 import com.example.heartbit.dto.AssetResponse;
 import com.example.heartbit.repository.AssetRepository;
 import com.example.heartbit.repository.InvestRepository;
+import com.example.heartbit.repository.TradeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -24,6 +25,7 @@ public class AssetService {
     private final AssetRepository assetRepository;
     private final InvestRepository investRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final TradeRepository tradeRepository;
 
     @Transactional // 쓰기 작업이므로 붙여야 함
     public void createInitialAsset(Member member) {
@@ -41,12 +43,20 @@ public class AssetService {
         Asset asset = assetRepository.findByMember_MemberId(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 회원의 자산 정보를 찾을 수 없습니다."));
 
-        BigDecimal totalAsset = investRepository.findAllByMember_MemberId(memberId)
+        BigDecimal totalInvestValue = investRepository.findAllByMember_MemberId(memberId)
                 .stream()
-                .map(invest -> invest.getInvestCount().multiply(invest.getInvestPrice()))
+                .map(invest -> {
+                    // A. 현재가 조회 (DB 혹은 Redis에서 가져와야 함)
+                    // (성능을 위해선 TradeService의 메모리 맵이나 Redis를 쓰는 게 좋지만, 일단 DB 예시로 듭니다)
+                    BigDecimal currentPrice = tradeRepository.findLatestPriceByCategoryId(invest.getCategory().getCategoryId())
+                            .orElse(invest.getInvestPrice()); // 현재가 없으면 평단가로 대체
+
+                    // B. 보유수량 * 현재가 = 평가금액
+                    return invest.getInvestCount().multiply(currentPrice);
+                })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        return AssetResponse.from(asset, totalAsset);
+        return AssetResponse.from(asset, totalInvestValue);
     }
 
     // 5초마다 실시간 전송을 담당하던 스케줄러
