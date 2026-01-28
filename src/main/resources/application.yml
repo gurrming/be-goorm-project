@@ -3,7 +3,7 @@ spring:
     name: heartbit
 
   datasource:
-    url: "jdbc:postgresql://local-postgres:5432/app"
+    url: "jdbc:postgresql://localhost:15432/app"
     username: "postgres"
     password: "0000"
     driver-class-name: org.postgresql.Driver
