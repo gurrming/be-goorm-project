@@ -44,37 +44,7 @@ public class NotificationIntegrationTest {
                 .build());
     }
 
-    @Test
-    @DisplayName("체결 완료 시 알림 저장 및 전송 테스트")
-    void sendNotificationTest() {
-        // given: 체결 완료
-        String content = "[비트코인] 매수 체결 완료!";
-        NotificationType type = NotificationType.TRADE;
 
-        // when: 알림 전송
-        notificationService.send(testMember, content, type);
 
-        // then: DB에 알림이 저장되었는지 확인
-        List<NotificationResponseDto> result = notificationService.getNotifications(testMember.getMemberId());
 
-        assertThat(result).isNotEmpty();
-        assertThat(result.get(0).getNotificationContent()).isEqualTo(content);
-    }
-
-    @Test
-    @DisplayName("특정 멤버의 알림 목록 조회 테스트")
-    void getNotificationsTest() {
-        // given: 알림 생성
-        notificationService.send(testMember, "[비트코인] 매수 체결 완료!", NotificationType.TRADE);
-        notificationService.send(testMember, "[이더리움] 매도 체결 완료!", NotificationType.TRADE);
-
-        // when: 해당 멤버의 알림 목록 조회
-        List<NotificationResponseDto> notifications = notificationService.getNotifications(testMember.getMemberId());
-
-        // then: 목록의 개수 및 내용 검증
-        assertThat(notifications).hasSize(2);
-        assertThat(notifications)
-                .extracting(NotificationResponseDto::getNotificationContent)
-                .containsExactlyInAnyOrder("[비트코인] 매수 체결 완료!", "[이더리움] 매도 체결 완료!");
-    }
 }

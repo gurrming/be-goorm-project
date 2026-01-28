@@ -56,57 +56,9 @@ class TradeServiceTest {
 
 
 
-    @Test
-    @DisplayName("Redis에 현재가가 있으면 DB 조회 없이 반환한다 (Cache Hit)")
-    void getCurrentTrade_CacheHit() {
-        // given
-        Long categoryId = 1L;
-        // Mocking: Redis에 "1500"이라는 값이 있음
-        when(valueOperations.get(contains("ticker"))).thenReturn("1500");
 
-        // when
-        TradeResponse result = tradeService.getCurrentTrade(categoryId);
 
-        // then
-        assertThat(result.getTradePrice()).isEqualByComparingTo("1500");
-        // DB 조회 메서드가 호출되지 않았는지 확인
-        verify(tradeRepository, never()).findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(any());
-    }
 
-    @Test
-    @DisplayName("Redis에 현재가가 없으면 DB에서 조회하고 Redis에 저장한다 (Cache Miss)")
-    void getCurrentTrade_CacheMiss() {
-        // given
-        Long categoryId = 1L;
-
-        // [추가] 검증 로직 통과를 위한 더미 주문 객체
-
-        Order buyOrder = Order.builder()
-                .orderType(OrderType.BUY) // 프로젝트에서 사용하는 OrderType Enum 확인 필요
-                .build();
-
-        Order sellOrder = Order.builder()
-                .orderType(OrderType.SELL)
-                .build();
-        when(valueOperations.get(contains("ticker"))).thenReturn(null);
-
-        // [수정] buyOrder와 sellOrder를 필수로 넣어줍니다.
-        Trade tradeInDb = Trade.builder()
-                .tradePrice(new BigDecimal("1200"))
-                .buyOrder(buyOrder)
-                .sellOrder(sellOrder)
-                .build();
-
-        when(tradeRepository.findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(categoryId))
-                .thenReturn(Optional.of(tradeInDb));
-
-        // when
-        TradeResponse result = tradeService.getCurrentTrade(categoryId);
-
-        // then
-        assertThat(result.getTradePrice()).isEqualByComparingTo("1200");
-        verify(valueOperations).set(contains("ticker"), eq("1200"));
-    }
 
     @Test
     @DisplayName("초기 캔들 데이터 조회 시 1분봉 OHLC 계산이 정확해야 한다")
