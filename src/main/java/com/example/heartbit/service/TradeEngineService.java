@@ -5,6 +5,7 @@ import com.example.heartbit.domain.OrderType;
 import com.example.heartbit.dto.order.EngineMatchResult;
 import com.example.heartbit.dto.TradeResponse;
 import com.example.heartbit.dto.order.OrderBookResponse;
+import lombok.Getter;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -80,19 +81,24 @@ public class TradeEngineService {
         private final Set<BigDecimal> isBuyPrices = new HashSet<>();
         private final Set<BigDecimal> isSellPrices = new HashSet<>();
 
+        @Getter
+        private BigDecimal currentTradePrice = BigDecimal.ZERO;
+
+        // 현재가 기준으로 가져오기 호가창 가져오기
         public List<OrderBookResponse> getSnapshot(OrderType type, int limit) {
             PriorityQueue<BigDecimal> prices = (type == OrderType.BUY) ? buyPrices : sellPrices;
-            Map<BigDecimal, PriorityQueue<Order>> book = (type == OrderType.BUY) ? buyOrderBook : sellOrderBook;
+            Map<BigDecimal, PriorityQueue<Order>> orderBook = (type == OrderType.BUY) ? buyOrderBook : sellOrderBook;
 
-            List<BigDecimal> sortedPrices = new ArrayList<>(prices);
+            Comparator<BigDecimal> priceComparator = (type == OrderType.BUY)
+                    ? Comparator.reverseOrder()
+                    : Comparator.naturalOrder();
 
-            sortedPrices.sort(Comparator.reverseOrder());
-
-            return sortedPrices.stream()
+            return prices.stream()
+                    .sorted(priceComparator)
                     .limit(limit)
                     .map(price -> OrderBookResponse.builder()
                             .orderPrice(price)
-                            .totalRemainingCount(book.get(price).stream()
+                            .totalRemainingCount(orderBook.get(price).stream()
                                     .map(Order::getRemainingCount)
                                     .reduce(BigDecimal.ZERO, BigDecimal::add))
                             .build())
@@ -158,20 +164,20 @@ public class TradeEngineService {
                 Order maker = makerOrders.peek();
                 BigDecimal tradeCount = remaining.min(maker.getRemainingCount());
 
+                this.currentTradePrice = maker.getOrderPrice();
+
                 // 체결 리스트 가져오기
                 tradeList.add(new EngineMatchResult(
                         taker,
                         maker,
-                        maker.getOrderPrice(),
+                        this.currentTradePrice,
                         tradeCount,
                         LocalDateTime.now()
                 ));
-
                 // 수량 등록
                 maker.updateRemainingCount(tradeCount);
                 taker.updateRemainingCount(tradeCount);
                 remaining = taker.getRemainingCount();
-
                 // 수량이 0이 되면 제거
                 if (maker.getRemainingCount().compareTo(BigDecimal.ZERO) == 0) makerOrders.poll();
             }
@@ -179,7 +185,6 @@ public class TradeEngineService {
             if (makerOrders.isEmpty()) {
                 // 큐에서 제거
                 BigDecimal zeroPrice = priceQueue.poll();
-
                 // HashSet에서도 제거
                 if (taker.getOrderType() == OrderType.BUY) {
                     // Taker가 매수면 매도 호가창의 가격 사라짐
