@@ -522,7 +522,7 @@ public class TradeService {
 
         return TradeResponse.builder()
                 .categoryId(categoryId)
-                .intensity(strength.toPlainString()) // 프론트에서 바로 쓰기 좋게 String 변환
+                .intensity(strength) // 프론트에서 바로 쓰기 좋게 String 변환
                 .totalBuyVolume(buyVolume)
                 .totalSellVolume(sellVolume)
                 .build();

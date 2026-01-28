@@ -26,7 +26,7 @@ public class TradeResponse {
     private Long buyOrderId;
     private Long sellOrderId;
 
-    private String intensity;
+    private BigDecimal intensity;
     private BigDecimal totalBuyVolume;
     private BigDecimal totalSellVolume;
 
@@ -46,7 +46,7 @@ public class TradeResponse {
             BigDecimal tradePrice,
             BigDecimal tradeCount,
             BigDecimal tradeClosePrice,
-            String intensity,
+            BigDecimal intensity,
             BigDecimal totalBuyVolume,
             BigDecimal totalSellVolume,
             String symbol,
