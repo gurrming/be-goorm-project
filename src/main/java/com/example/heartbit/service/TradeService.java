@@ -65,6 +65,7 @@ public class TradeService {
     // 종목별 실시간 시세 상태 관리 (메모리 맵)
     private final Map<Long, BigDecimal> openPrices = new ConcurrentHashMap<>();
     private final Map<Long, BigDecimal> currentPrices = new ConcurrentHashMap<>();
+    private final Map<Long, BigDecimal> intensity = new ConcurrentHashMap<>();
     private final Map<Long, BigDecimal> changeAmounts = new ConcurrentHashMap<>();
     private final Map<Long, BigDecimal> changeRates = new ConcurrentHashMap<>();
     private final Map<Long, BigDecimal> dailyHighs = new ConcurrentHashMap<>();
@@ -464,6 +465,41 @@ public class TradeService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public TradeResponse getVolumePower(Long categoryId) {
+        // 1. 기준 시간 설정 (현재로부터 24시간 전)
+        LocalDateTime startTime = LocalDateTime.now().minusHours(24);
+
+        // 2. 매수/매도 거래량 조회 (DB 쿼리 호출)
+        // takerType이 "BUY"면 매수세, "SELL"이면 매도세로 판단
+        BigDecimal buyVolume = tradeRepository.sumVolume24h(categoryId, startTime, "BUY");
+        BigDecimal sellVolume = tradeRepository.sumVolume24h(categoryId, startTime, "SELL");
+
+        // 3. 체결강도 계산 공식: (매수총량 / 매도총량) * 100
+        BigDecimal strength;
+
+        if (sellVolume.compareTo(BigDecimal.ZERO) == 0) {
+            // 매도량이 0인 경우 (나누기 0 방지)
+            if (buyVolume.compareTo(BigDecimal.ZERO) > 0) {
+                strength = new BigDecimal("100.00"); // 매수만 있으면 100%
+            } else {
+                strength = BigDecimal.ZERO; // 거래 아예 없음
+            }
+        } else {
+            // 소수점 2자리까지 반올림 계산
+            strength = buyVolume.divide(sellVolume, 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"))
+                    .setScale(2, RoundingMode.HALF_UP);
+        }
+
+        return TradeResponse.builder()
+                .categoryId(categoryId)
+                .intensity(strength.toPlainString()) // 프론트에서 바로 쓰기 좋게 String 변환
+                .totalBuyVolume(buyVolume)
+                .totalSellVolume(sellVolume)
+                .build();
+    }
+
 
     //사용자가 처음에 접속했을때 텅빈 화면이 뜨는것을 방지하기 위해 db에서 지난 차트 데이터들을 REST API로 불러오기
     public List<Map<String, Object>> getInitialCandles(Long categoryId, Long lastId, int size) {
@@ -663,4 +699,6 @@ public class TradeService {
                 })
                 .toList();
     }
+
+
 }

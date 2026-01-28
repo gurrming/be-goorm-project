@@ -23,8 +23,8 @@ public class InvestController {
 
     private final InvestService investService;
 
-    @GetMapping("/summary/{memberId}")
-    public ResponseEntity<InvestResponse> getInvestSummary(@PathVariable Long memberId,
+    @GetMapping("/summary")
+    public ResponseEntity<InvestResponse> getInvestSummary(@RequestParam Long memberId,
                                                            @RequestParam(defaultValue = "0") int page, // 페이지 번호 (0부터 시작)
                                                            @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size);

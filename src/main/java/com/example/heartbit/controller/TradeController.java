@@ -56,6 +56,12 @@ public class TradeController {
         return ResponseEntity.ok(tradeService.getMyTrade(memberId, page, size));
     }
 
+    @Operation(summary = "체결강도 조회", description = "특정 종목의 최근 24시간 매수/매도 체결강도를 계산하여 반환합니다.")
+    @GetMapping("/volume-power/{categoryId}")
+    public ResponseEntity<TradeResponse> getVolumePower(@PathVariable Long categoryId) {
+        return ResponseEntity.ok(tradeService.getVolumePower(categoryId));
+    }
+
     @Operation(summary = "차트 초기 데이터 조회(커서기반)", description = "마지막 데이터 ID를 기준으로 이전 체결 내역을 조회합니다.")
     @GetMapping("/chart")
     public ResponseEntity<List<Map<String, Object>>> getChartData(@RequestParam Long categoryId,
@@ -65,6 +71,7 @@ public class TradeController {
         //int adjustedPage = (page > 0) ? page - 1 : 0;
         return ResponseEntity.ok(tradeService.getInitialCandles(categoryId, lastId, size));
     }
+
 
 }
 

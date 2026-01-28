@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -72,5 +73,15 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
     List<Trade> findTradesByCategoryIdAndTradeTimeAfter(
             @Param("categoryId") Long categoryId,
             @Param("afterTime") LocalDateTime afterTime
+    );
+
+    @Query("SELECT COALESCE(SUM(t.tradeCount), 0) FROM Trade t " +
+            "WHERE t.buyOrder.category.categoryId = :categoryId " +
+            "AND t.tradeTime >= :startTime " +
+            "AND t.takerType = :takerType")
+    BigDecimal sumVolume24h(
+            @Param("categoryId") Long categoryId,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("takerType") String takerType
     );
 }

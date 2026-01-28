@@ -50,7 +50,8 @@ public class InvestControllerTest {
                 .willReturn(response);
 
         //when & then
-        mockMvc.perform(get("/api/invest/summary/{memberId}", memberId)
+        mockMvc.perform(get("/api/invest/summary")
+                        .param("memberId", String.valueOf(memberId)) // PathVariable
                 .param("page", String.valueOf(page))          // QueryParam
                 .param("size", String.valueOf(size)))
                 .andExpect(status().isOk())

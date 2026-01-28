@@ -26,6 +26,10 @@ public class TradeResponse {
     private Long buyOrderId;
     private Long sellOrderId;
 
+    private String intensity;
+    private BigDecimal totalBuyVolume;
+    private BigDecimal totalSellVolume;
+
     private Order buyOrderEntity;
     private Order sellOrderEntity;
     // 추가
@@ -37,10 +41,14 @@ public class TradeResponse {
     @Builder
     private TradeResponse(
             Long tradeId,
+            Long categoryId,
             LocalDateTime tradeTime,
             BigDecimal tradePrice,
             BigDecimal tradeCount,
             BigDecimal tradeClosePrice,
+            String intensity,
+            BigDecimal totalBuyVolume,
+            BigDecimal totalSellVolume,
             String symbol,
             Long buyOrderId,
             Long sellOrderId,
@@ -50,10 +58,14 @@ public class TradeResponse {
             Order sellOrderEntity
     ) {
         this.tradeId = tradeId;
+        this.categoryId = categoryId;
         this.tradeTime = tradeTime;
         this.tradePrice = tradePrice;
         this.tradeCount = tradeCount;
         this.tradeClosePrice = tradeClosePrice;
+        this.intensity = intensity;
+        this.totalBuyVolume = totalBuyVolume;
+        this.totalSellVolume = totalSellVolume;
         this.symbol = symbol;
         this.buyOrderId = buyOrderId;
         this.sellOrderId = sellOrderId;
