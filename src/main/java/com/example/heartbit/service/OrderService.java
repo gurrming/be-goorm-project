@@ -49,17 +49,17 @@ public class OrderService {
     // 멤버별 주문 입력값
     @Transactional
     public OrderResponse createOrder(@Valid OrderRequest request) {
-        // 1. 공통 정보 조회 (카테고리)
+        // 종목 조회
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new EntityNotFoundException("카테고리를 찾을 수 없습니다."));
 
         Order newOrder;
 
-        // 2. 주문 주체 판별 (봇 vs 일반 회원)
+        // 주문 주체 판별
         if (request.getBotId() != null) {
-            // 봇 주문 처리: 봇 테이블에서 조회하거나 없으면 생성
+            // 봇 주문 처리
             Bots bot = botsRepository.findById(request.getBotId())
-                    .orElseGet(() -> botsRepository.save(Bots.builder().build()));
+                    .orElseThrow(() -> new IllegalArgumentException("봇을 찾을 수 없습니다."));
 
             newOrder = Order.builder()
                     .category(category)
@@ -92,24 +92,25 @@ public class OrderService {
                     .build();
         }
 
-        // 3. DB 저장 및 매칭 엔진 전달
+        // DB 저장 및 매칭 엔진 전달
         Order savedOrder = orderRepository.save(newOrder);
         orderRepository.flush(); // 엔진에서 즉시 조회가 필요할 경우를 대비
 
-        // 4. 엔진 매칭 (메모리 로직)
+        // 엔진 매칭
         List<TradeResponse> tradeResults = tradeEngineService.processOrder(savedOrder);
 
-        // 5. 체결 발생 시 정산 처리 (DB 업데이트)
+        // 체결 발생 시 정산 처리
         if (tradeResults != null && !tradeResults.isEmpty()) {
             tradeService.processTradeResults(category.getCategoryId(), tradeResults);
         }
 
-        // 6. [중요] 엔진 메모리 기반 호가창 실시간 전송
+        // 엔진 메모리 기반 호가창 실시간 전송
         orderBookService.broadcastOrderBook(category.getCategoryId());
 
         return OrderResponse.from(savedOrder);
     }
 
+    // 회원 주문 리스트
     public List<OrderResponse> getOrderByMember(Long memberId) {
         return orderRepository.findByMember_MemberIdOrderByOrderTimeDesc(memberId).stream()
                 .map(OrderResponse::from)
@@ -164,7 +165,7 @@ public class OrderService {
     @Transactional
     public void cancelOrder(Long orderId) {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new EntityNotFoundException("Order not found"));
+                .orElseThrow(() -> new EntityNotFoundException("주문을 찾을 수 없습니다."));
         //상태를 cancelled로 변경해줘야하는 로직 구현해야함.
         processCancel(order);
         orderBookService.broadcastOrderBook(order.getCategory().getCategoryId());

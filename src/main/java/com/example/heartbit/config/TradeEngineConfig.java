@@ -10,15 +10,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 
 @Slf4j
 @RequiredArgsConstructor
 @Configuration
+@Profile("!test")
 public class TradeEngineConfig implements CommandLineRunner {
 
     private final OrderRepository orderRepository;

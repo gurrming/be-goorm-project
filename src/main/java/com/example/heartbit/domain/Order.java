@@ -53,7 +53,8 @@ public class Order {
     private Bots bots;
 
     @Builder
-    public Order(BigDecimal orderPrice,
+    public Order(Long orderId,
+                 BigDecimal orderPrice,
                  BigDecimal orderCount,
                  BigDecimal remainingCount,
                  LocalDateTime orderTime,
@@ -61,8 +62,10 @@ public class Order {
                  OrderStatus orderStatus,
                  Member member,
                  Category category,
-                 Bots bots) {
+                 Bots bots
+                ) {
 
+        this.orderId = orderId;
         this.orderPrice = orderPrice;
         this.orderCount = orderCount;
         this.remainingCount = (remainingCount != null) ? remainingCount : orderCount;
@@ -92,4 +95,5 @@ public class Order {
         }
         this.orderStatus = OrderStatus.CANCELLED;
     }
+
 }
