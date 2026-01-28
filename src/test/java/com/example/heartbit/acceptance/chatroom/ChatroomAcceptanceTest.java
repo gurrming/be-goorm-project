@@ -52,40 +52,40 @@ public class ChatroomAcceptanceTest {
                         .build()));
     }
 
-//    @Test
-//    @DisplayName("사용자가 메시지를 보내면 DB에 정상적으로 저장된다.")
-//    void writeChatTest() {
-//        // given
-//        ChatRequestDto request = ChatRequestDto.builder()
-//                .categoryId(testCategory.getCategoryId())
-//                .memberId(testMember.getMemberId())
-//                .chatContent("한강 물온도 어때요?")
-//                .build();
-//
-//        // when
-//        ChatResponseDto response = chatroomService.writeChat(request);
-//
-//        // then
-//        assertThat(response.getChatId()).isNotNull();
-//        assertThat(response.getChatContent()).isEqualTo("한강 물온도 어때요?");
-//    }
-//
-//    @Test
-//    @DisplayName("특정 종목의 채팅 내역을 조회할 수 있다.")
-//    void getChatroomsByCategoryTest() {
-//        // given: 2개의 채팅 메시지 작성
-//        chatroomService.writeChat(new ChatRequestDto(testCategory.getCategoryId(), "코인으로 돈벌기?", testMember.getMemberId()));
-//        chatroomService.writeChat(new ChatRequestDto(testCategory.getCategoryId(), "가보자고", testMember.getMemberId()));
-//
-//        // when
-//        List<ChatResponseDto> chats = chatroomService.getChatroomsByCategory(
-//                testCategory.getCategoryId(),
-//                null,
-//                10
-//        );
-//
-//        // then
-//        assertThat(chats.size()).isGreaterThanOrEqualTo(2);
-//        assertThat(chats.get(0).getChatContent()).isEqualTo("가보자고");
-//    }
+    @Test
+    @DisplayName("사용자가 메시지를 보내면 DB에 정상적으로 저장된다.")
+    void writeChatTest() {
+        // given
+        ChatRequestDto request = ChatRequestDto.builder()
+                .categoryId(testCategory.getCategoryId())
+                .memberId(testMember.getMemberId())
+                .chatContent("한강 물온도 어때요?")
+                .build();
+
+        // when
+        ChatResponseDto response = chatroomService.writeChat(request);
+
+        // then
+        assertThat(response.getChatId()).isNotNull();
+        assertThat(response.getChatContent()).isEqualTo("한강 물온도 어때요?");
+    }
+
+    @Test
+    @DisplayName("특정 종목의 채팅 내역을 조회할 수 있다.")
+    void getChatroomsByCategoryTest() {
+        // given: 2개의 채팅 메시지 작성
+        chatroomService.writeChat(new ChatRequestDto(testCategory.getCategoryId(), "코인으로 돈벌기?", testMember.getMemberId()));
+        chatroomService.writeChat(new ChatRequestDto(testCategory.getCategoryId(), "가보자고", testMember.getMemberId()));
+
+        // when
+        List<ChatResponseDto> chats = chatroomService.getChatroomsByCategory(
+                testCategory.getCategoryId(),
+                null,
+                10
+        );
+
+        // then
+        assertThat(chats.size()).isGreaterThanOrEqualTo(2);
+        assertThat(chats.get(0).getChatContent()).isEqualTo("가보자고");
+    }
 }
