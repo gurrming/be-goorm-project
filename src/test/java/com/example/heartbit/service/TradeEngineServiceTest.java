@@ -6,11 +6,13 @@ import com.example.heartbit.domain.OrderStatus;
 import com.example.heartbit.domain.OrderType;
 import com.example.heartbit.dto.TradeResponse;
 import com.example.heartbit.dto.order.OrderBookResponse;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -18,12 +20,16 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
-@ActiveProfiles("test")
-@SpringBootTest
+@ExtendWith(MockitoExtension.class)
 class TradeEngineServiceTest {
 
-    @Autowired
+    @InjectMocks
     private TradeEngineService tradeEngineService;
+
+    @AfterEach
+    void tearDown() {
+        tradeEngineService.deleteAllOrders();
+    }
 
     @DisplayName("매수 주문 시 호가창에 있는 매도 물량 중 가장 낮은 가격부터 체결된다.")
     @Test
@@ -81,7 +87,8 @@ class TradeEngineServiceTest {
         Order sellOrder = createOrder(1L, category, OrderType.SELL, "50000", "1");
         tradeEngineService.processOrder(sellOrder);
 
-        Order buyOrder = createOrder(1L, category, OrderType.BUY, "50000", "3");
+        // [주의] orderId가 겹치지 않도록 설정 (테스트 데이터 독립성)
+        Order buyOrder = createOrder(4L, category, OrderType.BUY, "50000", "3");
 
         // when
         List<TradeResponse> results = tradeEngineService.processOrder(buyOrder);

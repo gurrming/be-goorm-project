@@ -107,7 +107,6 @@ public class OrderService {
         // 엔진 메모리 기반 호가창 실시간 전송
         orderBookService.broadcastOrderBook(category.getCategoryId());
 
-
         return OrderResponse.from(savedOrder);
     }
 

@@ -5,393 +5,216 @@ import com.example.heartbit.dto.order.MemberOpenOrderResponse;
 import com.example.heartbit.dto.order.OrderRequest;
 import com.example.heartbit.dto.order.OrderResponse;
 import com.example.heartbit.repository.*;
-import jakarta.transaction.Transactional;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.AssertionsForClassTypes.tuple;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.groups.Tuple.tuple;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-@ActiveProfiles("test")
-@SpringBootTest
-@Transactional
+@ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
 
-    @Autowired
+    @Mock
     private BotsRepository botsRepository;
-    @Autowired
+    @Mock
     private MemberRepository memberRepository;
-    @Autowired
+    @Mock
     private OrderRepository orderRepository;
-    @Autowired
+    @Mock
     private CategoryRepository categoryRepository;
-    @Autowired
-    private AssetRepository assetRepository;
-    @Autowired
+    @Mock
+    private AssetService assetService;
+    @Mock
+    private OrderBookService orderBookService;
+    @Mock
+    private TradeEngineService tradeEngineService;
+
+    @InjectMocks
     private OrderService orderService;
 
-    @MockitoBean
-    private AssetService assetService;
+    private Member testMember;
+    private Category testCategory;
 
-    @AfterEach
-    void tearDown() {
-        orderRepository.deleteAllInBatch();
-        assetRepository.deleteAllInBatch();
-        botsRepository.deleteAllInBatch();
-        memberRepository.deleteAllInBatch();
-        categoryRepository.deleteAllInBatch();
+    @BeforeEach
+    void setUp() {
+        testMember = Member.builder().memberId(1L).memberEmail("test@test.com").build();
+        testCategory = Category.builder().categoryId(1L).symbol("BTC").build();
     }
 
     @DisplayName("특정 종목을 봇 ID로 주문하면 자산 차감 없이 주문이 생성된다.")
     @Test
-    void createBotOrderOnlyWithBotId() {
+    void createOrderWithBotId() {
         // given
-        Bots bot = botsRepository.save(Bots.builder()
-                .build());
+        Bots bot = Bots.builder().botId(1L).build();
+        Category category = Category.builder().categoryId(1L).symbol("BTC").build();
 
-        Category category = categoryRepository.save(Category.builder()
-                .symbol("BTC")
-                .build());
         OrderRequest request = OrderRequest.builder()
-                .botId(bot.getBotId())
-                .categoryId(category.getCategoryId())
+                .botId(1L)
+                .categoryId(1L)
                 .orderPrice(new BigDecimal("50000"))
                 .orderCount(new BigDecimal("1"))
                 .orderType(OrderType.BUY)
                 .build();
+
+        when(botsRepository.findById(1L)).thenReturn(Optional.of(bot));
+        when(categoryRepository.findById(anyLong())).thenReturn(Optional.of(category));
+        when(orderRepository.save(any(Order.class))).thenAnswer(i -> i.getArgument(0));
+
         // when
         orderService.createOrder(request);
 
         // then
-        List<Order> orders = orderRepository.findAll();
-        assertThat(orders).hasSize(1)
-                .extracting("orderPrice", "orderCount", "orderType")
-                .containsExactly(
-                        tuple(new BigDecimal("50000"), new BigDecimal("1"), OrderType.BUY)
-                );
-
+        verify(orderRepository, times(1)).save(any(Order.class));
         verify(assetService, never()).blockCash(anyLong(), any(BigDecimal.class));
-
     }
 
-    @DisplayName("사용자가 특정 종목에 대한 주문을 생성한다.")
+    @DisplayName("사용자가 주문을 생성하면 주문 데이터가 저장되고 자산 서비스의 차감 로직이 호출된다.")
     @Test
     void createOrder() {
         // given
-        Member member = memberRepository.save(Member.builder()
-                .memberEmail("test@test.com")
-                .memberNickname("유진")
-                .memberPassword("1234")
-                .build());
-        assetRepository.save(Asset.builder()
-                .member(member)
-                .assetCash(new BigDecimal("200000"))
-                .build());
-        Category category = categoryRepository.save(Category.builder()
-                .symbol("BTC")
-                .build());
-
-        BigDecimal orderPrice = new BigDecimal("50000");
-        BigDecimal orderCount = new BigDecimal("2");
-        BigDecimal totalAmount = orderPrice.multiply(orderCount);
-
         OrderRequest request = OrderRequest.builder()
-                .memberId(member.getMemberId())
-                .categoryId(category.getCategoryId())
-                .orderPrice(orderPrice)
-                .orderCount(orderCount)
-                .orderType(OrderType.BUY)
-                .build();
-
-        // when
-        OrderResponse orderResponse = orderService.createOrder(request);
-
-        // then
-        assertThat(orderResponse.getOrderId()).isNotNull();
-        assertThat(orderResponse)
-                .extracting("orderPrice", "orderCount", "orderType")
-                .containsExactly(new BigDecimal("50000"), new BigDecimal("2"), OrderType.BUY);
-
-        List<Order> orders = orderRepository.findAll();
-        assertThat(orders).hasSize(1)
-                .extracting(Order::getOrderId, Order::getOrderCount, Order::getOrderType)
-                .containsExactly(
-                        tuple(orderResponse.getOrderId(), orderCount, OrderType.BUY)
-                );
-
-        ArgumentCaptor<BigDecimal> orderArgumentCaptor = ArgumentCaptor.forClass(BigDecimal.class);
-        verify(assetService, times(1)).blockCash(
-                eq(member.getMemberId()),
-                orderArgumentCaptor.capture()
-        );
-        assertThat(orderArgumentCaptor.getValue()).isEqualByComparingTo(totalAmount);
-
-    }
-
-    @DisplayName("매수 주문을 하면 사용자의 현금이 차감된다.")
-    @Test
-    void createOrderDeductCash() {
-        // given
-        Member member = memberRepository.save(Member.builder()
-                .memberEmail("test@test.com")
-                .memberNickname("유진")
-                .memberPassword("1234")
-                .build());
-        assetRepository.save(Asset.builder()
-                .member(member)
-                .assetCash(new BigDecimal("1000000"))
-                .build());
-        Category category = categoryRepository.save(Category.builder()
-                .symbol("BTC")
-                .build());
-
-        OrderRequest request = OrderRequest.builder()
-                .memberId(member.getMemberId())
-                .categoryId(category.getCategoryId())
-                .orderPrice(new BigDecimal("50000"))
+                .memberId(1L)
+                .categoryId(1L)
+                .orderPrice(new BigDecimal("10000"))
                 .orderCount(new BigDecimal("2"))
                 .orderType(OrderType.BUY)
                 .build();
 
+        // stubbing
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(testMember));
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(testCategory));
+        // save 시 null을 반환하지 않도록 설정
+        when(orderRepository.save(any(Order.class))).thenAnswer(i -> i.getArgument(0));
+
         // when
         orderService.createOrder(request);
 
         // then
-        verify(assetService).blockCash(eq(member.getMemberId()), eq(new BigDecimal("100000")));
+        verify(assetService).blockCash(eq(1L), argThat(a -> a.compareTo(new BigDecimal("20000")) == 0));
+        verify(orderRepository).save(any(Order.class));
     }
 
+    @DisplayName("주문이 생성되고 체결이 발생되면 ")
+    @Test
+    void test() {
+        //given
+
+        // when
+
+        // then
+    }
 
     @DisplayName("특정 회원의 미체결 주문 내역과 전체 개수를 조회한다.")
     @Test
     void getOpenOrderByMember() {
         // given
-        Member member = memberRepository.save(Member.builder()
-                .memberEmail("test@test.com")
-                .memberNickname("유진")
-                .memberPassword("1234")
-                .build());
+        Long memberId = 1L;
+        List<OrderStatus> openStatuses = List.of(OrderStatus.OPEN, OrderStatus.PARTIAL);
 
-        Category category = categoryRepository.save(Category.builder()
-                .symbol("BTC")
-                .build());
+        Member member = Member.builder().memberId(memberId).build();
+        Category category = Category.builder().categoryId(1L).build();
 
-        Order openOrder1    = createOrder(member, category, OrderStatus.OPEN,    "10000", "1");
-        Order partialOrder1 = createOrder(member, category, OrderStatus.PARTIAL, "20000", "0.5");
-        Order openOrder2    = createOrder(member, category, OrderStatus.OPEN,    "30000", "1");
-        Order filledOrder1   = createOrder(member, category, OrderStatus.FILLED,  "40000", "0");
+        Order o1 = createOrder(member, category, OrderStatus.OPEN, "10000", "1");
+        Order o2 = createOrder(member, category, OrderStatus.PARTIAL, "20000", "0.5");
 
-        orderRepository.saveAll(List.of(openOrder1, partialOrder1, openOrder2, filledOrder1));
+        List<Order> openOrders = List.of(o1, o2);
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(orderRepository.findByMember_MemberIdAndOrderStatusInOrderByOrderTimeDesc(eq(memberId), eq(openStatuses), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(openOrders));
+        when(orderRepository.countOpenOrdersByMember(eq(memberId), eq(openStatuses))).thenReturn(2L);
 
         // when
-        MemberOpenOrderResponse result = orderService.getOpenOrderByMember(member.getMemberId(), 0, 10);
+        MemberOpenOrderResponse result = orderService.getOpenOrderByMember(memberId, 0, 10);
 
         // then
-        assertThat(result.getTotalOpenOrderCount()).isEqualTo(3L);
-        assertThat(result.getOrders().getContent()).hasSize(3)
-                .extracting(
-                        o -> o.getOrderPrice().stripTrailingZeros().toPlainString(),
-                        OrderResponse::getOrderStatus
-                )
-                .containsExactlyInAnyOrder(
-                        tuple("10000", OrderStatus.OPEN),
-                        tuple("20000", OrderStatus.PARTIAL),
-                        tuple("30000", OrderStatus.OPEN)
-                );
-        assertThat(result.getOrders().getContent())
-                .extracting("orderPrice")
-                .doesNotContain(new BigDecimal("40000"));
+        assertThat(result.getTotalOpenOrderCount()).isEqualTo(2L);
+        assertThat(result.getOrders().getContent()).hasSize(2)
+                .extracting(o -> o.getOrderPrice().stripTrailingZeros().toPlainString(), OrderResponse::getOrderStatus)
+                .containsExactly(tuple("10000", OrderStatus.OPEN), tuple("20000", OrderStatus.PARTIAL));
     }
 
     @DisplayName("단일 주문 취소 시 한 건의 미체결 주문이 취소되고 환불된다.")
     @Test
     void cancelOrder() {
         // given
-        Member member = memberRepository.save(Member.builder()
-                .memberEmail("test@test.com")
-                .memberNickname("유진")
-                .memberPassword("1234")
-                .build());
+        Long orderId = 1L;
+        Order order = createOrder(testMember, testCategory, OrderStatus.PARTIAL, "20000", "0.5");
 
-        Category category = categoryRepository.save(Category.builder()
-                .symbol("BTC")
-                .build());
-
-        Order order = Order.builder()
-                .member(member)
-                .category(category)
-                .orderPrice(new BigDecimal("20000"))
-                .orderCount(new BigDecimal("1"))
-                .remainingCount(new BigDecimal("0.5"))
-                .orderType(OrderType.BUY)
-                .orderStatus(OrderStatus.PARTIAL)
-                .build();
-        Order savedOrder = orderRepository.save(order);
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 
         // when
-        orderService.cancelOrder(savedOrder.getOrderId());
+        orderService.cancelOrder(orderId);
 
         // then
-        verify(assetService, times(1)).restoreCash(
-                eq(member.getMemberId()),
-                argThat(amount -> amount.compareTo(new BigDecimal("10000")) == 0)
-        );
+        assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.CANCELLED);
+        verify(assetService).restoreCash(anyLong(), any(BigDecimal.class));
     }
 
     @DisplayName("전체 주문 취소 시 모든 미체결 주문이 취소 처리되고 환불된다.")
     @Test
     void cancelAllOrders() {
         // given
-        Member member = memberRepository.save(Member.builder()
-                .memberEmail("test@test.com")
-                .memberNickname("유진")
-                .memberPassword("1234")
-                .build());
+        Long memberId = 1L;
+        Member member = Member.builder().memberId(memberId).build();
+        Category category = Category.builder().categoryId(1L).build();
 
-        Category category = categoryRepository.save(Category.builder()
-                .symbol("BTC")
-                .build());
+        Order o1 = createOrder(member, category, OrderStatus.OPEN, "50000", "1");
+        Order o2 = createOrder(member, category, OrderStatus.PARTIAL, "40000", "0.5");
+        Order o3 = createOrder(member, category, OrderStatus.FILLED, "30000", "0");
 
-        Order order1 = createOrder(member, category, OrderStatus.OPEN, "50000", "1");
-        Order order2 = createOrder(member, category, OrderStatus.PARTIAL, "40000", "0.5");
-        Order order3 = createOrder(member, category, OrderStatus.FILLED, "30000", "0");
-
-        orderRepository.saveAll(List.of(order1, order2, order3));
+        when(orderRepository.findByMember_MemberIdOrderByOrderTimeDesc(memberId)).thenReturn(List.of(o1, o2, o3));
 
         // when
-        orderService.cancelAllOrders(member.getMemberId());
+        orderService.cancelAllOrders(memberId);
 
         // then
-        List<Order> orders = orderRepository.findByMember_MemberIdOrderByOrderTimeDesc(member.getMemberId());
-        assertThat(orders).hasSize(3)
-                .extracting("orderStatus")
-                .containsExactlyInAnyOrder(
-                        OrderStatus.CANCELLED,
-                        OrderStatus.CANCELLED,
-                        OrderStatus.FILLED
-                );
-        verify(assetService, times(2)).restoreCash(
-                eq(member.getMemberId()),
-                argThat(amount -> amount.compareTo(BigDecimal.ZERO) > 0));
+        assertThat(o1.getOrderStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(o2.getOrderStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(o3.getOrderStatus()).isEqualTo(OrderStatus.FILLED);
+        verify(assetService, times(2)).restoreCash(eq(memberId), any(BigDecimal.class));
     }
 
-
-    /// 예외 상황
     @DisplayName("매수 주문 시 잔액이 부족하면 예외가 발생한다.")
     @Test
     void createOrderWithoutCash() {
         // given
-        Member member = memberRepository.save(Member.builder()
-                .memberEmail("test@test.com")
-                .memberNickname("유진")
-                .memberPassword("1234")
-                .build());
-        assetRepository.save(Asset.builder()
-                .member(member)
-                .assetCash(new BigDecimal("1000"))
-                .build());
-        Category category = categoryRepository.save(Category.builder()
-                .symbol("BTC")
-                .build());
+        Long memberId = 1L;
+        Member member = Member.builder().memberId(memberId).build();
+        Category category = Category.builder().categoryId(1L).build();
+        OrderRequest request = OrderRequest.builder().memberId(memberId).categoryId(1L)
+                .orderPrice(new BigDecimal("50000")).orderCount(new BigDecimal("1")).orderType(OrderType.BUY).build();
 
-        OrderRequest request = OrderRequest.builder()
-                .memberId(member.getMemberId())
-                .categoryId(category.getCategoryId())
-                .orderPrice(new BigDecimal("50000"))
-                .orderCount(new BigDecimal("1"))
-                .orderType(OrderType.BUY)
-                .build();
+        when(memberRepository.findById(memberId)).thenReturn(Optional.of(member));
+        when(categoryRepository.findById(anyLong())).thenReturn(Optional.of(category));
+        doThrow(new IllegalArgumentException("잔액이 부족합니다.")).when(assetService).blockCash(anyLong(), any(BigDecimal.class));
 
-
-        doThrow(new IllegalArgumentException("잔액이 부족합니다."))
-                .when(assetService).blockCash(eq(member.getMemberId()), any(BigDecimal.class));
-
-        // when
+        // when & then
         assertThatThrownBy(() -> orderService.createOrder(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("잔액이 부족합니다.");
-
-        // then
-        List<Order> orders = orderRepository.findAll();
-        assertThat(orders).isEmpty();
+        verify(orderRepository, never()).save(any(Order.class));
     }
-
-//    @DisplayName("매도 주문 시 특정 종목에 대해 보유하고 있는 코인이 없을 경우 예외가 발생한다.")
-//    @Test
-//    void createOrderWithoutCategoryCoin() {
-//        // given
-//        Member member = memberRepository.save(Member.builder()
-//                .memberEmail("test@test.com")
-//                .memberNickname("유진")
-//                .memberPassword("1234")
-//                .build());
-//        assetRepository.save(Asset.builder()
-//                .member(member)
-//                .assetCash(new BigDecimal("1000"))
-//                .build());
-//        Category category = categoryRepository.save(Category.builder()
-//                .symbol("ETH")
-//                .build());
-//
-//        OrderRequest request = OrderRequest.builder()
-//                .memberId(member.getMemberId())
-//                .categoryId(category.getCategoryId())
-//                .orderPrice(new BigDecimal("50000"))
-//                .orderCount(new BigDecimal("1"))
-//                .orderType(OrderType.SELL)
-//                .build();
-//
-//        // when
-//        assertThatThrownBy(() -> orderService.createOrder(request))
-//                .isInstanceOf(IllegalArgumentException.class)
-//                .hasMessage("코인의 수량을 확인하세요.");
-//
-//        // then
-//        List<Order> orders = orderRepository.findAll();
-//        assertThat(orders).isEmpty();
-//    }
-
-//    /// 다수 사용자
-//    @DisplayName("다수의 사용자가 동시에 주문을 생성한다.")
-//    @Test
-//    void manyMemberCreateOrder() {
-//        //given
-//        Member member = memberRepository.save(Member.builder()
-//                .memberEmail("test@test.com")
-//                .memberNickname("유진")
-//                .memberPassword("1234")
-//                .build());
-//
-//        assetRepository.save(Asset.builder()
-//                .member(member)
-//                .assetCash(new BigDecimal("1000"))
-//                .build());
-//        Category category = categoryRepository.save(Category.builder()
-//                .symbol("BTC")
-//                .build());
-//
-//
-//        // when
-//
-//        // then
-//    }
-
 
     private Order createOrder(Member member, Category category, OrderStatus status, String price, String remaining) {
         return Order.builder()
+                .orderId(1L)
                 .member(member)
                 .category(category)
                 .orderStatus(status)

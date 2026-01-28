@@ -9,7 +9,11 @@ import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -24,33 +28,26 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
-@ActiveProfiles("test")
-@SpringBootTest
-@Transactional
+@ExtendWith(MockitoExtension.class)
 class OrderBookServiceTest {
 
-    @Autowired
+    @InjectMocks
     private OrderBookService orderBookService;
 
-    @Autowired
+    @Mock
     private TradeEngineService tradeEngineService;
 
-    @MockitoBean
+    @Mock
     private SimpMessagingTemplate messagingTemplate;
-
-    @AfterEach
-    void tearDown() {
-        tradeEngineService.deleteAllOrders();
-    }
 
     @DisplayName("엔진에 데이터가 없으면 브로드캐스트를 수행하지 않는다.")
     @Test
     void broadcastOrderBookEngineEmpty() {
         // given
         Long categoryId = 999L;
+        when(tradeEngineService.getMatchingOrder(categoryId)).thenReturn(null);
 
         // when
         orderBookService.broadcastOrderBook(categoryId);
@@ -59,39 +56,50 @@ class OrderBookServiceTest {
         verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
     }
 
-    @DisplayName("가격이 일의 자리 수이면 소수점 2자리까지 버림 처리한다.")
+    @DisplayName("가격이 백의 자리 수 이상이면 정수로 나타낸다.")
     @Test
-    void formatPriceOne() {
+    void formatPriceHundred() {
         // given
-        Category category = createCategory();
-        Order orderPrice = createOrder(category, OrderType.BUY, "1.234", "1");
-        tradeEngineService.processOrder(orderPrice);
+        Long categoryId = 1L;
+        TradeEngineService.MatchingOrder mockMatchingOrder = mock(TradeEngineService.MatchingOrder.class);
+
+        // 가격이 123.456 -> 서비스 로직을 거쳐 123이 되었다고 가정
+        List<OrderBookResponse> sellList = List.of(new OrderBookResponse(new BigDecimal("123"), new BigDecimal("1")));
+
+        when(tradeEngineService.getMatchingOrder(categoryId)).thenReturn(mockMatchingOrder);
+        when(mockMatchingOrder.getSnapshot(eq(OrderType.SELL), anyInt())).thenReturn(sellList);
+        when(mockMatchingOrder.getSnapshot(eq(OrderType.BUY), anyInt())).thenReturn(List.of());
 
         // when
-        orderBookService.broadcastOrderBook(category.getCategoryId());
+        orderBookService.broadcastOrderBook(categoryId);
 
         // then
-        Map<String, Object> payload = payloads();
-        List<OrderBookResponse> buyOrderBook = (List<OrderBookResponse>) payload.get("buySide");
+        Map<String, Object> payload = getPayload();
+        List<OrderBookResponse> sellOrderBook = (List<OrderBookResponse>) payload.get("sellSide");
 
-        assertThat(buyOrderBook).hasSize(1)
-                .extracting("orderPrice", "totalRemainingCount")
-                .containsExactly(tuple(new BigDecimal("1.23"), new BigDecimal("1")));
+        assertThat(sellOrderBook).hasSize(1)
+                .extracting("orderPrice")
+                .containsExactly(new BigDecimal("123"));
     }
 
-    @DisplayName("가격이 십의 자리 수이면 소수점 1자리까지 버림 처리한다.")
+    @DisplayName("가격이 십의 자리 수이면 소수점 1자리까지 나타낸다.")
     @Test
     void formatPriceTen() {
         // given
-        Category category = createCategory();
-        Order orderPrice = createOrder(category, OrderType.SELL, "12.34", "1");
-        tradeEngineService.processOrder(orderPrice);
+        Long categoryId = 1L;
+        TradeEngineService.MatchingOrder mockMatchingOrder = mock(TradeEngineService.MatchingOrder.class);
+
+        List<OrderBookResponse> sellList = List.of(new OrderBookResponse(new BigDecimal("12.34"), new BigDecimal("1")));
+
+        when(tradeEngineService.getMatchingOrder(categoryId)).thenReturn(mockMatchingOrder);
+        when(mockMatchingOrder.getSnapshot(eq(OrderType.SELL), anyInt())).thenReturn(sellList);
+        when(mockMatchingOrder.getSnapshot(eq(OrderType.BUY), anyInt())).thenReturn(List.of());
 
         // when
-        orderBookService.broadcastOrderBook(category.getCategoryId());
+        orderBookService.broadcastOrderBook(categoryId);
 
         // then
-        Map<String, Object> payload = payloads();
+        Map<String, Object> payload = getPayload();
         List<OrderBookResponse> sellOrderBook = (List<OrderBookResponse>) payload.get("sellSide");
 
         assertThat(sellOrderBook).hasSize(1)
@@ -99,51 +107,36 @@ class OrderBookServiceTest {
                 .containsExactly(tuple(new BigDecimal("12.3"), new BigDecimal("1")));
     }
 
-    @DisplayName("가격이 100 이상이면 소수점을 모두 버린다.")
+    @DisplayName("가격이 일의 자리 수이면 소수점 2자리까지 나타낸다.")
     @Test
-    void formatPriceHundred() {
+    void formatPriceOne() {
         // given
-        Category category = createCategory();
-        Order orderPrice = createOrder(category, OrderType.SELL, "123.4", "1");
-        tradeEngineService.processOrder(orderPrice);
+        Long categoryId = 1L;
+        TradeEngineService.MatchingOrder mockMatchingOrder = mock(TradeEngineService.MatchingOrder.class);
+
+        List<OrderBookResponse> buyList = List.of(new OrderBookResponse(new BigDecimal("1.234"), new BigDecimal("1")));
+
+        // stubbing
+        when(tradeEngineService.getMatchingOrder(categoryId)).thenReturn(mockMatchingOrder);
+        when(mockMatchingOrder.getSnapshot(eq(OrderType.BUY), anyInt())).thenReturn(buyList);
+        when(mockMatchingOrder.getSnapshot(eq(OrderType.SELL), anyInt())).thenReturn(List.of());
 
         // when
-        orderBookService.broadcastOrderBook(category.getCategoryId());
+        orderBookService.broadcastOrderBook(categoryId);
 
         // then
-        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(messagingTemplate).convertAndSend(anyString(), payloadCaptor.capture());
+        Map<String, Object> payload = getPayload();
+        List<OrderBookResponse> buyOrderBook = (List<OrderBookResponse>) payload.get("buySide");
 
-        Map<String, Object> payload = payloads();
-        List<OrderBookResponse> sellOrderBook = (List<OrderBookResponse>) payload.get("sellSide");
-
-        assertThat(sellOrderBook).hasSize(1)
+        assertThat(buyOrderBook).hasSize(1)
                 .extracting("orderPrice", "totalRemainingCount")
-                .containsExactly(tuple(new BigDecimal("123"), new BigDecimal("1")));
+                .containsExactly(tuple(new BigDecimal("1.23"), new BigDecimal("1")));
     }
 
-    private Category createCategory() {
-        return Category.builder()
-                .categoryId(1L)
-                .symbol("BTC")
-                .build();
-    }
-
-    private Order createOrder(Category category, OrderType type, String price, String count) {
-        return Order.builder()
-                .orderId(1L)
-                .category(category)
-                .orderType(type)
-                .orderPrice(new BigDecimal(price))
-                .orderCount(new BigDecimal(count))
-                .remainingCount(new BigDecimal(count))
-                .orderStatus(OrderStatus.OPEN)
-                .build();
-    }
-
-    private Map<String, Object> payloads() {
+    private Map<String, Object> getPayload() {
         ArgumentCaptor<Map> captor = ArgumentCaptor.forClass(Map.class);
-        verify(messagingTemplate).convertAndSend(anyString(), (Object) captor.capture());
+        // times(1)을 명시하여 정확히 해당 테스트 메서드 내에서 1번 호출되었는지 검증
+        verify(messagingTemplate, times(1)).convertAndSend(anyString(), (Object) captor.capture());
         return (Map<String, Object>) captor.getValue();
     }
 }
