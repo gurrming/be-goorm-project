@@ -65,7 +65,6 @@ public class TradeService {
     // 종목별 실시간 시세 상태 관리 (메모리 맵)
     private final Map<Long, BigDecimal> openPrices = new ConcurrentHashMap<>();
     private final Map<Long, BigDecimal> currentPrices = new ConcurrentHashMap<>();
-    private final Map<Long, BigDecimal> intensity = new ConcurrentHashMap<>();
     private final Map<Long, BigDecimal> changeAmounts = new ConcurrentHashMap<>();
     private final Map<Long, BigDecimal> changeRates = new ConcurrentHashMap<>();
     private final Map<Long, BigDecimal> dailyHighs = new ConcurrentHashMap<>();
@@ -148,8 +147,8 @@ public class TradeService {
 
                 // 만약 오전 9시 이전 데이터가 없어서 시가가 0인데, 현재가는 있는 경우 (신규 상장 or 데이터 유실 등)
                 // 시가를 현재가로 맞춰주어 변동률을 0%로 시작하게 함 (방어 로직)
-                if (openPrice.compareTo(BigDecimal.ZERO) == 0 && currentPrice.compareTo(BigDecimal.ZERO) > 0) {
-                    openPrice = currentPrice;
+                if (openPrice.compareTo(BigDecimal.ZERO) == 0) {
+                    openPrice = todayTrades.get(0).getTradePrice();
                     openPrices.put(id, openPrice);
                 }
 
@@ -522,7 +521,7 @@ public class TradeService {
 
         return TradeResponse.builder()
                 .categoryId(categoryId)
-                .intensity(strength) // 프론트에서 바로 쓰기 좋게 String 변환
+                .intensity(strength)
                 .totalBuyVolume(buyVolume)
                 .totalSellVolume(sellVolume)
                 .build();
