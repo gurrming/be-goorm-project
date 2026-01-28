@@ -14,6 +14,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -24,15 +25,16 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class TradeServiceTest {
@@ -282,5 +284,310 @@ class TradeServiceTest {
         // 2. 거래량(accVolumes)이 비워졌는지 확인
         Map<Long, BigDecimal> resultAccVolumes = (Map<Long, BigDecimal>) ReflectionTestUtils.getField(tradeService, "accVolumes");
         assertThat(resultAccVolumes).isEmpty();
+    }
+
+    @Test
+    @DisplayName("전체 종목 목록 조회 시 메모리의 실시간 시세가 포함되어야 한다 (getCategories)")
+    void getCategories_IncludeRealTimePrice() {
+        // given
+        Long id = 1L;
+        Category category = Category.builder()
+                .categoryId(id).categoryName("비트코인").symbol("BTC")
+                .build();
+
+        given(categoryRepository.findAll()).willReturn(List.of(category));
+
+        // [핵심] 리플렉션으로 메모리 맵에 현재가 주입 (TradeService 내부의 currentPrices)
+        Map<Long, BigDecimal> currentPrices = new java.util.concurrent.ConcurrentHashMap<>();
+        currentPrices.put(id, new BigDecimal("70000000"));
+        org.springframework.test.util.ReflectionTestUtils.setField(tradeService, "currentPrices", currentPrices);
+
+        // when
+        List<com.example.heartbit.dto.CategoryDto> results = tradeService.getCategories();
+
+        // then
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getTradePrice()).isEqualByComparingTo("70000000");
+        assertThat(results.get(0).getSymbol()).isEqualTo("BTC");
+    }
+
+    @Test
+    @DisplayName("최근 체결 내역을 지정된 개수만큼 가져와야 한다 (getTradeList)")
+    void getTradeList_LimitCheck() {
+        // given
+        Long categoryId = 1L;
+        int limit = 5;
+
+        Order buyOrder = Order.builder().orderType(OrderType.BUY).orderTime(LocalDateTime.now()).build();
+        Order sellOrder = Order.builder().orderType(OrderType.SELL).orderTime(LocalDateTime.now()).build();
+
+        Trade trade = Trade.builder()
+                .tradePrice(new BigDecimal("100"))
+                .tradeCount(new BigDecimal("1"))
+                .buyOrder(buyOrder)
+                .sellOrder(sellOrder)
+                .tradeTime(LocalDateTime.now())
+                .build();
+
+        given(tradeRepository.findByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(eq(categoryId), any(Pageable.class)))
+                .willReturn(new org.springframework.data.domain.PageImpl<>(List.of(trade)));
+
+        // when
+        List<TradeResponse> results = tradeService.getTradeList(categoryId, limit);
+
+        // then
+        assertThat(results).isNotEmpty();
+        then(tradeRepository).should().findByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(eq(categoryId), any(org.springframework.data.domain.Pageable.class));
+    }
+
+    @Test
+    @DisplayName("특정 주문 ID로 체결 내역을 조회해야 한다 (getTradeByOrder)")
+    void getTradeByOrder_Mapping() {
+        // given
+        Long orderId = 100L;
+        Long memberId = 1L;
+        Member member = Member.builder().memberId(memberId).build();
+        Order buyOrder = Order.builder().orderType(OrderType.BUY).orderTime(LocalDateTime.now()).orderId(orderId).member(member).build();
+        Order sellOrder = Order.builder().orderType(OrderType.SELL).orderTime(LocalDateTime.now()).orderId(orderId).member(member).build();
+
+        Trade trade = Trade.builder()
+                .tradePrice(new BigDecimal("500"))
+                .buyOrder(buyOrder) // 매수자가 본인인 케이스
+                .sellOrder(sellOrder)
+                .build();
+
+        given(orderRepository.findById(orderId)).willReturn(Optional.of(buyOrder));
+        given(tradeRepository.findByBuyOrder_OrderIdOrSellOrder_OrderId(orderId, orderId))
+                .willReturn(List.of(trade));
+
+        // when
+        List<TradeResponse> results = tradeService.getTradeByOrder(orderId);
+
+        // then
+        assertThat(results).hasSize(1);
+        then(tradeRepository).should().findByBuyOrder_OrderIdOrSellOrder_OrderId(orderId, orderId);
+    }
+
+    @Test
+    @DisplayName("내 체결 내역 조회 시 페이징이 적용되어야 한다 (getMyTrade)")
+    void getMyTrade_Paging() {
+        // given
+        Long memberId = 1L;
+        Order buyOrder = Order.builder().orderType(OrderType.BUY).orderTime(LocalDateTime.now()).build();
+        Order sellOrder = Order.builder().orderType(OrderType.SELL).orderTime(LocalDateTime.now()).build();
+
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+
+        Trade trade = Trade.builder()
+                .buyOrder(buyOrder)
+                .sellOrder(sellOrder)
+                .build();
+
+        org.springframework.data.domain.Page<Trade> page = new org.springframework.data.domain.PageImpl<>(List.of(trade));
+
+        given(tradeRepository.findTradeByMemberId(eq(memberId), any(org.springframework.data.domain.Pageable.class)))
+                .willReturn(page);
+
+        // when
+        List<TradeResponse> results = tradeService.getMyTrade(memberId, 0, 10);
+
+        // then
+        assertThat(results).hasSize(1);
+        then(tradeRepository).should().findTradeByMemberId(eq(memberId), any(org.springframework.data.domain.Pageable.class));
+    }
+
+    @Test
+    @DisplayName("매수자가 봇(Bot)인 경우 자산 정산 로직이 스킵되어야 한다 (분기 처리 검증)")
+    void processTradeResults_SkipAssetSettlementForBots() {
+        // given
+        Long categoryId = 1L;
+        BigDecimal initialCount = new BigDecimal("10"); // 처음 주문 수량
+        TradeResponse response = TradeResponse.builder()
+                .buyOrderId(1L).sellOrderId(2L)
+                .tradePrice(new BigDecimal("1000")).tradeCount(new BigDecimal("1"))
+                .takerType("BUY")
+                .tradeTime(LocalDateTime.now())
+                .build();
+
+        // 매수자는 Bot, 매도자는 Member인 상황 설정
+        Bots bot = Bots.builder().botId(1L).build();
+        Member seller = Member.builder().memberId(20L).build();
+
+        Order buyOrder = Order.builder().orderId(1L).bots(bot).remainingCount(initialCount).orderType(OrderType.BUY).orderTime(LocalDateTime.now()).build();
+        Order sellOrder = Order.builder().orderId(2L).member(seller).remainingCount(initialCount).orderType(OrderType.SELL).orderTime(LocalDateTime.now().minusSeconds(1)).build();
+
+        given(orderRepository.findById(1L)).willReturn(Optional.of(buyOrder));
+        given(orderRepository.findById(2L)).willReturn(Optional.of(sellOrder));
+        given(tradeRepository.save(any(Trade.class))).willAnswer(inv -> inv.getArgument(0));
+
+        // when
+        tradeService.processTradeResults(categoryId, List.of(response));
+
+        // then
+        // 1. 매수자가 봇이므로 settleBuyTrade는 호출되지 않아야 함 (times(0))
+        then(assetService).should(times(0)).settleBuyTrade(any(), any(), any());
+
+        // 2. 매도자는 회원이므로 settleSellTrade는 정상 호출되어야 함
+        then(assetService).should(times(1)).settleSellTrade(eq(20L), any());
+
+        // 3. investService 역시 회원인 매도자에 대해서만 호출되어야 함
+        then(investService).should(times(1)).saveOrUpdateInvest(eq(20L), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("시가가 0원일 때 현재가로 보정하는 로직 검증 (updateMarketAndBroadcast)")
+    void updateMarket_ShouldFallbackOpenPriceToCurrentPrice_WhenOpenPriceIsZero() {
+        // given
+        Long categoryId = 1L;
+        Long buyOrderId = 1L;  // ID 정의
+        Long sellOrderId = 2L;
+        BigDecimal initialCount = new BigDecimal("10");
+        BigDecimal currentTradePrice = new BigDecimal("50000");
+
+        TradeResponse response = TradeResponse.builder()
+                .tradePrice(currentTradePrice)
+                .buyOrderId(buyOrderId)
+                .sellOrderId(sellOrderId)
+                .tradeCount(new BigDecimal("1"))
+                .takerType("BUY")
+                .tradeTime(LocalDateTime.now())
+                .build();
+
+        // [핵심] 리플렉션으로 메모리 상의 시가를 0으로 설정
+        Map<Long, BigDecimal> openPrices = new java.util.concurrent.ConcurrentHashMap<>();
+        openPrices.put(categoryId, BigDecimal.ZERO); // 시가 0원 세팅
+        org.springframework.test.util.ReflectionTestUtils.setField(tradeService, "openPrices", openPrices);
+
+        // processTradeResults 수행을 위한 최소한의 Mocking
+        Order buyOrder = Order.builder().orderId(1L).remainingCount(initialCount).orderType(OrderType.BUY).orderTime(LocalDateTime.now()).build();
+        Order sellOrder = Order.builder().orderId(2L).remainingCount(initialCount).orderType(OrderType.SELL).orderTime(LocalDateTime.now().minusSeconds(1)).build();
+        given(orderRepository.findById(1L)).willReturn(Optional.of(buyOrder));
+        given(orderRepository.findById(2L)).willReturn(Optional.of(sellOrder));
+
+        // when
+        tradeService.processTradeResults(categoryId, List.of(response));
+
+        // then
+        // 시가가 0원에서 현재가인 50,000원으로 보정되었는지 확인
+        Map<Long, BigDecimal> updatedOpenPrices = (Map<Long, BigDecimal>) org.springframework.test.util.ReflectionTestUtils.getField(tradeService, "openPrices");
+        assertThat(updatedOpenPrices.get(categoryId)).isEqualByComparingTo(currentTradePrice);
+    }
+
+    @Test
+    @DisplayName("매수자/매도자가 봇일 때 자산 정산이 스킵되고, 주문 부재 시 예외가 발생해야 한다")
+    void processTradeResults_StepByStep_Validation() {
+        // [Case 1] 매수자/매도자가 봇(Bot)일 때 자산 정산 스킵 검증
+        // given
+        Long categoryId = 1L;
+        TradeResponse response = TradeResponse.builder()
+                .buyOrderId(101L).sellOrderId(102L)
+                .tradePrice(new BigDecimal("1000")).tradeCount(new BigDecimal("1"))
+                .takerType("BUY").tradeTime(LocalDateTime.now())
+                .build();
+
+        // 매수자 봇, 매도자 봇 설정
+        Bots buyerBot = Bots.builder().botId(1L).build();
+        Bots sellerBot = Bots.builder().botId(2L).build();
+
+        Order buyOrder = Order.builder()
+                .orderId(101L).bots(buyerBot).orderType(OrderType.BUY).orderTime(LocalDateTime.now())
+                .remainingCount(new BigDecimal("10")).build();
+        Order sellOrder = Order.builder()
+                .orderId(102L).bots(sellerBot).orderType(OrderType.SELL).orderTime(LocalDateTime.now().minusSeconds(5))
+                .remainingCount(new BigDecimal("10")).build();
+
+        given(orderRepository.findById(101L)).willReturn(Optional.of(buyOrder));
+        given(orderRepository.findById(102L)).willReturn(Optional.of(sellOrder));
+        given(tradeRepository.save(any(Trade.class))).willAnswer(inv -> inv.getArgument(0));
+
+        // [NPE 방지] ConcurrentHashMap 초기화 (Reflection)
+        Map<Long, BigDecimal> openPrices = new java.util.concurrent.ConcurrentHashMap<>();
+        openPrices.put(categoryId, new BigDecimal("1000"));
+        org.springframework.test.util.ReflectionTestUtils.setField(tradeService, "openPrices", openPrices);
+
+        // when
+        tradeService.processTradeResults(categoryId, List.of(response));
+
+        // then
+        // 매수자와 매도자 모두 봇이므로 자산 관련 서비스는 0회 호출되어야 함
+        then(assetService).should(times(0)).settleBuyTrade(any(), any(), any());
+        then(assetService).should(times(0)).settleSellTrade(any(), any());
+        // 회원용 투자 서비스도 스킵되어야 함
+        then(investService).should(times(0)).saveOrUpdateInvest(any(), any(), any(), any(), any(), any());
+
+
+        // [Case 2] 매수 주문을 찾을 수 없을 때 예외 발생 검증
+        // given
+        Long invalidOrderId = 999L;
+        TradeResponse errorResponse = TradeResponse.builder()
+                .buyOrderId(invalidOrderId).sellOrderId(102L)
+                .build();
+
+        given(orderRepository.findById(invalidOrderId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> tradeService.processTradeResults(categoryId, List.of(errorResponse)))
+                .isInstanceOf(NoSuchElementException.class)
+                .hasMessageContaining("매수 주문을 찾을 수 없습니다");
+    }
+    @Test
+    @DisplayName("주문 ID에 해당하는 주문이 없을 경우 예외를 던져야 한다")
+    void processTradeResults_ShouldThrowException_WhenOrderNotFound() {
+        // given
+        Long categoryId = 1L;
+        Long invalidOrderId = 999L;
+        TradeResponse response = TradeResponse.builder()
+                .buyOrderId(invalidOrderId).sellOrderId(102L)
+                .build();
+
+        // 매수 주문을 찾을 수 없는 상황 설정
+        given(orderRepository.findById(invalidOrderId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> tradeService.processTradeResults(categoryId, List.of(response)))
+                .isInstanceOf(NoSuchElementException.class)
+                .hasMessageContaining("매수 주문을 찾을 수 없습니다");
+    }
+
+    @Test
+    @DisplayName("시가가 0원일 때 현재가로 보정하고, 보정된 시가를 기준으로 계산을 수행해야 한다")
+    void updateMarketAndBroadcast_ShouldFixZeroOpenPriceAndCalculate() {
+        // given
+        Long categoryId = 1L;
+        BigDecimal currentPrice = new BigDecimal("10000"); // 현재 체결가
+
+        TradeResponse response = TradeResponse.builder()
+                .tradePrice(currentPrice)
+                .tradeCount(new BigDecimal("5"))
+                .takerType("SELL")
+                .tradeTime(LocalDateTime.now())
+                .build();
+
+        // [핵심] Reflection으로 시가(openPrices)를 0으로 강제 세팅
+        Map<Long, BigDecimal> openPrices = new java.util.concurrent.ConcurrentHashMap<>();
+        openPrices.put(categoryId, BigDecimal.ZERO);
+        org.springframework.test.util.ReflectionTestUtils.setField(tradeService, "openPrices", openPrices);
+
+        // 누적 거래량 등 다른 Map도 NPE 방지를 위해 초기화 (필요시)
+        Map<Long, BigDecimal> accVolumes = new java.util.concurrent.ConcurrentHashMap<>();
+        accVolumes.put(categoryId, BigDecimal.ZERO);
+        org.springframework.test.util.ReflectionTestUtils.setField(tradeService, "accVolumes", accVolumes);
+
+        // findById 모킹 (updateMarketAndBroadcast 실행을 위해 필수)
+        Order buyOrder = Order.builder().orderId(1L).orderType(OrderType.BUY).orderTime(LocalDateTime.now()).remainingCount(new BigDecimal("10")).build();
+        Order sellOrder = Order.builder().orderId(2L).orderType(OrderType.SELL).orderTime(LocalDateTime.now().minusSeconds(1)).remainingCount(new BigDecimal("10")).build();
+        given(orderRepository.findById(any())).willReturn(Optional.of(buyOrder), Optional.of(sellOrder));
+
+        // when
+        tradeService.processTradeResults(categoryId, List.of(response));
+
+        // then
+        // 1. 시가가 0원에서 현재가(10000원)로 보정되었는지 확인
+        Map<Long, BigDecimal> updatedOpenPrices = (Map<Long, BigDecimal>) org.springframework.test.util.ReflectionTestUtils.getField(tradeService, "openPrices");
+        assertThat(updatedOpenPrices.get(categoryId)).isEqualByComparingTo(currentPrice);
+
+        // 2. 시가가 보정되었으므로(> 0) 변동액/변동률 계산 로직이 수행되어 웹소켓으로 전송되었는지 확인
+        // (전송되는 데이터의 변동률이 0%인지 확인 - 시가와 현재가가 같아졌으므로)
+        then(messagingTemplate).should(atLeastOnce()).convertAndSend(contains("/topic/ticker"), any(Object.class));
     }
 }
