@@ -6,11 +6,10 @@ services:
       - "8080:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://local-postgres:5432/app
-      SPRING_DATA_REDIS_HOST: local-redis
     depends_on:
       - postgres
-      - redis
     restart: always
+
   postgres:
     image: postgres:17
     container_name: local-postgres
@@ -23,16 +22,6 @@ services:
       - "15432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    restart: always
-
-  redis:
-    image: redis:7-alpine
-    container_name: local-redis
-    ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
     restart: always
 
   prometheus:
@@ -57,5 +46,4 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
   grafana_data:
