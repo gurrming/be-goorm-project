@@ -19,10 +19,10 @@ public class InvestAcceptanceTest {
     @Autowired
     private InvestRepository investRepository;
 
-    @Test
-    @DisplayName("특정 코인을 매수하면 보유 자산 목록에 추가된다.")
-    void investCoinTest() {
-
-    }
+//    @Test
+//    @DisplayName("특정 코인을 매수하면 보유 자산 목록에 추가된다.")
+//    void investCoinTest() {
+//
+//    }
     
 }
