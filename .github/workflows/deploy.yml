@@ -62,7 +62,7 @@ jobs:
 
             sudo docker compose down
 
-            sudo docker rm -f heartbit-app || true
+            sudo docker rm -f app-api-1 || true
             
             echo "이미지 갱신 시도..."
             sudo docker compose pull
