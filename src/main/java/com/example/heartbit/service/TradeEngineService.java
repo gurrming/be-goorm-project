@@ -84,7 +84,7 @@ public class TradeEngineService {
         @Getter
         private BigDecimal currentTradePrice = BigDecimal.ZERO;
 
-        // 현재가 기준으로 가져오기
+        // 현재가 기준으로 가져오기 호가창 가져오기
         public List<OrderBookResponse> getSnapshot(OrderType type, int limit) {
             PriorityQueue<BigDecimal> prices = (type == OrderType.BUY) ? buyPrices : sellPrices;
             Map<BigDecimal, PriorityQueue<Order>> orderBook = (type == OrderType.BUY) ? buyOrderBook : sellOrderBook;
