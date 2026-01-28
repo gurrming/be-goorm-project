@@ -185,7 +185,7 @@ public class TradeEngineService {
             if (makerOrders.isEmpty()) {
                 // 큐에서 제거
                 BigDecimal zeroPrice = priceQueue.poll();
-                // HashSet에서도 제거
+                // HashSet에서 제거
                 if (taker.getOrderType() == OrderType.BUY) {
                     // Taker가 매수면 매도 호가창의 가격 사라짐
                     isSellPrices.remove(zeroPrice);
