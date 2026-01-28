@@ -87,7 +87,7 @@ class TradeEngineServiceTest {
         Order sellOrder = createOrder(1L, category, OrderType.SELL, "50000", "1");
         tradeEngineService.processOrder(sellOrder);
 
-        // [주의] orderId가 겹치지 않도록 설정 (테스트 데이터 독립성)
+        // orderId가 겹치지 않도록 설정
         Order buyOrder = createOrder(4L, category, OrderType.BUY, "50000", "3");
 
         // when
@@ -106,6 +106,16 @@ class TradeEngineServiceTest {
         assertThat(buyOrderBook).hasSize(1)
                 .extracting("orderPrice", "totalRemainingCount")
                 .containsExactly(tuple(new BigDecimal("50000"), new BigDecimal("2")));
+    }
+
+    @DisplayName("")
+    @Test
+    void test() {
+        //given
+
+        // when
+
+        // then
     }
 
     private Category createCategory() {

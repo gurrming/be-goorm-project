@@ -84,4 +84,7 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
             @Param("startTime") LocalDateTime startTime,
             @Param("takerType") String takerType
     );
+
+    @Query(value = "SELECT trade_price FROM trade WHERE category_id = :categoryId ORDER BY trade_time DESC LIMIT 1", nativeQuery = true)
+    Optional<BigDecimal> findLatestPriceByCategoryId(@Param("categoryId") Long categoryId);
 }

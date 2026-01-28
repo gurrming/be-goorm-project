@@ -18,7 +18,7 @@ public class OrderBookService {
     private final TradeEngineService tradeEngineService;
     private final SimpMessagingTemplate messagingTemplate;
 
-    // 호가창 데이터를 정제해서 전송하는 역할
+    // 호가창 데이터를 전송하는 역할
     public void broadcastOrderBook(Long categoryId) {
         TradeEngineService.MatchingOrder engineOrderBook = tradeEngineService.getMatchingOrder(categoryId);
         if (engineOrderBook == null) return;
@@ -42,6 +42,7 @@ public class OrderBookService {
                 "categoryId", categoryId,
                 "buySide", buyOrderBook,
                 "sellSide", sellOrderBook,
+                "currentPrice", formatPrice(engineOrderBook.getCurrentTradePrice()),
                 "serverTime", LocalDateTime.now().toString()
         );
         messagingTemplate.convertAndSend("/topic/orderbook/" + categoryId, (Object) payload);
@@ -49,6 +50,7 @@ public class OrderBookService {
 
     // 가격 정규화
     private BigDecimal formatPrice(BigDecimal price) {
+        if (price == null) return BigDecimal.ZERO;
         if (price.compareTo(BigDecimal.TEN) < 0) return price.setScale(2, RoundingMode.FLOOR);
         if (price.compareTo(BigDecimal.valueOf(100)) < 0) return price.setScale(1, RoundingMode.FLOOR);
         return price.setScale(0, RoundingMode.FLOOR);

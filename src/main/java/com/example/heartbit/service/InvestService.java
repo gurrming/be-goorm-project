@@ -236,6 +236,71 @@ public class InvestService {
         }
     }
 
+    /**
+     * 개별 종목 계산 로직 (DTO 변환)
+     */
+    private InvestResponse.AssetDetailDto convertToAssetDetailDto(Invest invest) {
+        Long categoryId = invest.getCategory().getCategoryId();
+
+        // TradeService에서 최신가 가져오기
+        TradeResponse trade = (TradeResponse) tradeService.getCurrentTrade(categoryId);
+        BigDecimal currentPrice = (trade != null) ? trade.getTradePrice() : BigDecimal.ZERO;
+
+        BigDecimal quantity = invest.getInvestCount();
+        BigDecimal avgPrice = invest.getInvestPrice();
+
+        BigDecimal buyAmount = quantity.multiply(avgPrice);       // 매수금액
+        BigDecimal evalAmount = quantity.multiply(currentPrice); // 평가금액
+        BigDecimal profit = evalAmount.subtract(buyAmount);      // 평가손익
+        BigDecimal profitRate = calculateProfitRate(buyAmount, evalAmount); // 수익률
+
+        return InvestResponse.AssetDetailDto.builder()
+                .categoryName(invest.getCategory().getCategoryName())
+                .symbol(invest.getTrade().getSymbol())
+                .investCount(quantity)
+                .avgPrice(avgPrice)
+                .categoryId(categoryId)
+                .buyAmount(buyAmount)
+                .currentPrice(currentPrice)
+                .evaluationAmount(evalAmount)
+                .evaluationProfit(profit)
+                .profitRate(profitRate)
+                .build();
+    }
+
+    /**
+     * 전체 요약 정보 빌드(개별 종목 요약한거 합산)
+     */
+    private InvestResponse buildInvestResponse(List<InvestResponse.AssetDetailDto> assetList) {
+        BigDecimal totalBuy = assetList.stream()
+                .map(InvestResponse.AssetDetailDto::getBuyAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalEval = assetList.stream()
+                .map(InvestResponse.AssetDetailDto::getEvaluationAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalProfit = totalEval.subtract(totalBuy);
+        BigDecimal totalProfitRate = calculateProfitRate(totalBuy, totalEval);
+
+        return InvestResponse.builder()
+                .totalBuyAmount(totalBuy)
+                .totalEvaluation(totalEval)
+                .totalProfit(totalProfit)
+                .totalProfitRate(totalProfitRate)
+                .assetList(assetList)
+                .build();
+    }
+
+    /**
+     * 수익률 계산 (소수점 4자리 반올림)
+     */
+    private BigDecimal calculateProfitRate(BigDecimal buy, BigDecimal eval) {
+        if (buy == null || buy.compareTo(BigDecimal.ZERO) <= 0) return BigDecimal.ZERO;
+        return eval.subtract(buy)
+                .divide(buy, 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100));
+    }
 
 
 }
