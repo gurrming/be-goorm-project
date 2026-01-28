@@ -70,6 +70,7 @@ public class Order {
         this.orderCount = orderCount;
         this.remainingCount = (remainingCount != null) ? remainingCount : orderCount;
         this.orderType = orderType;
+        this.orderTime = orderTime;
         this.orderStatus = (orderStatus != null) ? orderStatus : OrderStatus.OPEN;
         this.member = member;
         this.category = category;

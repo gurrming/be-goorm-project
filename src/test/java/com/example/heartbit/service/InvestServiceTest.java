@@ -3,6 +3,7 @@ package com.example.heartbit.service;
 import com.example.heartbit.domain.Category;
 import com.example.heartbit.domain.Invest;
 import com.example.heartbit.dto.InvestResponse;
+import com.example.heartbit.dto.PriceChangedEvent;
 import com.example.heartbit.dto.TradeResponse;
 import com.example.heartbit.repository.InvestRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +23,9 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -132,5 +136,57 @@ class InvestServiceTest {
         assertThat(response.getTotalEvaluation()).isEqualByComparingTo("1500");
         assertThat(response.getTotalProfit()).isEqualByComparingTo("500");
         assertThat(response.getTotalProfitRate()).isEqualByComparingTo("50"); // 50% 수익률
+    }
+
+
+    @Test
+    @DisplayName("이벤트 수신 시 자산 브로드캐스팅 로직이 실행되어야 한다.")
+    void handlePriceChangeTriggerBroadcast() {
+
+        //given
+        Long categoryId = 1L;
+        BigDecimal newPrice = new BigDecimal("200");
+        PriceChangedEvent event = new PriceChangedEvent(categoryId, newPrice);
+
+        given(investRepository.findMemberIdsByCategoryId(categoryId)).willReturn(List.of(1L));
+        given(investRepository.findAllByMember_MemberId(any(Long.class))).willReturn(List.of());
+        given(investRepository.findAllByMember_MemberId(any(Long.class), any(Pageable.class)))
+                .willReturn(new SliceImpl<>(List.of()));
+
+
+        // when
+        investService.handlePriceChange(event);
+
+        //then
+        then(messagingTemplate).should().convertAndSend(eq("/topic/invest/1"), any(InvestResponse.class));
+    }
+
+    @Test
+    @DisplayName("전송 중 예외가 발생해도 catch 블록에서 처리되고, 다음 유저에게 계속 전송되어야 한다")
+    void verifyCatchBlockBehavior() {
+        // given
+        Long categoryId = 1L;
+        Long errorMemberId = 1L;   // 에러가 날 유저
+        Long successMemberId = 2L; // 정상 전송될 유저
+
+        given(investRepository.findMemberIdsByCategoryId(categoryId))
+                .willReturn(List.of(errorMemberId, successMemberId));
+
+        given(investRepository.findAllByMember_MemberId(any(Long.class)))
+                .willReturn(List.of());
+        given(investRepository.findAllByMember_MemberId(any(Long.class), any(Pageable.class)))
+                .willReturn(new SliceImpl<>(List.of()));
+
+        willThrow(new RuntimeException("의도된 전송 실패"))
+                .given(messagingTemplate)
+                .convertAndSend(eq("/topic/invest/" + errorMemberId), any(Object.class));
+
+        // when
+        investService.broadcastAssetUpdate(categoryId, new BigDecimal("100"));
+
+        // then
+        then(messagingTemplate).should().convertAndSend(eq("/topic/invest/" + errorMemberId), any(Object.class));
+
+        then(messagingTemplate).should().convertAndSend(eq("/topic/invest/" + successMemberId), any(Object.class));
     }
 }

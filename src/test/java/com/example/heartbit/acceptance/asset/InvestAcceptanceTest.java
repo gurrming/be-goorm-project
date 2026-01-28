@@ -13,8 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class InvestAcceptanceTest {
 
-    @Autowired
-    private InvestService investService;
+
 
     @Autowired
     private InvestRepository investRepository;
@@ -24,5 +23,7 @@ public class InvestAcceptanceTest {
 //    void investCoinTest() {
 //
 //    }
+
+
     
 }
