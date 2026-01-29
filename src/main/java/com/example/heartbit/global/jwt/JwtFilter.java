@@ -66,9 +66,18 @@ public class JwtFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
             filterChain.doFilter(request, response);
-        } catch (CustomerException e){
-            log.warn("JWT Filter Exception: {}", e.getErrorCode().getMessage());
+        } catch (CustomerException e) {
+            // 1. 토큰 에러(만료, 위변조 등)가 발생했을 때
+            log.warn("JWT Auth Failed: {} ({})", e.getErrorCode().getMessage(), e.getErrorCode().getCode());
+            // JSON 에러 응답을 직접 내려줍니다.
             jwtExceptionHandler(response, e.getErrorCode());
+            return;
+        } catch (Exception e) {
+            // 2. 예상치 못한 시스템 에러 로깅 (NullPointer 등)
+            log.error("JWT Filter Unexpected Error: ", e);
+        }
+        // 3. 인증이 성공했거나, 토큰이 없는 경우(익명 요청)에는 다음 필터로 진행
+        filterChain.doFilter(request, response);jwtExceptionHandler(response, e.getErrorCode());
         }
     }
     public void jwtExceptionHandler(HttpServletResponse response, ErrorCode errorCode) {
