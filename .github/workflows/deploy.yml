@@ -58,7 +58,7 @@ jobs:
             echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
             echo "현재 위치 확인..."
-            cd /home/***/app
+            cd /home/ubuntu/app
 
             sudo docker compose down --remove-orphans
 
