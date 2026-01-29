@@ -29,4 +29,11 @@ public class NotificationController {
         notificationService.markAsRead(notificationId);
         return ResponseEntity.ok().build();
     }
+
+    // 알림 전체 읽음처리
+    @PatchMapping("/read-all")
+    public ResponseEntity<Void> markAllAsRead(@RequestParam Long memberId) {
+        notificationService.markAllAsRead(memberId);
+        return ResponseEntity.ok().build();
+    }
 }

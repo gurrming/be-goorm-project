@@ -51,4 +51,12 @@ public class NotificationService {
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 알림입니다."));
         notification.read();
     }
+
+    @Transactional
+    public void markAllAsRead(Long memberId) {
+        List<Notification> notifications =
+                notificationRepository.findAllByMember_MemberIdAndNotificationIsReadFalse(memberId);
+
+        notifications.forEach(Notification::read);
+    }
 }
