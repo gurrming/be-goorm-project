@@ -90,19 +90,21 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(
+        configuration.setAllowedOriginPatterns(
                 Arrays.asList(
                         "http://localhost:8080",
                         "http://localhost:5173",
                         "https://d1z2afuae81hvp.cloudfront.net",
-                        "http://172.16.24.109:8080",
-                        "http://3.27.95.44:8080",
+//                        "http://172.16.24.109:8080",
                         "https://api.heartbit.site",
-                        "http://*.127.0.0.1:5173"
+                        "https://54.79.24.150:8080",
+                        "http://127.0.0.1:5173"
                 ));
         configuration.setAllowedMethods(Arrays.asList("*"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
+
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "Set-Cookie"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
