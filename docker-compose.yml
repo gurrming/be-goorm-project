@@ -1,6 +1,6 @@
 services:
   heartbit-app:
-    container_name: heartbit-app
+    container_name: app-api-1
     build: .
     ports:
       - "8080:8080"
