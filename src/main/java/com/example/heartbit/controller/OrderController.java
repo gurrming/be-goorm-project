@@ -58,15 +58,15 @@ public class OrderController {
         return ResponseEntity.ok(snapshot);
     }
 
-    @Operation(summary = "회원 주문 조회")
-    @GetMapping
-    public ResponseEntity<List<OrderResponse>> getMyOrders(
-            @RequestParam Long memberId
-    ) {
-        return ResponseEntity.ok(
-                orderService.getOrderByMember(memberId)
-        );
-    }
+//    @Operation(summary = "회원 주문 조회")
+//    @GetMapping
+//    public ResponseEntity<List<OrderResponse>> getMyOrders(
+//            @RequestParam Long memberId
+//    ) {
+//        return ResponseEntity.ok(
+//                orderService.getOrderByMember(memberId)
+//        );
+//    }
 
     @Operation(summary = "회원 미체결 주문 조회")
     @GetMapping("/open")

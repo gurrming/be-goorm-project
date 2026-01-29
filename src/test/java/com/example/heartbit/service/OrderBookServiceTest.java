@@ -63,7 +63,6 @@ class OrderBookServiceTest {
         Long categoryId = 1L;
         TradeEngineService.MatchingOrder mockMatchingOrder = mock(TradeEngineService.MatchingOrder.class);
 
-        // 가격이 123.456 -> 서비스 로직을 거쳐 123이 되었다고 가정
         List<OrderBookResponse> sellList = List.of(new OrderBookResponse(new BigDecimal("123"), new BigDecimal("1")));
 
         when(tradeEngineService.getMatchingOrder(categoryId)).thenReturn(mockMatchingOrder);

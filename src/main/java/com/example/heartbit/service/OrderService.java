@@ -110,12 +110,12 @@ public class OrderService {
         return OrderResponse.from(savedOrder);
     }
 
-    // 회원 주문 리스트
-    public List<OrderResponse> getOrderByMember(Long memberId) {
-        return orderRepository.findByMember_MemberIdOrderByOrderTimeDesc(memberId).stream()
-                .map(OrderResponse::from)
-                .collect(Collectors.toList());
-    }
+//    // 회원 주문 리스트
+//    public List<OrderResponse> getOrderByMember(Long memberId) {
+//        return orderRepository.findByMember_MemberIdOrderByOrderTimeDesc(memberId).stream()
+//                .map(OrderResponse::from)
+//                .collect(Collectors.toList());
+//    }
 
     // 회원 미체결 내역 리스트
     @Transactional(readOnly = true)

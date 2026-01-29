@@ -1,6 +1,7 @@
 package com.example.heartbit.service;
 
 import com.example.heartbit.domain.*;
+import com.example.heartbit.dto.TradeResponse;
 import com.example.heartbit.dto.order.MemberOpenOrderResponse;
 import com.example.heartbit.dto.order.OrderRequest;
 import com.example.heartbit.dto.order.OrderResponse;
@@ -18,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,6 +46,8 @@ class OrderServiceTest {
     private OrderBookService orderBookService;
     @Mock
     private TradeEngineService tradeEngineService;
+    @Mock
+    private TradeService tradeService;
 
     @InjectMocks
     private OrderService orderService;
@@ -57,7 +61,7 @@ class OrderServiceTest {
         testCategory = Category.builder().categoryId(1L).symbol("BTC").build();
     }
 
-    @DisplayName("특정 종목을 봇 ID로 주문하면 자산 차감 없이 주문이 생성된다.")
+    @DisplayName("종목에 대해 봇 ID로 주문하면 자산 차감 없이 주문이 생성된다.")
     @Test
     void createOrderWithBotId() {
         // given
@@ -110,14 +114,65 @@ class OrderServiceTest {
         verify(orderRepository).save(any(Order.class));
     }
 
-    @DisplayName("주문이 생성되고 체결이 발생되면 ")
+    @DisplayName("주문이 엔진에서 체결되면 해당 결과가 정산 서비스로 전달된다.")
     @Test
-    void test() {
-        //given
+    void createOrderTradeResult() {
+        // given
+        Long categoryId = 1L;
+        OrderRequest request = OrderRequest.builder()
+                .memberId(1L)
+                .categoryId(categoryId)
+                .orderPrice(new BigDecimal("10000"))
+                .orderCount(new BigDecimal("5"))
+                .orderType(OrderType.BUY)
+                .build();
+
+        // stubbing
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(testMember));
+        when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(testCategory));
+        when(orderRepository.save(any(Order.class))).thenAnswer(i -> i.getArgument(0));
+
+        TradeResponse mockTrade = TradeResponse.builder()
+                .tradePrice(new BigDecimal("10000"))
+                .tradeCount(new BigDecimal("5"))
+                .build();
+        List<TradeResponse> tradeResults = List.of(mockTrade);
+
+        when(tradeEngineService.processOrder(any(Order.class))).thenReturn(tradeResults);
 
         // when
+        orderService.createOrder(request);
 
         // then
+        verify(tradeService, times(1)).processTradeResults(eq(categoryId), eq(tradeResults));
+        // 호가창 확인
+        verify(orderBookService).broadcastOrderBook(eq(categoryId));
+    }
+
+    @DisplayName("체결 결과가 없으면 정산 서비스는 호출되지 않는다.")
+    @Test
+    void createOrder_shouldNotProcessSettlement_whenNoTrade() {
+        // given
+        OrderRequest request = OrderRequest.builder()
+                .memberId(1L)
+                .categoryId(1L)
+                .orderPrice(new BigDecimal("10000"))
+                .orderCount(new BigDecimal("5"))
+                .orderType(OrderType.BUY)
+                .build();
+
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(testMember));
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(testCategory));
+        when(orderRepository.save(any(Order.class))).thenAnswer(i -> i.getArgument(0));
+
+        // stubbing
+        when(tradeEngineService.processOrder(any(Order.class))).thenReturn(Collections.emptyList());
+
+        // when
+        orderService.createOrder(request);
+
+        // then
+        verify(tradeService, never()).processTradeResults(anyLong(), anyList());
     }
 
     @DisplayName("특정 회원의 미체결 주문 내역과 전체 개수를 조회한다.")
@@ -148,6 +203,28 @@ class OrderServiceTest {
         assertThat(result.getOrders().getContent()).hasSize(2)
                 .extracting(o -> o.getOrderPrice().stripTrailingZeros().toPlainString(), OrderResponse::getOrderStatus)
                 .containsExactly(tuple("10000", OrderStatus.OPEN), tuple("20000", OrderStatus.PARTIAL));
+    }
+
+    @DisplayName("미체결 주문이 없으면 0을 반환한다.")
+    @Test
+    void getOpenOrderByMember_empty() {
+        // given
+        Long memberId = 1L;
+        List<OrderStatus> openStatuses = List.of(OrderStatus.OPEN, OrderStatus.PARTIAL);
+        Pageable pageable = PageRequest.of(0, 10);
+
+        // stubbing
+        when(orderRepository.findByMember_MemberIdAndOrderStatusInOrderByOrderTimeDesc(anyLong(), anyList(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(Collections.emptyList()));
+
+        when(orderRepository.countOpenOrdersByMember(anyLong(), anyList())).thenReturn(null);
+
+        // when
+        MemberOpenOrderResponse result = orderService.getOpenOrderByMember(memberId, 0, 10);
+
+        // then
+        assertThat(result.getTotalOpenOrderCount()).isEqualTo(0L); // 0L로 치환되는지 확인
+        assertThat(result.getOrders().getContent()).isEmpty();
     }
 
     @DisplayName("단일 주문 취소 시 한 건의 미체결 주문이 취소되고 환불된다.")

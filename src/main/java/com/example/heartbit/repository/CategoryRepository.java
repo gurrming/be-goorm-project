@@ -1,6 +1,7 @@
 package com.example.heartbit.repository;
 
 import com.example.heartbit.domain.Category;
+import lombok.NoArgsConstructor;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
