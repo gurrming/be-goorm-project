@@ -58,11 +58,13 @@ jobs:
             echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
             echo "현재 위치 확인..."
-            cd /home/***/app
+            cd /home/ubuntu/app
+
+            sudo docker rm -f app-api-1 heartbit-app prometheus grafana || true
 
             sudo docker compose down --remove-orphans
 
-            sudo docker rm -f heartbit-app prometheus grafana || true
+            sudo docker network prune -f
             
             echo "이미지 갱신 시도..."
             sudo docker compose pull

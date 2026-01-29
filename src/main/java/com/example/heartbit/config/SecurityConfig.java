@@ -40,6 +40,7 @@ public class SecurityConfig {
             "/api/trades",
             "/api/trades/recent",
             "/api/trades/order/**",
+            "/api/trades/volume-power/**",
             "/api/trades/chart",
             "/api/category",
             "/api/categories",
