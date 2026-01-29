@@ -105,6 +105,7 @@ public class JwtFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
         // "이 URL은 JWT 검사 코드를 아예 실행하지 않겠다."
+        // ** 는 모든 하위 경로를 비교하지 않음 -> 여기서는 문자열 그 자체를 비교
         String[] excludedPaths = {
                 "/api/member/signup",
                 "/api/member/login",

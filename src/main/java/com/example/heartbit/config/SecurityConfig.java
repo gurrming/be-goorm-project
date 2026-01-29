@@ -29,6 +29,7 @@ public class SecurityConfig {
     private final ServerTokenFilter serverTokenFilter;
 
     // "이 URL은 로그인 안 한 사람(Anonymous)도 들어와도 좋다."
+    // /**는 모든 하위 경로를 의미하는 와일드 카드로 동작함
     public static final String[] ALLOWED_URLS = {
             "/api/member/signup",
             "/api/member/login",
