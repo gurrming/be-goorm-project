@@ -60,9 +60,11 @@ jobs:
             echo "현재 위치 확인..."
             cd /home/ubuntu/app
 
+            sudo docker rm -f app-api-1 heartbit-app prometheus grafana || true
+
             sudo docker compose down --remove-orphans
 
-            sudo docker rm -f heartbit-app prometheus grafana || true
+            sudo docker network prune -f
             
             echo "이미지 갱신 시도..."
             sudo docker compose pull
