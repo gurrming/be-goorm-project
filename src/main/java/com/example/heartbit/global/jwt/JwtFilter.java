@@ -77,8 +77,8 @@ public class JwtFilter extends OncePerRequestFilter {
             log.error("JWT Filter Unexpected Error: ", e);
         }
         // 3. 인증이 성공했거나, 토큰이 없는 경우(익명 요청)에는 다음 필터로 진행
-        filterChain.doFilter(request, response);jwtExceptionHandler(response, e.getErrorCode());
-        }
+        filterChain.doFilter(request, response);
+
     }
     public void jwtExceptionHandler(HttpServletResponse response, ErrorCode errorCode) {
         response.setStatus(errorCode.getStatus().value());
@@ -95,6 +95,7 @@ public class JwtFilter extends OncePerRequestFilter {
             log.error(e.getMessage());
         }
     }
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
