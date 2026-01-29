@@ -67,5 +67,5 @@ logging:
   level:
     root: INFO
     org.springframework.messaging: WARN
-    org.springframework.web.socket: TRACE
+    org.springframework.web.socket: WARN
 
