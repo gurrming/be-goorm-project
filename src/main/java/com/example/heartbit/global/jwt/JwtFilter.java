@@ -47,6 +47,11 @@ public class JwtFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
         throws ServletException, IOException {
+        // OPTIONS 요청은 토큰 검사 없이 바로 통과 (CORS 처리는 SecurityConfig가 담당)
+        if (request.getMethod().equals("OPTIONS")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         try {
             String token = resolveToken(request);
