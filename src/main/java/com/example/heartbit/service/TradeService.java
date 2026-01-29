@@ -294,16 +294,14 @@ public class TradeService {
     private void updateMarketAndBroadcast(Long categoryId, TradeResponse response) {
         BigDecimal price = response.getTradePrice();
 
-//         String key = getTickerKey(categoryId);
-//         redisTemplate.opsForValue().set(key, price.toPlainString());
 
-//        try {
-//            String key = getTickerKey(categoryId);
-//            redisTemplate.opsForValue().set(key, price.toPlainString());
-//        } catch (Exception e) {
-//            // Redis가 죽어도 핵심 로직(메모리 갱신, DB 저장)은 돌아가도록 로그만 남기고 무시
-//            log.warn("Redis 업데이트 실패 (시세 조회에는 영향 없음): {}", e.getMessage());
-//        }
+        try {
+            String key = getTickerKey(categoryId);
+            redisTemplate.opsForValue().set(key, price.toPlainString());
+        } catch (Exception e) {
+            // Redis가 죽어도 핵심 로직(메모리 갱신, DB 저장)은 돌아가도록 로그만 남기고 무시
+            log.warn("Redis 업데이트 실패 (시세 조회에는 영향 없음): {}", e.getMessage());
+        }
 
 
 
