@@ -10,6 +10,7 @@ services:
       SPRING_DATA_REDIS_PORT: 6379
     depends_on:
       - postgres
+      - redis
     restart: always
 
   redis:
