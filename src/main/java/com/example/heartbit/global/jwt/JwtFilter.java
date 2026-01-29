@@ -98,6 +98,8 @@ public class JwtFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
+
+        // "이 URL은 JWT 검사 코드를 아예 실행하지 않겠다."
         String[] excludedPaths = {
                 "/api/member/signup",
                 "/api/member/login",
@@ -105,8 +107,10 @@ public class JwtFilter extends OncePerRequestFilter {
                 "/api/orders/",
                 "/api/orders/orderbook",
                 "/api/trades/chart",
+                "/api/trades/volume-power/**",
                 "/api/categories",
                 "/api/category",
+                "/api/analysis/**",
                 "/ws-heartbit",
                 "/h2-console",
                 "/favicon.ico",
