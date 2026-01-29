@@ -254,28 +254,44 @@ public class TradeService {
             }
 
             try {
-                // 1. 매수자 알림 전송
+                // 소수점 처리
+                int scale = 3;
+                RoundingMode mode = RoundingMode.HALF_UP;
+
+                // 매수자 알림 전송
                 if (buyOrder.getMember() != null) {
+                    String tradeCountStr = response.getTradeCount().setScale(scale, mode).toPlainString();
+                    String remainingCountStr = buyOrder.getRemainingCount().setScale(scale, mode).toPlainString();
+
                     String buyMsg;
                     if (buyOrder.getRemainingCount().compareTo(BigDecimal.ZERO) > 0) {
                         buyMsg = String.format("[%s] 매수 부분 체결! (%s주 체결되었고, %s주 남았어요.)",
-                                buyOrder.getCategory().getCategoryName(), response.getTradeCount(), buyOrder.getRemainingCount());
+                                buyOrder.getCategory().getCategoryName(),
+                                tradeCountStr,
+                                remainingCountStr);
                     } else {
                         buyMsg = String.format("[%s] 매수 체결 완료! (총 %s주)",
-                                buyOrder.getCategory().getCategoryName(), response.getTradeCount());
+                                buyOrder.getCategory().getCategoryName(),
+                                tradeCountStr);
                     }
                     notificationService.send(buyOrder.getMember(), buyMsg, NotificationType.TRADE);
                 }
 
-                // 2. 매도자 알림 전송
+                // 매도자 알림 전송
                 if (sellOrder.getMember() != null) {
+                    String tradeCountStr = response.getTradeCount().setScale(scale, mode).toPlainString();
+                    String remainingCountStr = sellOrder.getRemainingCount().setScale(scale, mode).toPlainString();
+
                     String sellMsg;
                     if (sellOrder.getRemainingCount().compareTo(BigDecimal.ZERO) > 0) {
                         sellMsg = String.format("[%s] 매도 부분 체결! (%s주 체결되었고, %s주 남았어요.)",
-                                sellOrder.getCategory().getCategoryName(), response.getTradeCount(), sellOrder.getRemainingCount());
+                                sellOrder.getCategory().getCategoryName(),
+                                tradeCountStr,
+                                remainingCountStr);
                     } else {
                         sellMsg = String.format("[%s] 매도 체결 완료! (총 %s주)",
-                                sellOrder.getCategory().getCategoryName(), response.getTradeCount());
+                                sellOrder.getCategory().getCategoryName(),
+                                tradeCountStr);
                     }
                     notificationService.send(sellOrder.getMember(), sellMsg, NotificationType.TRADE);
                 }
