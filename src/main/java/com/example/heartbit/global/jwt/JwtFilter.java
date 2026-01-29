@@ -65,7 +65,6 @@ public class JwtFilter extends OncePerRequestFilter {
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
-            filterChain.doFilter(request, response);
         } catch (CustomerException e) {
             // 1. 토큰 에러(만료, 위변조 등)가 발생했을 때
             log.warn("JWT Auth Failed: {} ({})", e.getErrorCode().getMessage(), e.getErrorCode().getCode());
@@ -110,7 +109,12 @@ public class JwtFilter extends OncePerRequestFilter {
                 "/api/category",
                 "/ws-heartbit",
                 "/h2-console",
-                "/favicon.ico"
+                "/favicon.ico",
+                "/v3/api-docs",
+                "/v3/api-docs/**",
+                "/swagger-ui",
+                "/swagger-ui/**",
+                "/swagger-resources/**"
         };
 
         for (String excludedPath : excludedPaths) {

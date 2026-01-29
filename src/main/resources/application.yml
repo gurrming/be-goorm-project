@@ -15,8 +15,8 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: validate
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
@@ -65,8 +65,6 @@ management:
 
 logging:
   level:
-    root: INFO
+    root: WARN
 
-    org.springframework.messaging: WARN
-    org.springframework.web.socket: WARN
 
