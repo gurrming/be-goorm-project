@@ -110,7 +110,12 @@ public class JwtFilter extends OncePerRequestFilter {
                 "/api/category",
                 "/ws-heartbit",
                 "/h2-console",
-                "/favicon.ico"
+                "/favicon.ico",
+                "/v3/api-docs",
+                "/v3/api-docs/**",
+                "/swagger-ui",
+                "/swagger-ui/**",
+                "/swagger-resources/**"
         };
 
         for (String excludedPath : excludedPaths) {
