@@ -65,7 +65,6 @@ public class JwtFilter extends OncePerRequestFilter {
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
-            filterChain.doFilter(request, response);
         } catch (CustomerException e) {
             // 1. 토큰 에러(만료, 위변조 등)가 발생했을 때
             log.warn("JWT Auth Failed: {} ({})", e.getErrorCode().getMessage(), e.getErrorCode().getCode());
