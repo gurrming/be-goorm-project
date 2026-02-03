@@ -7,6 +7,8 @@ WORKDIR /app
 # 3. 빌드된 .jar 파일 위치 지정
 ARG JAR_FILE=build/libs/*.jar
 
+ARG CACHE_BUST=1
+
 # 4. 파일을 컨테이너 내부로 복사
 COPY ${JAR_FILE} app.jar
 
