@@ -21,7 +21,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2️⃣ JDK 21 세팅
+      # 2️⃣ Gradle 세팅
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
@@ -35,7 +35,7 @@ jobs:
       - name: Build (Gradle)
         run: ./gradlew clean build -x test
 
-      # 4️⃣ GHCR 로그인 (깃허브 액션 토큰 + BACK_ACCESS_KEY)
+      # 4️⃣ GHCR 로그인 (깃허브 액션 기본 토큰 사용)
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -43,7 +43,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 5️⃣ Docker 이미지 빌드 & 푸시
+      # 5️⃣ Docker 이미지 빌드 & push
       - name: Build & Push Docker Image
         uses: docker/build-push-action@v6
         with:
@@ -65,19 +65,19 @@ jobs:
             set -e
             cd /home/ubuntu/app
 
-            # 1️⃣ .env 자동 생성
-            echo "BACK_ACCESS_KEY=${{ secrets.BACK_ACCESS_KEY }}" > .env
-            echo "IMAGE_TAG=${{ github.run_id }}" >> .env
+            # 1️⃣ .env 파일 생성 (IMAGE_TAG 전달)
+            echo "IMAGE_TAG=${{ env.IMAGE_TAG }}" > .env
+            echo "BACK_ACCESS_KEY=${{ secrets.BACK_ACCESS_KEY }}" >> .env
 
             # 2️⃣ GHCR 로그인
             echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # 3️⃣ 기존 컨테이너 종료/제거
-            sudo docker compose down --remove-orphans || true
+            # 3️⃣ 기존 컨테이너 종료 및 제거
             sudo docker rm -f app-api-1 prometheus grafana || true
+            sudo docker compose down --remove-orphans
             sudo docker network prune -f || true
 
-            # 4️⃣ 최신 이미지 pull
+            # 4️⃣ 이미지 pull
             sudo docker compose pull
 
             # 5️⃣ 컨테이너 재기동
