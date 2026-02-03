@@ -17,7 +17,7 @@ jobs:
       IMAGE_TAG: ${{ github.run_id }}
 
     steps:
-      # 1️⃣ 코드 체크아웃
+      # 1️⃣ 코드 체크
       - name: Checkout
         uses: actions/checkout@v4
 
