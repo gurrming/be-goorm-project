@@ -10,7 +10,6 @@ permissions:
 
 env:
   IMAGE_TAG: ${{ github.run_id }}
-  IMAGE_NAME: ghcr.io/${{ secrets.BACK_ACCESS_KEY }}/be-goorm-project/backend
 
 jobs:
   build-and-deploy:
@@ -43,7 +42,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 5️⃣ Docker 이미지 빌드 & 푸시
+      # 5️⃣ IMAGE_NAME 소문자 변환
+      - name: Set IMAGE_NAME
+        run: |
+          IMAGE_NAME="ghcr.io/$(echo ${{ secrets.BACK_ACCESS_KEY }} | tr '[:upper:]' '[:lower:]')/be-goorm-project/backend"
+          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
+
+      # 6️⃣ Docker 이미지 빌드 & 푸시
       - name: Build & Push Docker Image
         uses: docker/build-push-action@v6
         with:
@@ -52,7 +57,7 @@ jobs:
           no-cache: true
           tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
-      # 6️⃣ EC2 배포
+      # 7️⃣ EC2 배포
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
