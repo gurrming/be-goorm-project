@@ -43,8 +43,13 @@ jobs:
         with:
           context: .
           push: true
+          # 추가: 이전 캐시를 완전히 무시하고 새로 빌드합니다.
+          no-cache: true 
+          # 추가: 빌드 시점의 타임스탬프를 넘겨 COPY 단계의 캐시를 깹니다.
+          build-args: |
+            CACHE_BUST=${{ github.run_id }}
           tags: ghcr.io/${{ github.repository_owner }}/be-goorm-project/backend:latest
-
+          
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
