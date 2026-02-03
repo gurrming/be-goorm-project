@@ -1,17 +1,4 @@
 services:
-  heartbit-app:
-    container_name: app-api-1
-    build: .
-    ports:
-      - "8080:8080"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://local-postgres:5432/app
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-    depends_on:
-      - postgres
-      - redis
-    restart: always
 
   redis:
     image: redis:7-alpine

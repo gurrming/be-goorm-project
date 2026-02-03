@@ -36,7 +36,7 @@ class OrderRepositoryTest {
         // given
         Member member = memberRepository.save(Member.builder()
                 .memberEmail("test@test.com")
-                .memberNickname("유진")
+                .memberNickname("goorming")
                 .memberPassword("0000")
                 .build());
         Category category = categoryRepository.save(Category.builder().symbol("BTC").build());
