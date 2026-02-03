@@ -13,11 +13,11 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/be-goorm-project/backend
+      IMAGE_NAME: ghcr.io/${{ secrets.BACK_ACCESS_KEY }}/be-goorm-project/backend
       IMAGE_TAG: ${{ github.run_id }}
 
     steps:
-      # 1️⃣ 코드 체크
+      # 1️⃣ 코드 체크아웃
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -35,23 +35,24 @@ jobs:
       - name: Build (Gradle)
         run: ./gradlew clean build -x test
 
-      # 4️⃣ GHCR 로그인
+      # 4️⃣ GHCR 로그인 (GitHub Packages)
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
+          username: ${{ secrets.BACK_ACCESS_KEY }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 5️⃣ Docker 이미지 빌드 & 푸시 (run_id 태그)
+      # 5️⃣ Docker 이미지 빌드 & 푸시
       - name: Build & Push Docker Image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           no-cache: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          build-args: |
+            CACHE_BUST=${{ github.run_id }}
+          tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
       # 6️⃣ EC2 배포
       - name: Deploy to EC2 via SSH
@@ -64,19 +65,19 @@ jobs:
             set -e
             cd /home/ubuntu/app
 
-            echo "GHCR 로그인"
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "GHCR 로그인..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ secrets.BACK_ACCESS_KEY }} --password-stdin
 
-            echo "IMAGE_TAG=${{ env.IMAGE_TAG }}" > .env
+            echo "IMAGE_TAG=${{ github.run_id }}" > .env
 
             echo "기존 컨테이너 종료"
-            docker compose down --remove-orphans
+            sudo docker compose down --remove-orphans || true
 
             echo "이미지 pull"
-            docker compose pull
+            sudo docker compose pull
 
             echo "컨테이너 재기동"
-            docker compose up -d --force-recreate
+            sudo docker compose up -d --force-recreate
 
             echo "안 쓰는 이미지 정리"
-            docker image prune -f
+            sudo docker image prune -f
