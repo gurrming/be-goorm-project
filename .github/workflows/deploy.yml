@@ -8,13 +8,13 @@ permissions:
   contents: read
   packages: write
 
+env:
+  IMAGE_TAG: ${{ github.run_id }}
+  IMAGE_NAME: ghcr.io/${{ secrets.BACK_ACCESS_KEY }}/be-goorm-project/backend
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
-    env:
-      IMAGE_NAME: ghcr.io/${{ secrets.BACK_ACCESS_KEY }}/be-goorm-project/backend
-      IMAGE_TAG: ${{ github.run_id }}
 
     steps:
       # 1️⃣ 코드 체크아웃
@@ -35,12 +35,12 @@ jobs:
       - name: Build (Gradle)
         run: ./gradlew clean build -x test
 
-      # 4️⃣ GHCR 로그인 (GitHub Packages)
+      # 4️⃣ GHCR 로그인
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ secrets.BACK_ACCESS_KEY }}
+          username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # 5️⃣ Docker 이미지 빌드 & 푸시
@@ -50,12 +50,10 @@ jobs:
           context: .
           push: true
           no-cache: true
-          build-args: |
-            CACHE_BUST=${{ github.run_id }}
           tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
       # 6️⃣ EC2 배포
-      - name: Deploy to EC2 via SSH
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -66,12 +64,14 @@ jobs:
             cd /home/ubuntu/app
 
             echo "GHCR 로그인..."
-            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ secrets.BACK_ACCESS_KEY }} --password-stdin
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            echo "IMAGE_TAG=${{ github.run_id }}" > .env
+            echo "IMAGE_TAG=${{ env.IMAGE_TAG }}" > .env
 
-            echo "기존 컨테이너 종료"
+            echo "기존 컨테이너 종료 및 제거"
             sudo docker compose down --remove-orphans || true
+            sudo docker rm -f app-api-1 prometheus grafana || true
+            sudo docker network prune -f || true
 
             echo "이미지 pull"
             sudo docker compose pull
