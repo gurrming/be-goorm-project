@@ -67,38 +67,39 @@ public class AssetService {
 
 
 
-    // 1. 주문 시 자산 차감 (매수 주문 - 주문 가능 금액만 차감)
+    //매수주문 시 주문가능금액 차감
     @Transactional
     public void blockCash(Long memberId, BigDecimal amount) {
-        Asset asset = assetRepository.findByMember_MemberId(memberId)
+        Asset asset = assetRepository.findByMemberIdWithLock(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("자산을 찾을 수 없습니다."));
-        // Asset 엔티티의 비즈니스 로직 호출
-        asset.blockCashForOrder(amount);
+
+        asset.subtractOnlyCanOrder(amount);
     }
 
-    // 2. 주문 취소 시 자산 복구 (매수 취소 - 주문 가능 금액 복구)
+    // 2. 매수 주문 취소 시 주문가능금액 복구
     @Transactional
     public void restoreCash(Long memberId, BigDecimal amount) {
-        Asset asset = assetRepository.findByMember_MemberId(memberId)
+        Asset asset = assetRepository.findByMemberIdWithLock(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("자산을 찾을 수 없습니다."));
-        asset.restoreCashFromCancel(amount);
+        asset.restoreCanOrder(amount);
     }
 
-    // 3. 매수 체결 정산 (보유 자산 실차감 - 현금 감소)
+    // 3. 매수 체결되면 보유 자산 차감
     @Transactional
     public void settleBuyTrade(Long memberId, BigDecimal executionAmount, BigDecimal blockedAmount) {
-        Asset asset = assetRepository.findByMember_MemberId(memberId)
+        Asset asset = assetRepository.findByMemberIdWithLock(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("자산을 찾을 수 없습니다."));
 
-        // 수정된 메서드 호출
+
         asset.confirmBuyOrder(executionAmount, blockedAmount);
     }
 
-    // 4. 매도 체결 정산 (판매 대금 입금 - 현금 & 주문가능금액 증가)
+    // 4. 매도 체결되면 보유 자산, 주문 가능금액 모두 증가
     @Transactional
     public void settleSellTrade(Long memberId, BigDecimal amount) {
-        Asset asset = assetRepository.findByMember_MemberId(memberId)
+        Asset asset = assetRepository.findByMemberIdWithLock(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("자산을 찾을 수 없습니다."));
-        asset.confirmSellOrder(amount);
+
+        asset.depositFull(amount);
     }
 }
