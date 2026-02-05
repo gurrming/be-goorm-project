@@ -6,46 +6,45 @@ on:
 
 permissions:
   contents: read
-  packages: write
+
+env:
+  JAR_NAME: app.jar
+  APP_DIR: /home/ubuntu/app
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ 코드 체크아웃
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Set up JDK
+      # 2️⃣ Gradle 빌드 (jar 생성)
+      - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21' # Java 21 LTS가 현재 가장 권장되는 버전입니다.
+          java-version: '21'
 
-      - name: Grant execute permission for gradlew
+      - name: Grant execute permission
         run: chmod +x gradlew
 
-      - name: Build (Gradle)
+      - name: Build jar
         run: ./gradlew clean build -x test
 
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+      # 3️⃣ EC2에 jar 전송
+      - name: Upload jar to EC2
+        uses: appleboy/scp-action@v0.1.3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: be-goorm-project/build/libs/app.jar
+          target: ${{ env.APP_DIR }}/app.jar
 
-      - name: Build & Push Docker Image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: ghcr.io/${{ github.repository_owner }}/be-goorm-project/backend:latest
-
-      - name: Deploy via SSH
+      # 4️⃣ EC2에서 Docker build & compose up
+      - name: Build & run Docker on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -53,24 +52,17 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             set -e
-            echo "GHCR 로그인..."
-            # 깃허브 액션 자체의 토큰을 사용하여 배포 시점에 로그인합니다.
-            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
-            echo "현재 위치 확인..."
-            cd /home/ubuntu/app
+            cd ${{ env.APP_DIR }}
 
-            sudo docker rm -f app-api-1 heartbit-app prometheus grafana || true
+            # 기존 컨테이너 제거
+            sudo docker rm -f app-api-1 prometheus grafana || true
+            sudo docker compose down --remove-orphans || true
 
-            sudo docker compose down --remove-orphans
+            # Docker 빌드
+            sudo docker compose build --no-cache heartbit-app
 
-            sudo docker network prune -f
-            
-            echo "이미지 갱신 시도..."
-            sudo docker compose pull
-            
-            echo "컨테이너 재생성..."
+            # 컨테이너 재생성
             sudo docker compose up -d --force-recreate
-            
-            echo "안 쓰는 이미지 정리..."
+
+            # 안 쓰는 이미지 정리
             sudo docker image prune -f

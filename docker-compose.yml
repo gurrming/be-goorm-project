@@ -3,10 +3,7 @@ services:
     container_name: app-api-1
     build: .
     ports:
-      - "8080:8080"
-
-    depends_on:
-      - postgres
+      - "6379:6379"
     restart: always
 
   postgres:
