@@ -4,8 +4,7 @@ services:
     build: .
     ports:
       - "8080:8080"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://local-postgres:5432/app
+
     depends_on:
       - postgres
     restart: always
