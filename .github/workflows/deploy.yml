@@ -1,76 +1,110 @@
-name: Deploy Backend to EC2
+name: Deploy Backend (Jar -> EC2 Docker)
 
 on:
   push:
-    branches: [ "dev" ]
+    branches: ["dev"]
 
 permissions:
   contents: read
-  packages: write
+
+env:
+  APP_DIR: /home/ubuntu/app
+  JAR_NAME: app.jar
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # 1) Checkout
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Set up JDK
+      # 2) JDK
+      - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21' # Java 21 LTS가 현재 가장 권장되는 버전입니다.
+          java-version: "21"
 
-      - name: Grant execute permission for gradlew
+      - name: Grant execute permission
         run: chmod +x gradlew
 
-      - name: Build (Gradle)
-        run: ./gradlew clean build -x test
+      # 3) Build JAR + normalize to app.jar
+      - name: Build jar and normalize name
+        run: |
+          set -e
+          ./gradlew clean build -x test
 
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+          echo "== Find jars =="
+          find . -maxdepth 6 -type f -name "*.jar" -print
+
+          # */build/libs/*.jar 중 plain.jar 제외하고 첫 번째를 선택
+          JAR_PATH="$(find . -maxdepth 6 -type f -path "*/build/libs/*.jar" ! -name "*plain.jar" | head -n 1)"
+
+          if [ -z "$JAR_PATH" ]; then
+            echo "ERROR: Could not find jar under */build/libs/*.jar"
+            exit 1
+          fi
+
+          echo "Selected jar: $JAR_PATH"
+
+          mkdir -p deploy-artifacts
+          cp "$JAR_PATH" "deploy-artifacts/${{ env.JAR_NAME }}"
+
+          echo "== Artifact info =="
+          ls -al deploy-artifacts
+          sha256sum "deploy-artifacts/${{ env.JAR_NAME }}"
+
+      # 4) Upload to EC2 (target은 디렉터리)
+      - name: Upload app.jar to EC2
+        uses: appleboy/scp-action@v0.1.3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: deploy-artifacts/${{ env.JAR_NAME }}
+          target: ${{ env.APP_DIR }}
 
-      - name: Build & Push Docker Image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: ghcr.io/${{ github.repository_owner }}/be-goorm-project/backend:latest
-
-      - name: Deploy via SSH
+      # 5) Deploy on EC2
+      - name: Deploy on EC2 (docker compose rebuild)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            set -e
-            echo "GHCR 로그인..."
-            # 깃허브 액션 자체의 토큰을 사용하여 배포 시점에 로그인합니다.
-            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
-            echo "현재 위치 확인..."
-            cd /home/ubuntu/app
+            set -euo pipefail
 
-            sudo docker rm -f app-api-1 heartbit-app prometheus grafana || true
+            cd "${{ env.APP_DIR }}"
 
-            sudo docker compose down --remove-orphans
+            echo "== EC2: 현재 디렉터리/파일 확인 =="
+            pwd
+            ls -al
 
-            sudo docker network prune -f
-            
-            echo "이미지 갱신 시도..."
-            sudo docker compose pull
-            
-            echo "컨테이너 재생성..."
-            sudo docker compose up -d --force-recreate
-            
-            echo "안 쓰는 이미지 정리..."
+            # 1) app.jar가 없으면 deploy-artifacts에서 가져오기
+            if [ ! -f "app.jar" ] && [ -f "deploy-artifacts/app.jar" ]; then
+              echo "app.jar not found. Copying from deploy-artifacts/app.jar ..."
+              cp "deploy-artifacts/app.jar" "app.jar"
+            fi
+
+            # 2) 그래도 없으면 실패
+            echo "== EC2: app.jar 존재/해시 확인 =="
+            test -f "app.jar"
+            sha256sum "app.jar"
+
+            echo "== EC2: docker compose down =="
+            sudo docker compose down --remove-orphans || true
+
+            echo "== EC2: docker compose up (rebuild) =="
+            sudo docker compose up -d --build --force-recreate
+
+            echo "== EC2: running containers =="
+            sudo docker ps
+
+            echo "== EC2: container jar hash check =="
+            # 컨테이너 내부에 실제로 반영됐는지 확인 (실패해도 배포는 계속 진행)
+            sudo docker exec -it app-api-1 sha256sum /app/app.jar || true
+
+            echo "== EC2: image cleanup =="
             sudo docker image prune -f

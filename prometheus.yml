@@ -5,4 +5,4 @@ scrape_configs:
   - job_name: 'heartbit-service'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['app-api-1:8080']
+      - targets: ['host.docker.internal:8080']

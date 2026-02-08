@@ -24,4 +24,11 @@ public class Member {
 
     @Column(nullable = false, name = "member_nickname", length = 20)
     private String memberNickname;
+
+    @Builder
+    public Member(String memberEmail, String memberPassword, String memberNickname) {
+        this.memberEmail = memberEmail;
+        this.memberPassword = memberPassword;
+        this.memberNickname = memberNickname;
+    }
 }

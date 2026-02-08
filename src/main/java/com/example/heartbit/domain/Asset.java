@@ -36,42 +36,55 @@ public class Asset {
         this.assetCanOrder = (assetCanOrder != null) ? assetCanOrder : this.assetCash;
     }
 
-
-    public void blockCashForOrder(BigDecimal amount) {
-        if (this.assetCanOrder.compareTo(amount) < 0) {
-            throw new RuntimeException("주문 가능 금액이 부족합니다.");
+    //보유 자산 증감 로직
+    private void addCash(BigDecimal amount) {
+        this.assetCash = this.assetCash.add(amount);
+        if (this.assetCash.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalStateException("실제 잔액이 부족합니다.");
         }
-        this.assetCanOrder = this.assetCanOrder.subtract(amount);
     }
 
-    // [주문 체결 시] 실제 보유 자산에서도 차감 (이미 주문 시 차감됐으므로 cash만 수정)
-    public void confirmOrder(BigDecimal amount) {
-        this.assetCash = this.assetCash.subtract(amount);
+    //주문 가능 금액 증감 로직
+    private void addCanOrder(BigDecimal amount) {
+        this.assetCanOrder = this.assetCanOrder.add(amount);
+        if (this.assetCanOrder.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalStateException("주문 가능 잔액이 부족합니다.");
+        }
     }
 
-    // [매수 체결 시] 실제 보유 자산(Cash) 차감 (CanOrder는 주문 시 이미 차감됨)
+    //매수 체결됐을때 보유 자산만 차감
+    public void subtractOnlyCash(BigDecimal amount) {
+        addCash(amount.negate());
+    }
+
+    //매수 주문시 주문 가능 금액 차감
+    public void subtractOnlyCanOrder(BigDecimal amount) {
+        addCanOrder(amount.negate());
+    }
+
+    //주문 취소됐을때 주문 가능금액 복구
+    public void restoreCanOrder(BigDecimal amount) {
+        addCanOrder(amount);
+    }
+
+    //매도 체결됐을때 보유 자산과 주문 가능금액 가산
+    public void depositFull(BigDecimal amount) {
+        addCash(amount);
+        addCanOrder(amount);
+    }
+
+
     public void confirmBuyOrder(BigDecimal executionAmount, BigDecimal blockedAmount) {
-        // 1. 실제 자산 차감
-        this.assetCash = this.assetCash.subtract(executionAmount);
+        //실제로 산 금액만큼 보유자산에서 차감
+        subtractOnlyCash(executionAmount);
 
-        // 2. 차액(거스름돈) 계산: 1000 - 900 = 100원
+        //묶어놨던 돈에서 실제로 산 금액만큼 제외
         BigDecimal change = blockedAmount.subtract(executionAmount);
 
-        // 3. 차액만큼 주문 가능 금액 복구
+        //남은 거스름돈이 있다면 주문 가능 금액으로 돌려줌
         if (change.compareTo(BigDecimal.ZERO) > 0) {
-            this.assetCanOrder = this.assetCanOrder.add(change);
+            restoreCanOrder(change);
         }
     }
 
-    // [매도 체결 시] 정산금 입금 (Cash와 CanOrder 모두 증가)
-    public void confirmSellOrder(BigDecimal amount) {
-        this.assetCash = this.assetCash.add(amount);
-        this.assetCanOrder = this.assetCanOrder.add(amount);
-    }
-
-
-    // [주문 취소 시] 주문 가능 금액 복구
-    public void restoreCashFromCancel(BigDecimal amount) {
-        this.assetCanOrder = this.assetCanOrder.add(amount);
-    }
 }

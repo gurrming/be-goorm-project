@@ -303,12 +303,14 @@ public class TradeService {
         BigDecimal price = response.getTradePrice();
 
 
+        log.info(">>>> Redis 저장 시도 시작 - Category: {}, Price: {}", categoryId, price); // 추가
+
         try {
             String key = getTickerKey(categoryId);
             redisTemplate.opsForValue().set(key, price.toPlainString());
+            log.info(">>>> Redis 저장 완료 - Key: {}", key); // 추가
         } catch (Exception e) {
-            // Redis가 죽어도 핵심 로직(메모리 갱신, DB 저장)은 돌아가도록 로그만 남기고 무시
-            log.warn("Redis 업데이트 실패 (시세 조회에는 영향 없음): {}", e.getMessage());
+            log.error(">>>> Redis 업데이트 중 진짜 에러 발생: ", e); // 상세 에러 출력
         }
 
 
@@ -368,6 +370,8 @@ public class TradeService {
         // 차트(캔들) 및 웹소켓 데이터 전송
         updateCandle(categoryId, price, response.getTradeTime());
         sendWebSocketData(categoryId, response);
+
+        log.info(">>>> 웹소켓 전송 및 기타 로직 실행 중...");
     }
 
     //분단위로 계산하여 nowMinute이 currentMinute보다 커지게 되면 캔틀 하나 옆으로 이동(그게 아니라면 캔들은 제자리에서 위아래로만)
