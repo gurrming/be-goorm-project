@@ -3,9 +3,9 @@ spring:
     name: heartbit
 
   datasource:
-    url: "jdbc:postgresql://54.79.24.150:5432/heartbit"
+    url: "jdbc:postgresql://localhost:15432/app"
     username: "postgres"
-    password: ${SERVER_DB}
+    password: "0000"
     driver-class-name: org.postgresql.Driver
 
   data:
@@ -22,6 +22,7 @@ spring:
         format_sql: true
         jdbc:
           time_zone: Asia/Seoul
+#    open-in-view: false
 
   # flyway
   flyway:

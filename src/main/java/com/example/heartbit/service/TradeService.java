@@ -5,25 +5,19 @@ import com.example.heartbit.domain.Order;
 import com.example.heartbit.domain.Trade;
 import com.example.heartbit.dto.CategoryDto;
 import com.example.heartbit.dto.PriceChangedEvent;
-import com.example.heartbit.dto.TradeRequest;
 import com.example.heartbit.dto.TradeResponse;
+import com.example.heartbit.engine.model.TradeCreateCommand;
 import com.example.heartbit.repository.*;
 import io.swagger.v3.oas.annotations.Operation;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.web.PageableArgumentResolver;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -38,8 +32,6 @@ import com.example.heartbit.repository.CategoryRepository;
 import com.example.heartbit.repository.TradeRepository;
 import com.example.heartbit.domain.NotificationType;
 
-
-import java.util.*;
 
 import static com.example.heartbit.util.RedisKeyUtils.getTickerKey;
 
@@ -176,7 +168,7 @@ public class TradeService {
      */
     @Transactional
     @Operation(summary = "체결 엔진 결과 처리", description = "체결 데이터를 저장하고 매도자에게 대금을 정산합니다.")
-    public void processTradeResults(Long categoryId, List<TradeResponse> tradeResults) {
+    public void processTradeResults(Long categoryId, List<TradeCreateCommand> tradeResults) {
         if (tradeResults.isEmpty()) return;
 
         for (TradeResponse response : tradeResults) {
