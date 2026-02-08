@@ -16,9 +16,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1) Checkout
       - name: Checkout
         uses: actions/checkout@v4
 
+      # 2) JDK
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
@@ -28,17 +30,17 @@ jobs:
       - name: Grant execute permission
         run: chmod +x gradlew
 
-      # ✅ 여기서 "진짜 jar가 어디 생기는지"를 자동으로 찾아 app.jar로 고정
+      # 3) Build JAR + normalize to app.jar
       - name: Build jar and normalize name
         run: |
           set -e
           ./gradlew clean build -x test
 
           echo "== Find jars =="
-          find . -maxdepth 5 -type f -name "*.jar" -print
+          find . -maxdepth 6 -type f -name "*.jar" -print
 
-          # 가장 가까운 build/libs 아래 jar를 우선 선택 (plain.jar 제외)
-          JAR_PATH="$(find . -maxdepth 5 -type f -path "*/build/libs/*.jar" ! -name "*plain.jar" | head -n 1)"
+          # */build/libs/*.jar 중 plain.jar 제외하고 첫 번째를 선택
+          JAR_PATH="$(find . -maxdepth 6 -type f -path "*/build/libs/*.jar" ! -name "*plain.jar" | head -n 1)"
 
           if [ -z "$JAR_PATH" ]; then
             echo "ERROR: Could not find jar under */build/libs/*.jar"
@@ -47,7 +49,6 @@ jobs:
 
           echo "Selected jar: $JAR_PATH"
 
-          # 업로드용 산출물 디렉터리로 복사 (루트에 deploy-artifacts 생성)
           mkdir -p deploy-artifacts
           cp "$JAR_PATH" "deploy-artifacts/${{ env.JAR_NAME }}"
 
@@ -55,8 +56,8 @@ jobs:
           ls -al deploy-artifacts
           sha256sum "deploy-artifacts/${{ env.JAR_NAME }}"
 
-      # ✅ target은 파일이 아니라 디렉터리로!
-      - name: Upload app.jar to EC2 (/home/ubuntu/app)
+      # 4) Upload to EC2 (target은 디렉터리)
+      - name: Upload app.jar to EC2
         uses: appleboy/scp-action@v0.1.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -65,6 +66,7 @@ jobs:
           source: deploy-artifacts/${{ env.JAR_NAME }}
           target: ${{ env.APP_DIR }}
 
+      # 5) Deploy on EC2
       - name: Deploy on EC2 (docker compose rebuild)
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -73,21 +75,36 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             set -euo pipefail
+
             cd "${{ env.APP_DIR }}"
 
-            echo "== EC2: 확인 (jar 존재/해시) =="
+            echo "== EC2: 현재 디렉터리/파일 확인 =="
+            pwd
             ls -al
-            test -f "${{ env.JAR_NAME }}"
-            sha256sum "${{ env.JAR_NAME }}"
 
-            echo "== EC2: compose down =="
+            # 1) app.jar가 없으면 deploy-artifacts에서 가져오기
+            if [ ! -f "app.jar" ] && [ -f "deploy-artifacts/app.jar" ]; then
+              echo "app.jar not found. Copying from deploy-artifacts/app.jar ..."
+              cp "deploy-artifacts/app.jar" "app.jar"
+            fi
+
+            # 2) 그래도 없으면 실패
+            echo "== EC2: app.jar 존재/해시 확인 =="
+            test -f "app.jar"
+            sha256sum "app.jar"
+
+            echo "== EC2: docker compose down =="
             sudo docker compose down --remove-orphans || true
 
-            echo "== EC2: compose up (rebuild) =="
+            echo "== EC2: docker compose up (rebuild) =="
             sudo docker compose up -d --build --force-recreate
 
             echo "== EC2: running containers =="
             sudo docker ps
+
+            echo "== EC2: container jar hash check =="
+            # 컨테이너 내부에 실제로 반영됐는지 확인 (실패해도 배포는 계속 진행)
+            sudo docker exec -it app-api-1 sha256sum /app/app.jar || true
 
             echo "== EC2: image cleanup =="
             sudo docker image prune -f
