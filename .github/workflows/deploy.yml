@@ -1,15 +1,14 @@
-name: Deploy Backend to EC2
+name: Deploy Backend (Jar -> EC2 Docker)
 
 on:
   push:
-    branches: [ "dev" ]
+    branches: ["dev"]
 
 permissions:
   contents: read
 
 env:
   APP_DIR: /home/ubuntu/app
-  JAR_REL_DIR: be-goorm-project/build/libs
   JAR_NAME: app.jar
 
 jobs:
@@ -17,11 +16,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) Checkout
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2) Build JAR (and normalize name to app.jar)
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
@@ -31,38 +28,44 @@ jobs:
       - name: Grant execute permission
         run: chmod +x gradlew
 
-      - name: Build jar
+      # ✅ 여기서 "진짜 jar가 어디 생기는지"를 자동으로 찾아 app.jar로 고정
+      - name: Build jar and normalize name
         run: |
           set -e
           ./gradlew clean build -x test
 
-          echo "== Build outputs =="
-          ls -al "${{ env.JAR_REL_DIR }}"
+          echo "== Find jars =="
+          find . -maxdepth 5 -type f -name "*.jar" -print
 
-          # 가장 흔한 문제: jar 파일명이 버전 붙어서 나오는 경우
-          # -> app.jar로 통일
-          # (plain.jar 제외 우선)
-          JAR_PATH="$(ls -1 ${{ env.JAR_REL_DIR }}/*.jar | grep -v plain.jar | head -n 1)"
-          echo "Selected jar: ${JAR_PATH}"
+          # 가장 가까운 build/libs 아래 jar를 우선 선택 (plain.jar 제외)
+          JAR_PATH="$(find . -maxdepth 5 -type f -path "*/build/libs/*.jar" ! -name "*plain.jar" | head -n 1)"
 
-          cp "${JAR_PATH}" "${{ env.JAR_REL_DIR }}/${{ env.JAR_NAME }}"
-          ls -al "${{ env.JAR_REL_DIR }}/${{ env.JAR_NAME }}"
+          if [ -z "$JAR_PATH" ]; then
+            echo "ERROR: Could not find jar under */build/libs/*.jar"
+            exit 1
+          fi
 
-          echo "Jar sha256:"
-          sha256sum "${{ env.JAR_REL_DIR }}/${{ env.JAR_NAME }}"
+          echo "Selected jar: $JAR_PATH"
 
-      # 3) Upload jar to EC2 (target MUST be a directory)
-      - name: Upload jar to EC2
+          # 업로드용 산출물 디렉터리로 복사 (루트에 deploy-artifacts 생성)
+          mkdir -p deploy-artifacts
+          cp "$JAR_PATH" "deploy-artifacts/${{ env.JAR_NAME }}"
+
+          echo "== Artifact info =="
+          ls -al deploy-artifacts
+          sha256sum "deploy-artifacts/${{ env.JAR_NAME }}"
+
+      # ✅ target은 파일이 아니라 디렉터리로!
+      - name: Upload app.jar to EC2 (/home/ubuntu/app)
         uses: appleboy/scp-action@v0.1.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: ${{ env.JAR_REL_DIR }}/${{ env.JAR_NAME }}
+          source: deploy-artifacts/${{ env.JAR_NAME }}
           target: ${{ env.APP_DIR }}
 
-      # 4) SSH into EC2 and deploy with docker compose
-      - name: Deploy on EC2 with Docker Compose
+      - name: Deploy on EC2 (docker compose rebuild)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -70,39 +73,21 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             set -euo pipefail
+            cd "${{ env.APP_DIR }}"
 
-            APP_DIR="${{ env.APP_DIR }}"
-            cd "${APP_DIR}"
-
-            echo "== EC2: app dir =="
-            pwd
+            echo "== EC2: 확인 (jar 존재/해시) =="
             ls -al
+            test -f "${{ env.JAR_NAME }}"
+            sha256sum "${{ env.JAR_NAME }}"
 
-            echo "== EC2: jar sha256 (uploaded) =="
-            sha256sum "${APP_DIR}/${{ env.JAR_NAME }}" || true
-
-            # (선택) 혹시 scp target을 파일로 잘못 줬던 과거 잔재가 있으면 정리
-            # /home/ubuntu/app/app.jar/ 같은 디렉터리가 생겨 있으면 제거
-            if [ -d "${APP_DIR}/${{ env.JAR_NAME }}" ]; then
-              echo "Found unexpected directory ${APP_DIR}/${{ env.JAR_NAME }} ; removing it"
-              rm -rf "${APP_DIR}/${{ env.JAR_NAME }}"
-              echo "Re-check dir:"
-              ls -al
-              exit 1
-            fi
-
-            echo "== Docker compose down =="
+            echo "== EC2: compose down =="
             sudo docker compose down --remove-orphans || true
 
-            echo "== Docker compose build (no-cache) =="
-            # 서비스명 불일치로 build가 안 되는 경우를 막기 위해 전체 빌드 권장
-            sudo docker compose build --no-cache
+            echo "== EC2: compose up (rebuild) =="
+            sudo docker compose up -d --build --force-recreate
 
-            echo "== Docker compose up (force recreate + build) =="
-            sudo docker compose up -d --force-recreate --build
-
-            echo "== Running containers =="
+            echo "== EC2: running containers =="
             sudo docker ps
 
-            echo "== Cleanup unused images =="
+            echo "== EC2: image cleanup =="
             sudo docker image prune -f
