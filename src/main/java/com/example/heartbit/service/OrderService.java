@@ -1,7 +1,6 @@
 package com.example.heartbit.service;
 
 import com.example.heartbit.disruptor.OrderCreatedEvent;
-import com.example.heartbit.disruptor.OrderEventProducer;
 import com.example.heartbit.domain.*;
 import com.example.heartbit.dto.order.*;
 import com.example.heartbit.engine.core.MatchingEngine;
