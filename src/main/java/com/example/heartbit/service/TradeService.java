@@ -469,6 +469,7 @@ public class TradeService {
 
 
     //최근 체결 기록(limit으로 개수 설정 가능)
+    @Transactional(readOnly = true)
     public List<TradeResponse> getTradeList(Long categoryId, int limit) {
         Pageable pageable = PageRequest.of(0, limit);
         return tradeRepository.findByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(categoryId, pageable)
