@@ -299,6 +299,7 @@ public class TradeService {
                 log.error("알림 전송 중 오류 발생, 체결은 유지됩니다. 에러내용: {}", e.getMessage());
             }
 
+            notificationService.checkAndSendPriceAlert(categoryId, response.getTradePrice(), buyOrder.getCategory().getSymbol());
 
             eventPublisher.publishEvent(new PriceChangedEvent(categoryId, response.getTradePrice()));
             //종목별 상태 업데이트 및 웹소켓 전송
