@@ -5,8 +5,7 @@ import com.example.heartbit.dto.order.MemberOpenOrderResponse;
 import com.example.heartbit.dto.order.OrderBookResponse;
 import com.example.heartbit.dto.order.OrderRequest;
 import com.example.heartbit.dto.order.OrderResponse;
-import com.example.heartbit.engine.core.OrderBook;
-import com.example.heartbit.engine.core.OrderBookContainer;
+import com.example.heartbit.engine.core.OrderBookCategory;
 import com.example.heartbit.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,7 +25,7 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
-    private final OrderBookContainer orderBookContainer;
+    private final OrderBookCategory orderBookContainer;
 
     @Operation(summary = "신규 주문 생성")
     @PostMapping

@@ -11,24 +11,23 @@ public class OrderCommand {
 
     private final Long orderId;
     private final BigDecimal orderPrice;
-    private BigDecimal remainingCount;
     private final OrderType type;
     private final Long categoryId;
+    private BigDecimal remainingCount;
 
     public OrderCommand(
             Long orderId,
             BigDecimal orderPrice,
-            BigDecimal remainingCount,
             OrderType type,
-            Long categoryId
-    ) {
+            Long categoryId,
+            BigDecimal remainingCount
+            ) {
         this.orderId = orderId;
         this.orderPrice = orderPrice;
-        this.remainingCount = remainingCount;
         this.type = type;
         this.categoryId = categoryId;
+        this.remainingCount = remainingCount;
     }
-
 
     public void reduce(BigDecimal remaining) {
         this.remainingCount = this.remainingCount.subtract(remaining);
@@ -41,9 +40,9 @@ public class OrderCommand {
         return new OrderCommand(
                 order.getOrderId(),
                 order.getOrderPrice(),
-                order.getRemainingCount(),
                 order.getOrderType(),
-                order.getCategory().getCategoryId()
+                order.getCategory().getCategoryId(),
+                order.getRemainingCount()
         );
     }
 }

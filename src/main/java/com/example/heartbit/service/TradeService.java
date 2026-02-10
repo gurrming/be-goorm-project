@@ -168,7 +168,7 @@ public class TradeService {
      */
     @Transactional
     @Operation(summary = "체결 엔진 결과 처리", description = "체결 데이터를 저장하고 매도자에게 대금을 정산합니다.")
-    public void processTradeResults(Long categoryId, List<TradeCreateCommand> tradeResults) {
+    public void processTradeResults(Long categoryId, List<TradeResponse> tradeResults) {
         if (tradeResults.isEmpty()) return;
 
         for (TradeResponse response : tradeResults) {
@@ -204,9 +204,6 @@ public class TradeService {
                 // 봇이면 자산 정산 로직 스킵
                 log.debug("Bot(ID: {}) 매도 체결 - 자산 처리 스킵", sellOrder.getBots().getBotId());
             }
-
-
-
 
             Trade trade = Trade.builder()
                     .tradePrice(response.getTradePrice())
@@ -461,6 +458,7 @@ public class TradeService {
 
 
     //최근 체결 기록(limit으로 개수 설정 가능)
+    @Transactional(readOnly = true)
     public List<TradeResponse> getTradeList(Long categoryId, int limit) {
         Pageable pageable = PageRequest.of(0, limit);
         return tradeRepository.findByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(categoryId, pageable)

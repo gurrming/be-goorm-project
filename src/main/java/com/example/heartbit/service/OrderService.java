@@ -1,11 +1,13 @@
 package com.example.heartbit.service;
 
 import com.example.heartbit.disruptor.OrderCreatedEvent;
+import com.example.heartbit.disruptor.OrderEventProducer;
 import com.example.heartbit.domain.*;
 import com.example.heartbit.dto.order.*;
 import com.example.heartbit.engine.core.MatchingEngine;
 import com.example.heartbit.engine.core.OrderBook;
-import com.example.heartbit.engine.core.OrderBookContainer;
+import com.example.heartbit.engine.core.OrderBookCategory;
+import com.example.heartbit.dto.order.OrderBookResponse;
 import com.example.heartbit.engine.model.OrderCommand;
 import com.example.heartbit.repository.*;
 import jakarta.persistence.EntityNotFoundException;
@@ -36,7 +38,8 @@ public class OrderService {
 
     private final AssetService assetService;
     private final OrderBookService orderBookService;
-    private final OrderBookContainer orderBookContainer;
+    private final OrderBookCategory orderBookContainer;
+    private final OrderEventProducer orderEventProducer;
     private final ApplicationEventPublisher eventPublisher;
 
 
@@ -57,7 +60,7 @@ public class OrderService {
 
             matchingEngine.match(book, OrderCommand.from(order));
         }
-        log.error(" 엔진 초기화 : {}개의 주문.", activeOrders.size());
+        log.error("초기화 : {}개의 주문.", activeOrders.size());
     }
 
     public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType, int limit) {
@@ -71,7 +74,10 @@ public class OrderService {
                 .orElseThrow(() -> new EntityNotFoundException("카테고리를 찾을 수 없습니다."));
 
         Order newOrder = buildOrder(request, category);
+        // 미체결 상태의 주문 저장
         Order savedOrder = orderRepository.saveAndFlush(newOrder);
+
+//        orderEventProducer.publish(savedOrder);
 
         eventPublisher.publishEvent(new OrderCreatedEvent(savedOrder));
 

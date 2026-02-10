@@ -11,15 +11,15 @@ public class MatchingEngine {
     public List<MatchResult> match(OrderBook book, OrderCommand taker) {
         List<MatchResult> results = new ArrayList<>();
 
-        NavigableMap<BigDecimal, Deque<OrderCommand>> opposite = book.opposite(taker.getType());
+        NavigableMap<BigDecimal, Queue<OrderCommand>> opposite = book.opposite(taker.getType());
 
         while (taker.getRemainingCount().signum() > 0 && !opposite.isEmpty()) {
-            var bestEntry = opposite.firstEntry();
+            Map.Entry<BigDecimal, Queue<OrderCommand>> bestEntry = opposite.firstEntry();
             BigDecimal price = bestEntry.getKey();
 
             if (!isMatchable(taker, price)) break;
 
-            Deque<OrderCommand> makers = bestEntry.getValue();
+            Queue<OrderCommand> makers = bestEntry.getValue();
             OrderCommand maker = makers.peek();
 
             if (maker == null) {
@@ -27,14 +27,14 @@ public class MatchingEngine {
                 continue;
             }
 
-            BigDecimal traded = taker.getRemainingCount().min(maker.getRemainingCount());
-            taker.reduce(traded);
-            maker.reduce(traded);
+            BigDecimal tradeCount = taker.getRemainingCount().min(maker.getRemainingCount());
+            taker.reduce(tradeCount);
+            maker.reduce(tradeCount);
 
             results.add(new MatchResult(
                     taker.getType() == OrderType.BUY ? taker.getOrderId() : maker.getOrderId(),
                     taker.getType() == OrderType.SELL ? taker.getOrderId() : maker.getOrderId(),
-                    price, traded
+                    price, tradeCount
             ));
 
             if (maker.getRemainingCount().signum() <= 0) {

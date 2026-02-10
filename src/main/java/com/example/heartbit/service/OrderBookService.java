@@ -3,7 +3,7 @@ package com.example.heartbit.service;
 import com.example.heartbit.domain.OrderType;
 import com.example.heartbit.dto.order.OrderBookResponse;
 import com.example.heartbit.engine.core.OrderBook;
-import com.example.heartbit.engine.core.OrderBookContainer;
+import com.example.heartbit.engine.core.OrderBookCategory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -17,7 +17,7 @@ import java.util.Map;
 public class OrderBookService {
 
     private final SimpMessagingTemplate messagingTemplate;
-    private final OrderBookContainer orderBookContainer;
+    private final OrderBookCategory orderBookContainer;
 
     public void broadcastOrderBook(Long categoryId) {
         OrderBook book = orderBookContainer.getOrderBook(categoryId);
