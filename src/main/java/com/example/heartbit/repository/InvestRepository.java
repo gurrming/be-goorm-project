@@ -29,4 +29,6 @@ public interface InvestRepository extends JpaRepository<Invest, Long> {
     List<Long> findMemberIdsByCategoryId(@Param("categoryId") Long categoryId);
 
     Optional<Invest> findByMember_MemberIdAndCategory_CategoryId(Long memberId, Long categoryId);
+
+    List<Invest> findByCategory_CategoryId(Long categoryId);
 }
