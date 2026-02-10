@@ -77,8 +77,6 @@ public class OrderService {
         // 미체결 상태의 주문 저장
         Order savedOrder = orderRepository.saveAndFlush(newOrder);
 
-//        orderEventProducer.publish(savedOrder);
-
         eventPublisher.publishEvent(new OrderCreatedEvent(savedOrder));
 
         return OrderResponse.from(savedOrder);
