@@ -172,7 +172,6 @@ public class InvestService {
                             .build();
                 });
 
-        // 엔티티에 nullable = false가 걸려있어서 이 줄이 없으면 에러가 납니다.
         invest.setTrade(trade);
 
         // 2. Null 방어 로직
@@ -226,7 +225,6 @@ public class InvestService {
             try {
                 InvestResponse totalSummary = getInvestSummary(memberId, Pageable.unpaged());
 
-                // 개인용 채널로 전송 (/topic/asset/1, /topic/asset/2 ...)
                 messagingTemplate.convertAndSend("/topic/invest/" + memberId, totalSummary);
 
                 log.debug("실시간 자산 업데이트 전송 - MemberID: {}, CategoryID: {}", memberId, categoryId);
