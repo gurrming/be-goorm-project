@@ -627,23 +627,21 @@ public class TradeService {
     public TradeResponse getCurrentTrade(Long categoryId) {
         String key = getTickerKey(categoryId);
 
-        // 1. Redis에서 가격 조회
-//        Object cachedPrice = redisTemplate.opsForValue().get(key);
-//        BigDecimal price;
-//
-//        if (cachedPrice != null) {
-//            price = new BigDecimal(cachedPrice.toString());
-//        } else {
-//            // 2. Redis에 없으면 DB에서 최신 체결가 가져오기 (방어 로직)
-//            TradeResponse recent = getRecentTrade(categoryId);
-//            price = (recent != null) ? recent.getTradePrice() : BigDecimal.ZERO;
-//
-//            // 3. DB에서 가져온 값을 다시 Redis에 캐싱 (다음 조회를 위해)
-//            if (price.compareTo(BigDecimal.ZERO) > 0) {
-//                redisTemplate.opsForValue().set(key, price.toPlainString());
-//            }
-//        }
-        BigDecimal price = currentPrices.get(categoryId);
+        Object cachedPrice = redisTemplate.opsForValue().get(key);
+        BigDecimal price;
+
+        if (cachedPrice != null) {
+            price = new BigDecimal(cachedPrice.toString());
+        } else {
+            // Redis에 없으면 DB에서 최신 체결가 가져오기
+            TradeResponse recent = getRecentTrade(categoryId);
+            price = (recent != null) ? recent.getTradePrice() : BigDecimal.ZERO;
+
+            // DB에서 가져온 값을 다시 Redis에 캐싱
+            if (price.compareTo(BigDecimal.ZERO) > 0) {
+                redisTemplate.opsForValue().set(key, price.toPlainString());
+            }
+        }
 
         // 2. 메모리에 값이 없다면 DB에서 최신 체결가 가져오기 (서버 재시작 직후 등 대비)
         if (price == null) {

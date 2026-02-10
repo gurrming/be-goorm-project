@@ -18,6 +18,10 @@ spring:
     baseline-on-migrate: true
     baseline-version: 1
 
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+
 springdoc:
   show-login-endpoint: true
 
