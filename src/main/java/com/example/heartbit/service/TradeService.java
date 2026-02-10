@@ -5,25 +5,19 @@ import com.example.heartbit.domain.Order;
 import com.example.heartbit.domain.Trade;
 import com.example.heartbit.dto.CategoryDto;
 import com.example.heartbit.dto.PriceChangedEvent;
-import com.example.heartbit.dto.TradeRequest;
 import com.example.heartbit.dto.TradeResponse;
+import com.example.heartbit.engine.model.TradeCreateCommand;
 import com.example.heartbit.repository.*;
 import io.swagger.v3.oas.annotations.Operation;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.web.PageableArgumentResolver;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -38,8 +32,6 @@ import com.example.heartbit.repository.CategoryRepository;
 import com.example.heartbit.repository.TradeRepository;
 import com.example.heartbit.domain.NotificationType;
 
-
-import java.util.*;
 
 import static com.example.heartbit.util.RedisKeyUtils.getTickerKey;
 
@@ -212,9 +204,6 @@ public class TradeService {
                 // 봇이면 자산 정산 로직 스킵
                 log.debug("Bot(ID: {}) 매도 체결 - 자산 처리 스킵", sellOrder.getBots().getBotId());
             }
-
-
-
 
             Trade trade = Trade.builder()
                     .tradePrice(response.getTradePrice())
