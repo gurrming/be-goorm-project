@@ -19,8 +19,15 @@ public class NotificationController {
 
     // 내 알림 목록 조회
     @GetMapping
-    public ResponseEntity<List<NotificationResponseDto>> getMyNotifications(@RequestParam Long memberId) {
-        return ResponseEntity.ok(notificationService.getNotifications(memberId));
+    public ResponseEntity<List<NotificationResponseDto>> getMyNotifications(
+            @RequestParam Long memberId,
+            @RequestParam(required = false) Long lastNotiId,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        List<NotificationResponseDto> notifications =
+                notificationService.getNotifications(memberId, lastNotiId, size);
+
+        return ResponseEntity.ok(notifications);
     }
 
     // 알림 읽음 처리
