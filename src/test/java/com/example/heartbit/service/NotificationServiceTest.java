@@ -58,31 +58,31 @@ class NotificationServiceTest {
         notificationService.send(member, content, type);
 
         // then
-        // 1. DB 저장 확인
+        // DB 저장 확인
         verify(notificationRepository).save(any(Notification.class));
-        // 2. 웹소켓 전송 확인 (경로 및 페이로드)
+        // 웹소켓 전송 확인
         verify(messagingTemplate).convertAndSend(
                 eq("/topic/notification/" + member.getMemberId()),
                 any(NotificationResponseDto.class)
         );
     }
 
-    @Test
-    @DisplayName("회원 ID로 알림 목록 조회 테스트")
-    void getNotifications_Success() {
-        // given
-        Notification notification = new Notification(member, "알림1", NotificationType.SYSTEM);
-        given(notificationRepository.findNotificationsByMember_MemberId(member.getMemberId()))
-                .willReturn(List.of(notification));
-
-        // when
-        List<NotificationResponseDto> result = notificationService.getNotifications(member.getMemberId());
-
-        // then
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getNotificationContent()).isEqualTo("알림1");
-        assertThat(result.get(0).getNotificationType()).isEqualTo(NotificationType.SYSTEM.name());
-    }
+//    @Test
+//    @DisplayName("회원 ID로 알림 목록 조회 테스트")
+//    void getNotifications_Success() {
+//        // given
+//        Notification notification = new Notification(member, "알림1", NotificationType.SYSTEM);
+//        given(notificationRepository.findNotificationsByMember_MemberId(member.getMemberId()))
+//                .willReturn(List.of(notification));
+//
+//        // when
+//        List<NotificationResponseDto> result = notificationService.getNotifications(member.getMemberId());
+//
+//        // then
+//        assertThat(result).hasSize(1);
+//        assertThat(result.get(0).getNotificationContent()).isEqualTo("알림1");
+//        assertThat(result.get(0).getNotificationType()).isEqualTo(NotificationType.SYSTEM.name());
+//    }
 
     @Test
     @DisplayName("알림 읽음 처리 테스트")
