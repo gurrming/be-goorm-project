@@ -6,6 +6,7 @@ import com.example.heartbit.domain.Trade;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -29,9 +30,6 @@ public class TradeResponse {
     private BigDecimal intensity;
     private BigDecimal totalBuyVolume;
     private BigDecimal totalSellVolume;
-
-    private Order buyOrderEntity;
-    private Order sellOrderEntity;
     // 추가
     private String takerType;
 
@@ -53,9 +51,7 @@ public class TradeResponse {
             Long buyOrderId,
             Long sellOrderId,
             String takerType,
-            OrderType myOrderType,
-            Order buyOrderEntity,
-            Order sellOrderEntity
+            OrderType myOrderType
     ) {
         this.tradeId = tradeId;
         this.categoryId = categoryId;
@@ -71,8 +67,6 @@ public class TradeResponse {
         this.sellOrderId = sellOrderId;
         this.takerType = takerType;
         this.myOrderType = myOrderType;
-        this.buyOrderEntity = buyOrderEntity;
-        this.sellOrderEntity = sellOrderEntity;
     }
 
 
