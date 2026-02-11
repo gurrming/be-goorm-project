@@ -6,12 +6,11 @@ import com.example.heartbit.engine.model.OrderCommand;
 
 import java.math.BigDecimal;
 import java.util.*;
-import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Collectors;
 
 public class OrderBook {
-    private final NavigableMap<BigDecimal, Queue<OrderCommand>> buy = new ConcurrentSkipListMap<>(Comparator.reverseOrder());
-    private final NavigableMap<BigDecimal, Queue<OrderCommand>> sell = new ConcurrentSkipListMap<>();
+    private final NavigableMap<BigDecimal, Queue<OrderCommand>> buy = new TreeMap<>(Comparator.reverseOrder());
+    private final NavigableMap<BigDecimal, Queue<OrderCommand>> sell = new TreeMap<>();
 
     public void add(OrderCommand order) {
         NavigableMap<BigDecimal, Queue<OrderCommand>> sideType = (order.getType() == OrderType.BUY) ? buy : sell;

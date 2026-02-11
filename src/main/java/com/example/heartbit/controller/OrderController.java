@@ -25,7 +25,6 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
-    private final OrderBookCategory orderBookContainer;
 
     @Operation(summary = "신규 주문 생성")
     @PostMapping
