@@ -20,6 +20,9 @@ public class InvestResponse {
 
     private boolean hasNext;
 
+    private BigDecimal assetCash; //보유 잔액
+    private BigDecimal totalAsset; //총 보유 자산
+
     @Getter
     @Builder
     public static class AssetDetailDto {

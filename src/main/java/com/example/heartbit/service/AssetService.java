@@ -22,8 +22,6 @@ import java.util.List;
 public class AssetService {
 
     private final AssetRepository assetRepository;
-    private final InvestRepository investRepository;
-    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional // 쓰기 작업이므로 붙여야 함
     public void createInitialAsset(Member member) {
@@ -41,29 +39,10 @@ public class AssetService {
         Asset asset = assetRepository.findByMember_MemberId(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 회원의 자산 정보를 찾을 수 없습니다."));
 
-        BigDecimal totalAsset = investRepository.findAllByMember_MemberId(memberId)
-                .stream()
-                .map(invest -> invest.getInvestCount().multiply(invest.getInvestPrice()))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        return AssetResponse.from(asset, totalAsset);
+        return AssetResponse.from(asset);
     }
 
-    // 5초마다 실시간 전송을 담당하던 스케줄러
-    @Scheduled(fixedRate = 5000)
-    public void sendAssetUpdate() {
-        List<Asset> allAssets = assetRepository.findAll();
 
-        for (Asset asset : allAssets) {
-            Long memberId = asset.getMember().getMemberId();
-            try {
-                AssetResponse response = getAssetByMemberId(memberId);
-                messagingTemplate.convertAndSend("/topic/asset/" + memberId, response);
-            } catch (Exception e) {
-                log.error("자산 업데이트 전송 실패 - 회원ID: {}", memberId, e);
-            }
-        }
-    }
 
 
 
