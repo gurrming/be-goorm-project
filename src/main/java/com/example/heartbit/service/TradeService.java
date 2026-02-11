@@ -171,6 +171,10 @@ public class TradeService {
     public void processTradeResults(Long categoryId, List<TradeResponse> tradeResults) {
         if (tradeResults.isEmpty()) return;
 
+        Map<Long, BigDecimal> executionAmounts = new HashMap<>();
+        Map<Long, BigDecimal> executionCounts = new HashMap<>();
+        Map<Long, BigDecimal> buyBlockedAmounts = new HashMap<>();
+
         for (TradeResponse response : tradeResults) {
             Order buyOrder = orderRepository.findById(response.getBuyOrderId())
                     .orElseThrow(() -> new NoSuchElementException("매수 주문을 찾을 수 없습니다."));
@@ -228,18 +232,28 @@ public class TradeService {
                         response.getTradePrice(),
                         "BUY"
                 );
+                Long memberId = buyOrder.getMember().getMemberId();
+                executionAmounts.merge(memberId, tradeAmount, BigDecimal::add);
+                executionCounts.merge(memberId, response.getTradeCount(), BigDecimal::add);
+                // 매수 시 묶여있던 금액 (주문가 * 수량)
+                BigDecimal blocked = buyOrder.getOrderPrice().multiply(response.getTradeCount());
+                buyBlockedAmounts.merge(memberId, blocked, BigDecimal::add);
                 }
 
             // 3-2. 매도자 자산 업데이트 ("SELL")
             if (sellOrder.getMember() != null) {
                 investService.saveOrUpdateInvest(
                         sellOrder.getMember().getMemberId(),
-                        savedTrade,    // [수정] Trade 객체 전달
+                        savedTrade,
                         categoryId,
                         response.getTradeCount(),
                         response.getTradePrice(),
                         "SELL"
                 );
+                Long memberId = sellOrder.getMember().getMemberId();
+                // 매도자는 받은 금액만 합산 (이미 가지고 있던 코인이 나가는 것이므로)
+                executionAmounts.merge(memberId, tradeAmount, BigDecimal::add);
+                executionCounts.merge(memberId, response.getTradeCount(), BigDecimal::add);
             }
 
             try {
@@ -494,11 +508,37 @@ public class TradeService {
     public List<TradeResponse> getMyTrade(Long memberId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
 
-        return tradeRepository.findTradeByMemberId(memberId, pageable)
-                .getContent()
-                .stream()
-                // 각 체결건(t)에 대해 조회 주체(memberId)를 기준으로 BUY/SELL을 결정
-                .map(t -> TradeResponse.fromEntityWithOrderType(t, memberId))
+        List<Trade> rawTrades = tradeRepository.findTradeByMemberId(memberId, pageable).getContent();
+
+        Map<Long, List<Trade>> groupedByOrder = rawTrades.stream()
+                .collect(Collectors.groupingBy(t -> {
+                    // 현재 조회 중인 사용자가 매수자인지 매도자인지에 따라 해당 주문 ID를 키로 사용
+                    if (t.getBuyOrder().getMember() != null && t.getBuyOrder().getMember().getMemberId().equals(memberId)) {
+                        return t.getBuyOrder().getOrderId();
+                    } else {
+                        return t.getSellOrder().getOrderId();
+                    }
+                }, LinkedHashMap::new, Collectors.toList()));
+
+        return groupedByOrder.values().stream()
+                .map(trades -> {
+                    Trade firstTrade = trades.get(0);
+                    BigDecimal totalCount = trades.stream()
+                            .map(Trade::getTradeCount)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+
+                    TradeResponse baseResponse = TradeResponse.fromEntityWithOrderType(firstTrade, memberId);
+
+                    return TradeResponse.builder()
+                            .tradeId(baseResponse.getTradeId())
+                            .categoryId(baseResponse.getCategoryId())
+                            .tradePrice(baseResponse.getTradePrice()) // 가격은 첫 체결가 그대로
+                            .tradeCount(totalCount)
+                            .tradeTime(baseResponse.getTradeTime())
+                            .takerType(baseResponse.getTakerType())
+                            .build();
+                })
                 .collect(Collectors.toList());
     }
 
