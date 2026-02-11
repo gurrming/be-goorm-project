@@ -38,25 +38,24 @@ public class OrderService {
 
     private final AssetService assetService;
     private final OrderBookService orderBookService;
-    private final OrderBookCategory orderBookContainer;
-    private final OrderEventProducer orderEventProducer;
+    private final OrderBookCategory orderBookCategory;
     private final ApplicationEventPublisher eventPublisher;
 
 
     @EventListener(ApplicationReadyEvent.class)
-    @Transactional
+    @Transactional(readOnly = true)
     public void initOrderBook() {
         List<Long> categoryIds = categoryRepository.findAll().stream()
                 .map(Category::getCategoryId).toList();
-        orderBookContainer.init(categoryIds);
+        orderBookCategory.init(categoryIds);
 
         List<Order> activeOrders = orderRepository.findByOrderStatusInOrderByOrderTimeAsc(
                 List.of(OrderStatus.OPEN, OrderStatus.PARTIAL));
 
-        MatchingEngine matchingEngine = orderBookContainer.getMatchingEngine();
+        MatchingEngine matchingEngine = orderBookCategory.getMatchingEngine();
 
         for (Order order : activeOrders) {
-            OrderBook book = orderBookContainer.getOrderBook(order.getCategory().getCategoryId());
+            OrderBook book = orderBookCategory.getOrderBook(order.getCategory().getCategoryId());
 
             matchingEngine.match(book, OrderCommand.from(order));
         }
@@ -64,7 +63,7 @@ public class OrderService {
     }
 
     public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType, int limit) {
-        OrderBook book = orderBookContainer.getOrderBook(categoryId);
+        OrderBook book = orderBookCategory.getOrderBook(categoryId);
         return book.orderBookSnapshot(orderType, limit);
     }
 
@@ -166,7 +165,7 @@ public class OrderService {
     }
 
     private void broadcastOrderBook(Long categoryId) {
-        OrderBook book = orderBookContainer.getOrderBook(categoryId);
+        OrderBook book = orderBookCategory.getOrderBook(categoryId);
         orderBookService.broadcastOrderBook(
                 categoryId,
                 book.orderBookSnapshot(OrderType.BUY, 30),

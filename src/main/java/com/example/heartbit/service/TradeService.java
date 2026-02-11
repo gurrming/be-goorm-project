@@ -490,6 +490,7 @@ public class TradeService {
     }
 
     //개인 체결 내역
+    @Transactional(readOnly = true)
     public List<TradeResponse> getMyTrade(Long memberId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
 
