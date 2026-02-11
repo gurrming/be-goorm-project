@@ -9,6 +9,8 @@ import com.example.heartbit.engine.model.TradeCreateCommand;
 import com.lmax.disruptor.EventHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -32,7 +34,7 @@ public class MatchingHandler implements EventHandler<OrderEvent> {
                     ))
                     .toList();
 
-            event.setTradeCommands(tradeCommands);
+            event.setTradeCommands(new ArrayList<>(tradeCommands));
         }
     }
 }

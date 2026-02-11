@@ -11,10 +11,10 @@ public class MatchingEngine {
     public List<MatchResult> match(OrderBook book, OrderCommand taker) {
         List<MatchResult> results = new ArrayList<>();
 
-        NavigableMap<BigDecimal, Queue<OrderCommand>> opposite = book.opposite(taker.getType());
+        NavigableMap<BigDecimal, Queue<OrderCommand>> oppositeBook = book.opposite(taker.getType());
 
-        while (taker.getRemainingCount().signum() > 0 && !opposite.isEmpty()) {
-            Map.Entry<BigDecimal, Queue<OrderCommand>> bestEntry = opposite.firstEntry();
+        while (taker.getRemainingCount().signum() > 0 && !oppositeBook.isEmpty()) {
+            Map.Entry<BigDecimal, Queue<OrderCommand>> bestEntry = oppositeBook.firstEntry();
             BigDecimal price = bestEntry.getKey();
 
             if (!isMatchable(taker, price)) break;
@@ -23,7 +23,7 @@ public class MatchingEngine {
             OrderCommand maker = makers.peek();
 
             if (maker == null) {
-                opposite.remove(price);
+                oppositeBook.remove(price);
                 continue;
             }
 
@@ -41,7 +41,7 @@ public class MatchingEngine {
                 makers.poll();
             }
             if (makers.isEmpty()) {
-                opposite.remove(price);
+                oppositeBook.remove(price);
             }
         }
 

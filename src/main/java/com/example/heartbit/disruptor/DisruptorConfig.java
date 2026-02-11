@@ -3,15 +3,12 @@ package com.example.heartbit.disruptor;
 import com.example.heartbit.disruptor.handler.MatchingHandler;
 import com.example.heartbit.disruptor.handler.OrderDbHandler;
 import com.example.heartbit.disruptor.handler.OrderEventHandler;
-import com.lmax.disruptor.BlockingWaitStrategy;
 import com.lmax.disruptor.RingBuffer;
 import com.lmax.disruptor.dsl.Disruptor;
-import com.lmax.disruptor.dsl.ProducerType;
 import com.lmax.disruptor.util.DaemonThreadFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 
 @Configuration
