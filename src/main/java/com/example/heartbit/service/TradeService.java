@@ -523,6 +523,7 @@ public class TradeService {
         return groupedByOrder.values().stream()
                 .map(trades -> {
                     Trade firstTrade = trades.get(0);
+                    String symbol = firstTrade.getBuyOrder().getCategory().getSymbol();
                     BigDecimal totalCount = trades.stream()
                             .map(Trade::getTradeCount)
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -533,6 +534,7 @@ public class TradeService {
                     return TradeResponse.builder()
                             .tradeId(baseResponse.getTradeId())
                             .categoryId(baseResponse.getCategoryId())
+                            .symbol(symbol)
                             .tradePrice(baseResponse.getTradePrice()) // 가격은 첫 체결가 그대로
                             .tradeCount(totalCount)
                             .tradeTime(baseResponse.getTradeTime())
