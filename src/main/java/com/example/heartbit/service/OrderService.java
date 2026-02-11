@@ -59,7 +59,6 @@ public class OrderService {
 
             matchingEngine.match(book, OrderCommand.from(order));
         }
-        log.error("초기화 : {}개의 주문.", activeOrders.size());
     }
 
     public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType, int limit) {
@@ -119,20 +118,7 @@ public class OrderService {
     }
 
     private Order buildOrder(OrderRequest request, Category category) {
-        if (request.getBotId() != null) {
-            Bots bot = botsRepository.findById(request.getBotId())
-                    .orElseThrow(() -> new IllegalArgumentException("봇을 찾을 수 없습니다."));
-
-            return Order.builder()
-                    .category(category)
-                    .bots(bot)
-                    .orderPrice(request.getOrderPrice())
-                    .orderCount(request.getOrderCount())
-                    .remainingCount(request.getOrderCount())
-                    .orderType(request.getOrderType())
-                    .orderStatus(OrderStatus.OPEN)
-                    .build();
-        } else {
+        if (request.getMemberId() != null) {
             Member member = memberRepository.findById(request.getMemberId())
                     .orElseThrow(() -> new IllegalArgumentException("멤버 정보를 찾을 수 없습니다."));
 
@@ -140,10 +126,26 @@ public class OrderService {
                 BigDecimal totalAmount = request.getOrderPrice().multiply(request.getOrderCount());
                 assetService.blockCash(request.getMemberId(), totalAmount);
             }
-
             return Order.builder()
                     .category(category)
                     .member(member)
+                    .orderPrice(request.getOrderPrice())
+                    .orderCount(request.getOrderCount())
+                    .remainingCount(request.getOrderCount())
+                    .orderType(request.getOrderType())
+                    .orderStatus(OrderStatus.OPEN)
+                    .build();
+        } else {
+            Bots bot;
+            if(request.getBotId() != null) {
+                bot = botsRepository.findById(request.getBotId())
+                        .orElseThrow(() -> new IllegalArgumentException("봇 정보를 찾을 수 없습니다."));
+            } else {
+                bot = botsRepository.save(Bots.builder().build());
+            }
+            return Order.builder()
+                    .category(category)
+                    .bots(bot)
                     .orderPrice(request.getOrderPrice())
                     .orderCount(request.getOrderCount())
                     .remainingCount(request.getOrderCount())
