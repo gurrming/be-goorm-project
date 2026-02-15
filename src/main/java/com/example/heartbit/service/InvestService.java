@@ -250,15 +250,6 @@ public class InvestService {
 
 
 
-    /**
-     * 수익률 계산 (소수점 4자리 반올림)
-     */
-    private BigDecimal calculateProfitRate(BigDecimal buy, BigDecimal eval) {
-        if (buy == null || buy.compareTo(BigDecimal.ZERO) <= 0) return BigDecimal.ZERO;
-        return eval.subtract(buy)
-                .divide(buy, 4, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(100));
-    }
 
 
 }
