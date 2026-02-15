@@ -87,16 +87,4 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
 
     @Query(value = "SELECT trade_price FROM trade WHERE category_id = :categoryId ORDER BY trade_time DESC LIMIT 1", nativeQuery = true)
     Optional<BigDecimal> findLatestPriceByCategoryId(@Param("categoryId") Long categoryId);
-
-    @Query(value = """
-        SELECT t.trade_price 
-        FROM trade t 
-        JOIN orders o ON t.trade_buy_id = o.order_id 
-        WHERE o.category_id = :categoryId 
-          AND t.trade_time >= CURRENT_DATE - INTERVAL '1 day' 
-          AND t.trade_time < CURRENT_DATE 
-        ORDER BY t.trade_time DESC 
-        LIMIT 1
-        """, nativeQuery = true)
-    Optional<BigDecimal> findYesterdayClosePrice(@Param("categoryId") Long categoryId);
 }
