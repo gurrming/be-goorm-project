@@ -300,7 +300,21 @@ public class TradeService {
                 log.error("알림 전송 중 오류 발생, 체결은 유지됩니다. 에러내용: {}", e.getMessage());
             }
 
-            notificationService.checkAndSendPriceAlert(categoryId, response.getTradePrice(), buyOrder.getCategory().getSymbol());
+//            notificationService.checkAndSendPriceAlert(categoryId, response.getTradePrice(), buyOrder.getCategory().getSymbol());
+
+            try {
+                // 9시 가격이 없으면 현재가를 기준으로 하여 변동률 0%로 처리(Null 방어)
+                BigDecimal referencePrice = openPrices.getOrDefault(categoryId, response.getTradePrice());
+
+                notificationService.checkAndSendPriceAlert(
+                        categoryId,
+                        response.getTradePrice(),
+                        buyOrder.getCategory().getCategoryName(),
+                        referencePrice
+                );
+            } catch (Exception e) {
+                log.error("[알림 호출 실패] 종목ID: {}, 에러: {}", categoryId, e.getMessage());
+            }
 
             eventPublisher.publishEvent(new PriceChangedEvent(categoryId, response.getTradePrice()));
             //종목별 상태 업데이트 및 웹소켓 전송
@@ -644,6 +658,8 @@ public class TradeService {
             dailyHighs.put(id, closePrice);
             dailyLows.put(id, closePrice);
         }
+
+        notificationService.clearNotificationHistory();
 
         // 누적 데이터 전량 삭제
         accVolumes.clear();
