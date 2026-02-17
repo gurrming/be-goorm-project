@@ -1,8 +1,6 @@
 package com.example.heartbit.service;
 
-import com.example.heartbit.domain.Category;
-import com.example.heartbit.domain.Order;
-import com.example.heartbit.domain.Trade;
+import com.example.heartbit.domain.*;
 import com.example.heartbit.dto.CategoryDto;
 import com.example.heartbit.dto.PriceChangedEvent;
 import com.example.heartbit.dto.TradeResponse;
@@ -22,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -30,7 +29,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import com.example.heartbit.repository.CategoryRepository;
 import com.example.heartbit.repository.TradeRepository;
-import com.example.heartbit.domain.NotificationType;
 
 
 import static com.example.heartbit.util.RedisKeyUtils.getTickerKey;
@@ -319,10 +317,10 @@ public class TradeService {
 
         try {
             String key = getTickerKey(categoryId);
-            redisTemplate.opsForValue().set(key, price.toPlainString());
+            redisTemplate.opsForValue().set(key, price.toPlainString(), Duration.ofSeconds(60));
             log.info(">>>> Redis 저장 완료 - Key: {}", key); // 추가
         } catch (Exception e) {
-            log.error(">>>> Redis 업데이트 중 진짜 에러 발생: ", e); // 상세 에러 출력
+            log.info(">>>> Redis 업데이트 중 진짜 에러 발생: ", e); // 상세 에러 출력
         }
 
 
@@ -375,9 +373,6 @@ public class TradeService {
         } else {
             totalSellQtys.merge(categoryId, count, BigDecimal::add);
         }
-
-        // 이벤트 발행
-        eventPublisher.publishEvent(new PriceChangedEvent(categoryId, price));
 
         // 차트(캔들) 및 웹소켓 데이터 전송
         updateCandle(categoryId, price, response.getTradeTime());
@@ -483,6 +478,7 @@ public class TradeService {
     }
 
     //해당 종목의 현재가 1개 가져오기
+    @Transactional(readOnly = true)
     public TradeResponse getRecentTrade(Long categoryId) {
         return tradeRepository.findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(categoryId)
                 .map(TradeResponse::fromEntity)
@@ -507,43 +503,44 @@ public class TradeService {
     @Transactional(readOnly = true)
     public List<TradeResponse> getMyTrade(Long memberId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-
         List<Trade> rawTrades = tradeRepository.findTradeByMemberId(memberId, pageable).getContent();
 
         Map<Long, List<Trade>> groupedByOrder = rawTrades.stream()
                 .collect(Collectors.groupingBy(t -> {
-                    // 현재 조회 중인 사용자가 매수자인지 매도자인지에 따라 해당 주문 ID를 키로 사용
-                    if (t.getBuyOrder().getMember() != null && t.getBuyOrder().getMember().getMemberId().equals(memberId)) {
-                        return t.getBuyOrder().getOrderId();
-                    } else {
-                        return t.getSellOrder().getOrderId();
-                    }
+                    boolean iAmBuyer = t.getBuyOrder().getMember() != null
+                            && t.getBuyOrder().getMember().getMemberId().equals(memberId);
+                    return iAmBuyer ? t.getBuyOrder().getOrderId() : t.getSellOrder().getOrderId();
                 }, LinkedHashMap::new, Collectors.toList()));
 
         return groupedByOrder.values().stream()
                 .map(trades -> {
                     Trade firstTrade = trades.get(0);
-                    String symbol = firstTrade.getBuyOrder().getCategory().getSymbol();
+
+                    boolean iAmBuyer = firstTrade.getBuyOrder().getMember() != null
+                            && firstTrade.getBuyOrder().getMember().getMemberId().equals(memberId);
+
+                    OrderType mySide = iAmBuyer ? OrderType.BUY : OrderType.SELL;
+                    Order myOrder = iAmBuyer ? firstTrade.getBuyOrder() : firstTrade.getSellOrder();
+
+                    String symbol = myOrder.getCategory().getSymbol();
+
                     BigDecimal totalCount = trades.stream()
                             .map(Trade::getTradeCount)
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-
-                    TradeResponse baseResponse = TradeResponse.fromEntityWithOrderType(firstTrade, memberId);
-
+                    // 가격은 “첫 체결가 그대로”를 유지하려면 firstTrade 사용
                     return TradeResponse.builder()
-                            .tradeId(baseResponse.getTradeId())
-                            .categoryId(baseResponse.getCategoryId())
+                            .tradeId(firstTrade.getTradeId())
+                            .categoryId(myOrder.getCategory().getCategoryId())
                             .symbol(symbol)
-                            .tradePrice(baseResponse.getTradePrice()) // 가격은 첫 체결가 그대로
+                            .tradePrice(firstTrade.getTradePrice())
                             .tradeCount(totalCount)
-                            .tradeTime(baseResponse.getTradeTime())
-                            .takerType(baseResponse.getTakerType())
+                            .tradeTime(firstTrade.getTradeTime())
+                            .myOrderType(mySide)
                             .build();
                 })
-                .collect(Collectors.toList());
+                .toList();
     }
-
     @Transactional(readOnly = true)
     public TradeResponse getVolumePower(Long categoryId) {
         // 1. 기준 시간 설정 (현재로부터 24시간 전)
@@ -673,7 +670,7 @@ public class TradeService {
 
             // DB에서 가져온 값을 다시 Redis에 캐싱
             if (price.compareTo(BigDecimal.ZERO) > 0) {
-                redisTemplate.opsForValue().set(key, price.toPlainString());
+                redisTemplate.opsForValue().set(key, price.toPlainString(), Duration.ofSeconds(60));
             }
         }
 
