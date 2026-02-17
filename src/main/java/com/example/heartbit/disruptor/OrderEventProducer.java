@@ -1,6 +1,7 @@
 package com.example.heartbit.disruptor;
 
 import com.example.heartbit.domain.Order;
+import com.example.heartbit.domain.OrderType;
 import com.example.heartbit.dto.order.OrderBookResponse;
 import com.example.heartbit.engine.model.OrderCommand;
 import com.lmax.disruptor.RingBuffer;
@@ -25,15 +26,16 @@ public class OrderEventProducer {
         }, order);
     }
 
-    public CompletableFuture<List<OrderBookResponse>> publishSnapshot(Long categoryId, int limit) {
+    public CompletableFuture<List<OrderBookResponse>> publishSnapshot(Long categoryId, OrderType type, int limit) {
         CompletableFuture<List<OrderBookResponse>> future = new CompletableFuture<>();
 
         ringBuffer.publishEvent((event, sequence) -> {
             event.clear();
             event.setEventType(OrderEvent.EventType.SNAPSHOT);
             event.setCategoryId(categoryId);
+            event.setType(type);
             event.setLimit(limit);
-            event.setSnapshotFuture(future);
+            event.setSnapshotFuture(future); // 비동기 응답 통로 연결
         });
 
         return future;

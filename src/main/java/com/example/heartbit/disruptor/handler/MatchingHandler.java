@@ -2,6 +2,7 @@ package com.example.heartbit.disruptor.handler;
 
 import com.example.heartbit.disruptor.OrderEvent;
 import com.example.heartbit.domain.OrderType;
+import com.example.heartbit.dto.order.OrderBookResponse;
 import com.example.heartbit.engine.core.MatchingEngine;
 import com.example.heartbit.engine.core.OrderBook;
 import com.example.heartbit.engine.core.OrderBookCategory;
@@ -27,25 +28,39 @@ public class MatchingHandler implements EventHandler<OrderEvent> {
         OrderBook book = container.getOrderBook(event.getCategoryId());
 
         if (event.getEventType() == OrderEvent.EventType.ORDER) {
-            if (event.getCommand() != null) {
-                List<MatchResult> results = matchingEngine.match(book, event.getCommand());
-                event.setResults(results);
-
-                if (results != null && !results.isEmpty()) {
-                    List<TradeCreateCommand> tradeCommands = results.stream()
-                            .map(result -> TradeCreateCommand.from(
-                                    result,
-                                    event.getCategoryId(),
-                                    event.getCommand().getType().name()
-                            ))
-                            .toList();
-                    event.setTradeCommands(new ArrayList<>(tradeCommands));
-                }
-            }
+            handleOrderEvent(event, book);
         }
+
+        else if (event.getEventType() == OrderEvent.EventType.SNAPSHOT) {
+            handleSnapshotEvent(event, book);
+        }
+    }
+
+    private void handleOrderEvent(OrderEvent event, OrderBook book) {
+        if (event.getCommand() == null) return;
+
+        List<MatchResult> results = matchingEngine.match(book, event.getCommand());
+        event.setResults(results);
+
+        if (results != null && !results.isEmpty()) {
+            List<TradeCreateCommand> tradeCommands = results.stream()
+                    .map(result -> TradeCreateCommand.from(
+                            result,
+                            event.getCategoryId(),
+                            event.getCommand().getType().name()
+                    ))
+                    .toList();
+            event.setTradeCommands(new ArrayList<>(tradeCommands));
+        }
+    }
+
+    private void handleSnapshotEvent(OrderEvent event, OrderBook book) {
+        if (event.getSnapshotFuture() == null) return;
+
         int limit = event.getLimit() > 0 ? event.getLimit() : 30;
 
-        event.setBuySnapshot(book.orderBookSnapshot(OrderType.BUY, limit));
-        event.setSellSnapshot(book.orderBookSnapshot(OrderType.SELL, limit));
+        List<OrderBookResponse> snapshot = book.orderBookSnapshot(event.getType(), limit);
+
+        event.getSnapshotFuture().complete(snapshot);
     }
 }

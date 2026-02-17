@@ -25,6 +25,7 @@ public class OrderEvent {
     private Order order;
     private OrderCommand command;
     private Long categoryId;
+    private OrderType type;
 
     private List<MatchResult> results;
     private List<TradeCreateCommand> tradeCommands;
@@ -38,6 +39,7 @@ public class OrderEvent {
         this.order = null;
         this.command = null;
         this.categoryId = null;
+        this.type = null;
         this.results = null;
         this.tradeCommands = null;
         this.snapshotFuture = null;

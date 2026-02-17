@@ -98,7 +98,7 @@ public class OrderConcurrencyServiceTest {
         System.out.println("최종 주문 수: " + totalOrders);
         System.out.println("최종 체결 수: " + totalTrades);
 
-        assertThat(totalOrders).isEqualTo(100);
-        assertThat(totalTrades).isGreaterThanOrEqualTo(50);
+        assertThat(totalOrders).isEqualTo(1000000);
+        assertThat(totalTrades).isGreaterThanOrEqualTo(500000);
     }
 }

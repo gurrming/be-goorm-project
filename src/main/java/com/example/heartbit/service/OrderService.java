@@ -21,6 +21,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -44,6 +46,7 @@ public class OrderService {
 
 
     @EventListener(ApplicationReadyEvent.class)
+    @Transactional(readOnly = true)
     public void initOrderBook() {
         List<Long> categoryIds = categoryRepository.findAll().stream()
                 .map(Category::getCategoryId).toList();
@@ -52,14 +55,18 @@ public class OrderService {
         List<Order> activeOrders = orderRepository.findByOrderStatusInOrderByOrderTimeAsc(
                 List.of(OrderStatus.OPEN, OrderStatus.PARTIAL));
 
+        MatchingEngine matchingEngine = orderBookCategory.getMatchingEngine();
+
         for (Order order : activeOrders) {
-            orderEventProducer.publishOrder(order);
+            OrderBook book = orderBookCategory.getOrderBook(order.getCategory().getCategoryId());
+
+            matchingEngine.match(book, OrderCommand.from(order));
         }
     }
 
     public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType, int limit) {
         try {
-            return orderEventProducer.publishSnapshot(categoryId, limit)
+            return orderEventProducer.publishSnapshot(categoryId, orderType, limit)
                     .get(500, TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             return Collections.emptyList();
@@ -72,7 +79,21 @@ public class OrderService {
 
         Order savedOrder = orderRepository.saveAndFlush(buildOrder(request, category));
 
-        orderEventProducer.publishOrder(savedOrder);
+        // orderEventProducer.publishOrder(savedOrder);
+
+        /// API 스레드의 DB 커밋 완료 시점과 엔진 스레드의 조회 시점 차이로 인한 '가시성 에러' 방지.
+        /// 롤백 시 엔진에 이벤트가 발행되는 것을 막아 데이터 무결성 보장.
+        /// 트랜잭션 성공 시에만 엔진을 가동.
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    orderEventProducer.publishOrder(savedOrder);
+                }
+            });
+        } else {
+            orderEventProducer.publishOrder(savedOrder);
+        }
 
         return OrderResponse.from(savedOrder);
     }
