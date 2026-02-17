@@ -23,13 +23,18 @@ public class OrderBook {
 
         if (sideType.isEmpty()) return new ArrayList<>();
 
-        return sideType.entrySet().stream()
-                .map(entry -> OrderBookResponse.builder()
-                        .orderPrice(entry.getKey())
-                        .totalRemainingCount(entry.getValue().stream()
-                                .map(OrderCommand::getRemainingCount)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add))
-                        .build())
+        NavigableMap<BigDecimal, Queue<OrderCommand>> snapshot = new TreeMap<>(sideType);
+
+        return snapshot.entrySet().stream()
+                .map(entry -> {
+                    List<OrderCommand> commands = new ArrayList<>(entry.getValue());
+                    return OrderBookResponse.builder()
+                            .orderPrice(entry.getKey())
+                            .totalRemainingCount(commands.stream()
+                                    .map(OrderCommand::getRemainingCount)
+                                    .reduce(BigDecimal.ZERO, BigDecimal::add))
+                            .build();
+                })
                 .filter(res -> res.getTotalRemainingCount().signum() > 0)
                 .limit(limit)
                 .collect(Collectors.toList());

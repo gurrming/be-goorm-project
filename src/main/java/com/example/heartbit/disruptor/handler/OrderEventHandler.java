@@ -16,16 +16,23 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class OrderEventHandler implements EventHandler<OrderEvent> {
-    private final OrderBookCategory container;
     private final OrderBookService orderBookService;
 
     @Override
     public void onEvent(OrderEvent event, long seq, boolean endOfBatch) {
-        OrderBook book = container.getOrderBook(event.getCategoryId());
+        if (event.getEventType() == OrderEvent.EventType.SNAPSHOT) {
+            if (event.getSnapshotFuture() != null) {
+                event.getSnapshotFuture().complete(event.getBuySnapshot());
+            }
+            return;
+        }
 
-        List<OrderBookResponse> buyOrder = book.orderBookSnapshot(OrderType.BUY, 30);
-        List<OrderBookResponse> sellOrder = book.orderBookSnapshot(OrderType.SELL, 30);
-
-        orderBookService.broadcastOrderBook(event.getCategoryId(), buyOrder, sellOrder);
+        if (event.getBuySnapshot() != null && event.getSellSnapshot() != null) {
+            orderBookService.broadcastOrderBook(
+                    event.getCategoryId(),
+                    event.getBuySnapshot(),
+                    event.getSellSnapshot()
+            );
+        }
     }
 }

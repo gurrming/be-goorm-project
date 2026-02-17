@@ -1,26 +1,41 @@
 package com.example.heartbit.disruptor;
 
 import com.example.heartbit.domain.Order;
+import com.example.heartbit.dto.order.OrderBookResponse;
 import com.example.heartbit.engine.model.OrderCommand;
 import com.lmax.disruptor.RingBuffer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Component
 @RequiredArgsConstructor
 public class OrderEventProducer {
     private final RingBuffer<OrderEvent> ringBuffer;
 
-    public void publish(Order order) {
-        long seq = ringBuffer.next();
-        try {
-            OrderEvent event = ringBuffer.get(seq);
+    public void publishOrder(Order order) {
+        ringBuffer.publishEvent((event, sequence, arg) -> {
             event.clear();
-            event.setCategoryId(order.getCategory().getCategoryId());
-            event.setCommand(OrderCommand.from(order));
+            event.setEventType(OrderEvent.EventType.ORDER);
+            event.setOrder(arg);
+            event.setCategoryId(arg.getCategory().getCategoryId());
+            event.setCommand(OrderCommand.from(arg));
+        }, order);
+    }
 
-        } finally {
-            ringBuffer.publish(seq);
-        }
+    public CompletableFuture<List<OrderBookResponse>> publishSnapshot(Long categoryId, int limit) {
+        CompletableFuture<List<OrderBookResponse>> future = new CompletableFuture<>();
+
+        ringBuffer.publishEvent((event, sequence) -> {
+            event.clear();
+            event.setEventType(OrderEvent.EventType.SNAPSHOT);
+            event.setCategoryId(categoryId);
+            event.setLimit(limit);
+            event.setSnapshotFuture(future);
+        });
+
+        return future;
     }
 }

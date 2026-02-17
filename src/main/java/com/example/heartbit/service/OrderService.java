@@ -1,6 +1,5 @@
 package com.example.heartbit.service;
 
-import com.example.heartbit.disruptor.OrderCreatedEvent;
 import com.example.heartbit.disruptor.OrderEventProducer;
 import com.example.heartbit.domain.*;
 import com.example.heartbit.dto.order.*;
@@ -24,7 +23,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -39,11 +40,10 @@ public class OrderService {
     private final AssetService assetService;
     private final OrderBookService orderBookService;
     private final OrderBookCategory orderBookCategory;
-    private final ApplicationEventPublisher eventPublisher;
+    private final OrderEventProducer orderEventProducer;
 
 
     @EventListener(ApplicationReadyEvent.class)
-    @Transactional(readOnly = true)
     public void initOrderBook() {
         List<Long> categoryIds = categoryRepository.findAll().stream()
                 .map(Category::getCategoryId).toList();
@@ -52,30 +52,27 @@ public class OrderService {
         List<Order> activeOrders = orderRepository.findByOrderStatusInOrderByOrderTimeAsc(
                 List.of(OrderStatus.OPEN, OrderStatus.PARTIAL));
 
-        MatchingEngine matchingEngine = orderBookCategory.getMatchingEngine();
-
         for (Order order : activeOrders) {
-            OrderBook book = orderBookCategory.getOrderBook(order.getCategory().getCategoryId());
-
-            matchingEngine.match(book, OrderCommand.from(order));
+            orderEventProducer.publishOrder(order);
         }
     }
 
     public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType, int limit) {
-        OrderBook book = orderBookCategory.getOrderBook(categoryId);
-        return book.orderBookSnapshot(orderType, limit);
+        try {
+            return orderEventProducer.publishSnapshot(categoryId, limit)
+                    .get(500, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
     }
 
     @Transactional
     public OrderResponse createOrder(@Valid OrderRequest request) {
-        Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new EntityNotFoundException("카테고리를 찾을 수 없습니다."));
+        Category category = categoryRepository.findById(request.getCategoryId()).orElseThrow();
 
-        Order newOrder = buildOrder(request, category);
-        // 미체결 상태의 주문 저장
-        Order savedOrder = orderRepository.saveAndFlush(newOrder);
+        Order savedOrder = orderRepository.saveAndFlush(buildOrder(request, category));
 
-        eventPublisher.publishEvent(new OrderCreatedEvent(savedOrder));
+        orderEventProducer.publishOrder(savedOrder);
 
         return OrderResponse.from(savedOrder);
     }
