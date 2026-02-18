@@ -20,12 +20,7 @@ public class OrderEventHandler implements EventHandler<OrderEvent> {
 
     @Override
     public void onEvent(OrderEvent event, long seq, boolean endOfBatch) {
-        if (event.getEventType() == OrderEvent.EventType.SNAPSHOT) {
-            if (event.getSnapshotFuture() != null) {
-                event.getSnapshotFuture().complete(event.getBuySnapshot());
-            }
-            return;
-        }
+        if (event.getEventType() == OrderEvent.EventType.SNAPSHOT) return;
 
         if (event.getBuySnapshot() != null && event.getSellSnapshot() != null) {
             orderBookService.broadcastOrderBook(

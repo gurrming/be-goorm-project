@@ -64,15 +64,6 @@ public class OrderService {
         }
     }
 
-    public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType, int limit) {
-        try {
-            return orderEventProducer.publishSnapshot(categoryId, orderType, limit)
-                    .get(500, TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            return Collections.emptyList();
-        }
-    }
-
     @Transactional
     public OrderResponse createOrder(@Valid OrderRequest request) {
         Category category = categoryRepository.findById(request.getCategoryId()).orElseThrow();
@@ -96,6 +87,15 @@ public class OrderService {
         }
 
         return OrderResponse.from(savedOrder);
+    }
+
+    public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType, int limit) {
+        try {
+            return orderEventProducer.publishSnapshot(categoryId, orderType, limit)
+                    .get(500, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
     }
 
     @Transactional(readOnly = true)

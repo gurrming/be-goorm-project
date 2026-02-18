@@ -18,14 +18,14 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class MatchingHandler implements EventHandler<OrderEvent> {
-    private final OrderBookCategory container;
+    private final OrderBookCategory orderBookCategory;
     private final MatchingEngine matchingEngine = new MatchingEngine();
 
     @Override
     public void onEvent(OrderEvent event, long seq, boolean endOfBatch) {
         if (event.getCategoryId() == null) return;
 
-        OrderBook book = container.getOrderBook(event.getCategoryId());
+        OrderBook book = orderBookCategory.getOrderBook(event.getCategoryId());
 
         if (event.getEventType() == OrderEvent.EventType.ORDER) {
             handleOrderEvent(event, book);
@@ -41,6 +41,9 @@ public class MatchingHandler implements EventHandler<OrderEvent> {
 
         List<MatchResult> results = matchingEngine.match(book, event.getCommand());
         event.setResults(results);
+
+        event.setBuySnapshot(book.orderBookSnapshot(OrderType.BUY, 30));
+        event.setSellSnapshot(book.orderBookSnapshot(OrderType.SELL, 30));
 
         if (results != null && !results.isEmpty()) {
             List<TradeCreateCommand> tradeCommands = results.stream()
@@ -60,7 +63,6 @@ public class MatchingHandler implements EventHandler<OrderEvent> {
         int limit = event.getLimit() > 0 ? event.getLimit() : 30;
 
         List<OrderBookResponse> snapshot = book.orderBookSnapshot(event.getType(), limit);
-
         event.getSnapshotFuture().complete(snapshot);
     }
 }
