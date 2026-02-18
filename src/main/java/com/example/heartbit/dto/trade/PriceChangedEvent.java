@@ -1,4 +1,4 @@
-package com.example.heartbit.dto;
+package com.example.heartbit.dto.trade;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

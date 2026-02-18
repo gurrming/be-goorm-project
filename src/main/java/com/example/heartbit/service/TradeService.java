@@ -2,9 +2,9 @@ package com.example.heartbit.service;
 
 import com.example.heartbit.domain.*;
 import com.example.heartbit.dto.CategoryDto;
-import com.example.heartbit.dto.PriceChangedEvent;
-import com.example.heartbit.dto.TradeResponse;
-import com.example.heartbit.engine.model.TradeCreateCommand;
+import com.example.heartbit.dto.trade.PriceChangedEvent;
+import com.example.heartbit.dto.trade.TradeResponse;
+import com.example.heartbit.dto.trade.TradesCommitedEvent;
 import com.example.heartbit.repository.*;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -169,9 +169,12 @@ public class TradeService {
     public void processTradeResults(Long categoryId, List<TradeResponse> tradeResults) {
         if (tradeResults.isEmpty()) return;
 
+        List<Trade> tradesToSave = new ArrayList<>();
         Map<Long, BigDecimal> executionAmounts = new HashMap<>();
         Map<Long, BigDecimal> executionCounts = new HashMap<>();
         Map<Long, BigDecimal> buyBlockedAmounts = new HashMap<>();
+        Map<Long, Member> memberMap = new HashMap<>();
+        Map<Long, Order> lastOrderMap = new HashMap<>();
 
         for (TradeResponse response : tradeResults) {
             Order buyOrder = orderRepository.findById(response.getBuyOrderId())
@@ -186,284 +189,72 @@ public class TradeService {
 
 
             BigDecimal tradeAmount = response.getTradePrice().multiply(response.getTradeCount());
-
             String takerType = buyOrder.getOrderTime().isAfter(sellOrder.getOrderTime()) ? "BUY" : "SELL";
-
-            if (buyOrder.getMember() != null) {
-                // 회원이면 자산 정산 수행
-                BigDecimal blockedAmount = buyOrder.getOrderPrice().multiply(response.getTradeCount());
-                assetService.settleBuyTrade(buyOrder.getMember().getMemberId(), tradeAmount, blockedAmount);
-            } else if (buyOrder.getBots() != null) {
-                // 봇이면 자산 차감 로직 스킵
-                log.debug("Bot(ID: {}) 매수 체결 - 자산 처리 스킵", buyOrder.getBots().getBotId());
-            }
-
-            // 3. 매도자(Seller) 자산 정산 (입금)
-            if (sellOrder.getMember() != null) {
-                // 회원이면 자산 정산 수행
-                assetService.settleSellTrade(sellOrder.getMember().getMemberId(), tradeAmount);
-            } else if (sellOrder.getBots() != null) {
-                // 봇이면 자산 정산 로직 스킵
-                log.debug("Bot(ID: {}) 매도 체결 - 자산 처리 스킵", sellOrder.getBots().getBotId());
-            }
 
             Trade trade = Trade.builder()
                     .tradePrice(response.getTradePrice())
                     .tradeCount(response.getTradeCount())
                     .tradeClosePrice(response.getTradeClosePrice())
                     .buyOrder(buyOrder)
-                    .sellOrder(sellOrder) // 위에서 찾은 sellOrder 활용
+                    .sellOrder(sellOrder)
                     .tradeTime(response.getTradeTime())
                     .takerType(takerType)
                     .build();
-
-            // trade 값 저장
-            Trade savedTrade = tradeRepository.save(trade);
+            tradesToSave.add(trade);
 
             // 3-2. 매수자 자산 업데이트 ("BUY")
             if (buyOrder.getMember() != null) {
-                investService.saveOrUpdateInvest(
-                        buyOrder.getMember().getMemberId(),
-                        savedTrade,    // [수정] Trade 객체 전달
-                        categoryId,
-                        response.getTradeCount(),
-                        response.getTradePrice(),
-                        "BUY"
-                );
                 Long memberId = buyOrder.getMember().getMemberId();
+                // 보유 종목(Invest) 업데이트는 정합성을 위해 그대로 호출 (내부 save 로직 존재)
+                investService.saveOrUpdateInvest(memberId, trade, categoryId, response.getTradeCount(), response.getTradePrice(), "BUY");
+
                 executionAmounts.merge(memberId, tradeAmount, BigDecimal::add);
                 executionCounts.merge(memberId, response.getTradeCount(), BigDecimal::add);
-                // 매수 시 묶여있던 금액 (주문가 * 수량)
-                BigDecimal blocked = buyOrder.getOrderPrice().multiply(response.getTradeCount());
-                buyBlockedAmounts.merge(memberId, blocked, BigDecimal::add);
-                }
+                buyBlockedAmounts.merge(memberId, buyOrder.getOrderPrice().multiply(response.getTradeCount()), BigDecimal::add);
+                memberMap.put(memberId, buyOrder.getMember());
+                lastOrderMap.put(memberId, buyOrder);
+
+            }
 
             // 3-2. 매도자 자산 업데이트 ("SELL")
             if (sellOrder.getMember() != null) {
-                investService.saveOrUpdateInvest(
-                        sellOrder.getMember().getMemberId(),
-                        savedTrade,
-                        categoryId,
-                        response.getTradeCount(),
-                        response.getTradePrice(),
-                        "SELL"
-                );
                 Long memberId = sellOrder.getMember().getMemberId();
-                // 매도자는 받은 금액만 합산 (이미 가지고 있던 코인이 나가는 것이므로)
+                investService.saveOrUpdateInvest(memberId, trade, categoryId, response.getTradeCount(), response.getTradePrice(), "SELL");
+
                 executionAmounts.merge(memberId, tradeAmount, BigDecimal::add);
                 executionCounts.merge(memberId, response.getTradeCount(), BigDecimal::add);
+                memberMap.put(memberId, sellOrder.getMember());
+                lastOrderMap.put(memberId, sellOrder);
             }
+        }
 
-            try {
-                // 소수점 처리
-                int scale = 3;
-                RoundingMode mode = RoundingMode.HALF_UP;
-
-                // 매수자 알림 전송
-                if (buyOrder.getMember() != null) {
-                    String tradeCountStr = response.getTradeCount().setScale(scale, mode).toPlainString();
-                    String remainingCountStr = buyOrder.getRemainingCount().setScale(scale, mode).toPlainString();
-
-                    String buyMsg;
-                    if (buyOrder.getRemainingCount().compareTo(BigDecimal.ZERO) > 0) {
-                        buyMsg = String.format("[%s] 매수 부분 체결! (%s주 체결되었고, %s주 남았어요.)",
-                                buyOrder.getCategory().getCategoryName(),
-                                tradeCountStr,
-                                remainingCountStr);
-                    } else {
-                        buyMsg = String.format("[%s] 매수 체결 완료! (총 %s주)",
-                                buyOrder.getCategory().getCategoryName(),
-                                tradeCountStr);
-                    }
-                    notificationService.send(buyOrder.getMember(), buyMsg, NotificationType.TRADE);
-                }
-
-                // 매도자 알림 전송
-                if (sellOrder.getMember() != null) {
-                    String tradeCountStr = response.getTradeCount().setScale(scale, mode).toPlainString();
-                    String remainingCountStr = sellOrder.getRemainingCount().setScale(scale, mode).toPlainString();
-
-                    String sellMsg;
-                    if (sellOrder.getRemainingCount().compareTo(BigDecimal.ZERO) > 0) {
-                        sellMsg = String.format("[%s] 매도 부분 체결! (%s주 체결되었고, %s주 남았어요.)",
-                                sellOrder.getCategory().getCategoryName(),
-                                tradeCountStr,
-                                remainingCountStr);
-                    } else {
-                        sellMsg = String.format("[%s] 매도 체결 완료! (총 %s주)",
-                                sellOrder.getCategory().getCategoryName(),
-                                tradeCountStr);
-                    }
-                    notificationService.send(sellOrder.getMember(), sellMsg, NotificationType.TRADE);
-                }
-            } catch (Exception e) {
-                log.error("알림 전송 중 오류 발생, 체결은 유지됩니다. 에러내용: {}", e.getMessage());
-            }
-
-            notificationService.checkAndSendPriceAlert(categoryId, response.getTradePrice(), buyOrder.getCategory().getSymbol());
-
-            eventPublisher.publishEvent(new PriceChangedEvent(categoryId, response.getTradePrice()));
+            tradeRepository.saveAll(tradesToSave);
             //종목별 상태 업데이트 및 웹소켓 전송
-            updateMarketAndBroadcast(categoryId, response);
-        }
-    }
 
-    //값이 바뀌면 값들 갱신하고 웹소켓으로 쏴주는 매서드 호출
-    private void updateMarketAndBroadcast(Long categoryId, TradeResponse response) {
-        BigDecimal price = response.getTradePrice();
+            for (Long memberId : memberMap.keySet()) {
+                Member member = memberMap.get(memberId);
+                Order lastOrder = lastOrderMap.get(memberId);
+                BigDecimal totalAmount = executionAmounts.get(memberId);
+                BigDecimal totalCount = executionCounts.get(memberId);
 
-
-        log.info(">>>> Redis 저장 시도 시작 - Category: {}, Price: {}", categoryId, price); // 추가
-
-        try {
-            String key = getTickerKey(categoryId);
-            redisTemplate.opsForValue().set(key, price.toPlainString(), Duration.ofSeconds(60));
-            log.info(">>>> Redis 저장 완료 - Key: {}", key); // 추가
-        } catch (Exception e) {
-            log.info(">>>> Redis 업데이트 중 진짜 에러 발생: ", e); // 상세 에러 출력
-        }
-
-
-
-        BigDecimal count = response.getTradeCount();
-
-        BigDecimal openPrice;
-
-        // 1. 이미 맵에 시가가 저장되어 있는지 확인
-        if (openPrices.containsKey(categoryId)) {
-            openPrice = openPrices.get(categoryId);
-
-            // (방어 코드) 혹시라도 저장된 값이 0원이라면 현재가로 보정
-            if (openPrice.compareTo(BigDecimal.ZERO) == 0) {
-                openPrice = price;
-                openPrices.put(categoryId, price);
+                try {
+                    // 매수/매도 방향에 따라 정산 호출 (Order 객체의 Type 정보 활용)
+                    if (lastOrder.getOrderType() == OrderType.BUY) {
+                        assetService.settleBuyTrade(memberId, totalAmount, buyBlockedAmounts.get(memberId));
+                    } else {
+                        assetService.settleSellTrade(memberId, totalAmount);
+                    }
+                } catch (Exception e) {
+                    log.error("자산 정산 처리 중 오류 발생 - 회원ID: {}", memberId, e);
+                }
             }
-        } else {
-            // 2. 맵에 값이 없다면(서버 재시작 후 첫 거래 등), 현재가를 시가로 '확정' 후 저장
-            openPrice = price;
-            openPrices.put(categoryId, price);
-        }
-        // -------------------------------------------------------------
 
-        // 변동금 = 현재가 - 시가
-        BigDecimal changeAmount = price.subtract(openPrice);
 
-        // 변동률 계산 (시가가 0일 경우 0% 처리하여 나누기 에러 방지)
-        BigDecimal changeRate = (openPrice.compareTo(BigDecimal.ZERO) == 0) ? BigDecimal.ZERO :
-                changeAmount.divide(openPrice, 10, RoundingMode.HALF_UP)
-                        .multiply(new BigDecimal("100"));
+        eventPublisher.publishEvent(new TradesCommitedEvent(categoryId, tradeResults));
 
-        // 실시간 맵 데이터 갱신
-        takerType.put(categoryId, response.getTakerType());
-        currentPrices.put(categoryId, price);
-        changeAmounts.put(categoryId, changeAmount);
-        changeRates.put(categoryId, changeRate);
-
-        // 고가/저가 갱신
-        dailyHighs.merge(categoryId, price, (old, val) -> val.compareTo(old) > 0 ? val : old);
-        dailyLows.merge(categoryId, price, (old, val) -> val.compareTo(old) < 0 ? val : old);
-
-        // 거래량/거래대금 누적
-        accVolumes.merge(categoryId, count, BigDecimal::add);
-        accAmounts.merge(categoryId, price.multiply(count), BigDecimal::add);
-
-        // 체결강도 계산용 매수/매도 거래량 누적
-        if ("BUY".equals(response.getTakerType())) {
-            totalBuyQtys.merge(categoryId, count, BigDecimal::add);
-        } else {
-            totalSellQtys.merge(categoryId, count, BigDecimal::add);
-        }
-
-        // 차트(캔들) 및 웹소켓 데이터 전송
-        updateCandle(categoryId, price, response.getTradeTime());
-        sendWebSocketData(categoryId, response);
-
-        log.info(">>>> 웹소켓 전송 및 기타 로직 실행 중...");
-    }
-
-    //분단위로 계산하여 nowMinute이 currentMinute보다 커지게 되면 캔틀 하나 옆으로 이동(그게 아니라면 캔들은 제자리에서 위아래로만)
-    private void updateCandle(Long categoryId, BigDecimal price, LocalDateTime tradeTime) {
-        LocalDateTime nowMinute = tradeTime.withSecond(0).withNano(0);
-        LocalDateTime currentMinute = currentMinutes.getOrDefault(categoryId, LocalDateTime.MIN);
-
-        if (nowMinute.isAfter(currentMinute)) {
-            candleOpens.put(categoryId, price);
-            candleHighs.put(categoryId, price);
-            candleLows.put(categoryId, price);
-            currentMinutes.put(categoryId, nowMinute);
-        } else {
-            candleHighs.merge(categoryId, price, (old, val) -> val.compareTo(old) > 0 ? val : old);
-            candleLows.merge(categoryId, price, (old, val) -> val.compareTo(old) < 0 ? val : old);
-        }
     }
 
 
-    //실시간으로 웹소켓으로 데이터 전송
-    private void sendWebSocketData(Long categoryId, TradeResponse response) {
-        String suffix = "/" + categoryId;
-        BigDecimal price = response.getTradePrice();
-
-        BigDecimal buyQty = totalBuyQtys.getOrDefault(categoryId, BigDecimal.ZERO);
-        BigDecimal sellQty = totalSellQtys.getOrDefault(categoryId, BigDecimal.ONE);
-
-        if (sellQty.compareTo(BigDecimal.ZERO) == 0) {
-            sellQty = BigDecimal.ONE;
-        }// 분모 0 방지
-
-        // 체결강도 계산식: (매수체결량 / 매도체결량) * 100
-        BigDecimal intensity = buyQty.divide(sellQty, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
-        BigDecimal openPrice = openPrices.getOrDefault(categoryId, price);
-
-        // 변동률 및 시세 데이터
-        BigDecimal changeAmount = price.subtract(openPrice);
-        BigDecimal changeRate = openPrice.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO :
-                changeAmount.divide(openPrice, 10, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
-
-        BigDecimal dailyHigh = dailyHighs.getOrDefault(categoryId, price);
-        BigDecimal dailyLow = dailyLows.getOrDefault(categoryId, price);
-
-        BigDecimal changeAmountHigh = dailyHigh.subtract(openPrice);
-        BigDecimal changeAmountLow = dailyLow.subtract(openPrice);
-
-        BigDecimal changeRateHigh = openPrice.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO :
-                changeAmountHigh.divide(openPrice, 10, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
-        BigDecimal changeRateLow = openPrice.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO :
-                changeAmountLow.divide(openPrice, 10, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
-
-        Map<String, Object> ticker = new HashMap<>();
-        ticker.put("price", price.toPlainString());
-        ticker.put("changeAmount", changeAmount.toPlainString());
-        ticker.put("changeRate", changeRate.setScale(2, RoundingMode.HALF_UP).toPlainString());
-        ticker.put("high", dailyHighs.getOrDefault(categoryId, price).toPlainString());
-        ticker.put("low", dailyLows.getOrDefault(categoryId, price).toPlainString());
-        ticker.put("volume", accVolumes.getOrDefault(categoryId, BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP).toPlainString());
-        ticker.put("amount", accAmounts.getOrDefault(categoryId, BigDecimal.ZERO).setScale(0, RoundingMode.HALF_UP).toPlainString());
-
-        messagingTemplate.convertAndSend("/topic/ticker" + suffix, (Object)ticker);
-
-        Map<String, Object> trades = new HashMap<>();
-        trades.put("price", price.toPlainString());
-        trades.put("openPrice", openPrice.toPlainString());
-        trades.put("count", response.getTradeCount().toPlainString());
-        trades.put("type", response.getTakerType());
-        trades.put("time", response.getTradeTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
-        trades.put("intensity", intensity.setScale(2, RoundingMode.HALF_UP).toPlainString());
-        trades.put("changeRateHigh", changeRateHigh.setScale(2, RoundingMode.HALF_UP).toPlainString());
-        trades.put("changeRateLow", changeRateLow.setScale(2, RoundingMode.HALF_UP).toPlainString());
-        messagingTemplate.convertAndSend("/topic/trades" + suffix, (Object)trades);
-
-        Map<String, Object> candle = new HashMap<>();
-        candle.put("t", currentMinutes.get(categoryId).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
-        candle.put("o", candleOpens.get(categoryId).toPlainString());
-        candle.put("h", candleHighs.get(categoryId).toPlainString());
-        candle.put("l", candleLows.get(categoryId).toPlainString());
-        candle.put("c", price.toPlainString());
-        messagingTemplate.convertAndSend("/topic/charts" + suffix, (Object)candle);
-
-        Map<String, Object> lastPrice = new HashMap<>();
-        lastPrice.put("price", price.toPlainString());
-        messagingTemplate.convertAndSend("/topic/orderbook/lastPrice/" + categoryId, (Object)lastPrice);
-    }
 
 
 
