@@ -237,15 +237,10 @@ public class TradeService {
                 BigDecimal totalAmount = executionAmounts.get(memberId);
                 BigDecimal totalCount = executionCounts.get(memberId);
 
-                try {
-                    // 매수/매도 방향에 따라 정산 호출 (Order 객체의 Type 정보 활용)
-                    if (lastOrder.getOrderType() == OrderType.BUY) {
-                        assetService.settleBuyTrade(memberId, totalAmount, buyBlockedAmounts.get(memberId));
-                    } else {
-                        assetService.settleSellTrade(memberId, totalAmount);
-                    }
-                } catch (Exception e) {
-                    log.error("자산 정산 처리 중 오류 발생 - 회원ID: {}", memberId, e);
+                if (lastOrder.getOrderType() == OrderType.BUY) {
+                    assetService.settleBuyTrade(memberId, totalAmount, buyBlockedAmounts.get(memberId));
+                } else {
+                    assetService.settleSellTrade(memberId, totalAmount);
                 }
             }
 
