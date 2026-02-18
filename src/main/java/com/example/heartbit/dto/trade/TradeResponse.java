@@ -1,12 +1,10 @@
-package com.example.heartbit.dto;
+package com.example.heartbit.dto.trade;
 
-import com.example.heartbit.domain.Order;
 import com.example.heartbit.domain.OrderType;
 import com.example.heartbit.domain.Trade;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

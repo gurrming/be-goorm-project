@@ -1,15 +1,13 @@
 package com.example.heartbit.service;
 
 import com.example.heartbit.domain.*;
-import com.example.heartbit.dto.*;
+import com.example.heartbit.dto.trade.PriceChangedEvent;
 import com.example.heartbit.repository.*;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,18 +19,8 @@ import java.util.stream.Collectors;
 
 import com.example.heartbit.domain.Invest;
 import com.example.heartbit.dto.InvestResponse;
-import com.example.heartbit.dto.TradeResponse;
 import com.example.heartbit.repository.InvestRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -250,15 +238,6 @@ public class InvestService {
 
 
 
-    /**
-     * 수익률 계산 (소수점 4자리 반올림)
-     */
-    private BigDecimal calculateProfitRate(BigDecimal buy, BigDecimal eval) {
-        if (buy == null || buy.compareTo(BigDecimal.ZERO) <= 0) return BigDecimal.ZERO;
-        return eval.subtract(buy)
-                .divide(buy, 4, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(100));
-    }
 
 
 }

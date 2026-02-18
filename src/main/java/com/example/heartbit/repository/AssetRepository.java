@@ -16,8 +16,8 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
     Optional<Asset> findByMember_MemberId(Long memberId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-            @Query("select a from Asset a where a.member.memberId = :memberId")
-            Optional<Asset> findByMemberIdWithLock(Long memberId);
+    @Query("select a from Asset a where a.member.memberId = :memberId")
+    Optional<Asset> findByMemberIdWithLock(Long memberId);
 
 
 }

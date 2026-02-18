@@ -1,7 +1,7 @@
 package com.example.heartbit.disruptor.handler;
 
 import com.example.heartbit.disruptor.OrderEvent;
-import com.example.heartbit.dto.TradeResponse;
+import com.example.heartbit.dto.trade.TradeResponse;
 import com.example.heartbit.engine.model.TradeCreateCommand;
 import com.example.heartbit.repository.OrderRepository;
 import com.example.heartbit.service.TradeService;

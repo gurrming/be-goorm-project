@@ -34,7 +34,6 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
 
 
     // 3. 종목별 최근 체결 1건 (getRecentTrade 용)
-   // @Query("SELECT t FROM Trade t WHERE t.buyOrder.category.categoryId = :categoryId ORDER BY t.tradeTime DESC")
     Optional<Trade> findTop1ByBuyOrder_Category_CategoryIdOrderByTradeTimeDesc(Long categoryId);
     // 4. 내 거래 내역 조회 (마이페이지용)
     @Query("""
