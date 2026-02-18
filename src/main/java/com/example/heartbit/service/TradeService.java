@@ -200,8 +200,7 @@ public class TradeService {
                     .tradeTime(response.getTradeTime())
                     .takerType(takerType)
                     .build();
-            tradesToSave.add(trade);
-
+            Trade savedTrade = tradeRepository.save(trade);
             // 3-2. 매수자 자산 업데이트 ("BUY")
             if (buyOrder.getMember() != null) {
                 Long memberId = buyOrder.getMember().getMemberId();
@@ -228,7 +227,6 @@ public class TradeService {
             }
         }
 
-            tradeRepository.saveAll(tradesToSave);
             //종목별 상태 업데이트 및 웹소켓 전송
 
             for (Long memberId : memberMap.keySet()) {
