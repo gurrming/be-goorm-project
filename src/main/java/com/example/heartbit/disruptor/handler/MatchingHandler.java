@@ -26,11 +26,9 @@ public class MatchingHandler implements EventHandler<OrderEvent> {
         if (event.getCategoryId() == null) return;
 
         OrderBook book = orderBookCategory.getOrderBook(event.getCategoryId());
-
         if (event.getEventType() == OrderEvent.EventType.ORDER) {
             handleOrderEvent(event, book);
         }
-
         else if (event.getEventType() == OrderEvent.EventType.SNAPSHOT) {
             handleSnapshotEvent(event, book);
         }

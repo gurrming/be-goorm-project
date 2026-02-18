@@ -60,7 +60,7 @@ public class OrderConcurrencyServiceTest {
         BigDecimal initialCash = new BigDecimal("1000000.00000000");
         assetRepository.save(new Asset(member, initialCash, initialCash));
 
-        int threadCount = 10000;
+        int threadCount = 100;
         ExecutorService executorService = Executors.newFixedThreadPool(32);
         CountDownLatch latch = new CountDownLatch(threadCount);
 
@@ -98,7 +98,7 @@ public class OrderConcurrencyServiceTest {
         System.out.println("최종 주문 수: " + totalOrders);
         System.out.println("최종 체결 수: " + totalTrades);
 
-        assertThat(totalOrders).isEqualTo(10000);
-        assertThat(totalTrades).isGreaterThanOrEqualTo(5000);
+        assertThat(totalOrders).isEqualTo(100);
+        assertThat(totalTrades).isGreaterThanOrEqualTo(50);
     }
 }

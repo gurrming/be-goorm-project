@@ -33,8 +33,7 @@ public class DisruptorConfig {
         );
 
         disruptor.handleEventsWith(matchingHandler)
-                .then(eventHandler)
-                .then(dbHandler);
+                .then(eventHandler, dbHandler);
 
 
         disruptor.start();
