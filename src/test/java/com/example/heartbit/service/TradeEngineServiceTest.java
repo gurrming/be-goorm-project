@@ -4,7 +4,7 @@ import com.example.heartbit.domain.Category;
 import com.example.heartbit.domain.Order;
 import com.example.heartbit.domain.OrderStatus;
 import com.example.heartbit.domain.OrderType;
-import com.example.heartbit.dto.TradeResponse;
+import com.example.heartbit.dto.trade.TradeResponse;
 import com.example.heartbit.dto.order.OrderBookResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;

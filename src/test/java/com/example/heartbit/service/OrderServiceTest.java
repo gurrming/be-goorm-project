@@ -1,7 +1,7 @@
 package com.example.heartbit.service;
 
 import com.example.heartbit.domain.*;
-import com.example.heartbit.dto.TradeResponse;
+import com.example.heartbit.dto.trade.TradeResponse;
 import com.example.heartbit.dto.order.MemberOpenOrderResponse;
 import com.example.heartbit.dto.order.OrderRequest;
 import com.example.heartbit.dto.order.OrderResponse;

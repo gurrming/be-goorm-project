@@ -1,6 +1,5 @@
-package com.example.heartbit.dto;
+package com.example.heartbit.dto.trade;
 
-import com.example.heartbit.domain.Order;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
