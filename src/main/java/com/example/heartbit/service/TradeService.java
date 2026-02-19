@@ -86,7 +86,7 @@ public class TradeService {
             Long id = category.getCategoryId();
 
             // 기준가 및 현재가 로드(오전 9시 이전의 체결이 있다면)
-            tradeRepository.findTop1ByCategoryIdAndTradeTimeBefore(id, today9AM)
+            tradeRepository.findTop1ByCategoryIdAndTradeTimeBeforeOrderByTradeTimeDesc(id, today9AM)
                     .ifPresent(t -> {
                         openPrices.put(id, t.getTradePrice());
                     });
@@ -524,6 +524,7 @@ public class TradeService {
                     BigDecimal price = currentPrices.getOrDefault(id, BigDecimal.ZERO);
                     BigDecimal changeAmount = changeAmounts.getOrDefault(id, BigDecimal.ZERO);
                     BigDecimal changeRate = changeRates.getOrDefault(id, BigDecimal.ZERO);
+
                     BigDecimal dailyHigh = dailyHighs.getOrDefault(id, BigDecimal.ZERO);
                     BigDecimal dailyLow = dailyLows.getOrDefault(id, BigDecimal.ZERO);
                     BigDecimal accVolume = accVolumes.getOrDefault(id, BigDecimal.ZERO);
