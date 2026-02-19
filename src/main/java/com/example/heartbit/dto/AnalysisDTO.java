@@ -6,9 +6,12 @@ import lombok.*;
 @Builder
 @AllArgsConstructor
 public class AnalysisDTO {
-    private String symbol;          // Category 테이블에서 가져올 심볼 (예: BTC)
+    private String symbol;
     private Double totalResult;
-    private String totalLabel;
+    private String totalLabel;     // BUY, SELL, HOLD
+    private String summary;        // [추가] 한 줄 요약
+    private Double rsi;            // [추가] RSI
     private Double newsResult;
     private Double communityResult;
+    private String fullReport;  // 상세 리포트
 }

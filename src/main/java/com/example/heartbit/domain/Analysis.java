@@ -2,15 +2,14 @@ package com.example.heartbit.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDateTime;
 
-//테이블 컬럼들이 구성되어야하는 클래스
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "sentiment_result")// db 테이블 명(긍/부정)
-@AllArgsConstructor // Builder 사용을 위해 추가
-@Builder            // 데이터 생성을 편리하게 하기 위해 추가
-@ToString
+@Table(name = "sentiment_result")
+@AllArgsConstructor
+@Builder
 public class Analysis {
 
     @Id
@@ -27,10 +26,23 @@ public class Analysis {
     @Column(name = "total_label", length = 10)
     private String totalLabel;
 
-    @Column(name = "news_score")
-    private Double newsScore;
+    // [중요] score 필드 삭제하고 result를 Double로 선언
+    // DB의 'real' 타입은 자바의 Double로 매핑 가능합니다.
+    @Column(name = "news_result")
+    private Double newsResult;
 
-    @Column(name = "community_score")
-    private Double communityScore;
+    @Column(name = "community_result")
+    private Double communityResult;
 
+    @Column(name = "summary")
+    private String summary;
+
+    @Column(name = "full_report", columnDefinition = "TEXT")
+    private String fullReport;
+
+    @Column(name = "rsi")
+    private Double rsi;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 }
