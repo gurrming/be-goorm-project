@@ -16,14 +16,21 @@ public class RedissonConfig {
     @Value("${spring.data.redis.port:6379}")
     private int port;
 
+    // 1. 비밀번호를 가져올 필드 추가
+    @Value("${spring.data.redis.password:}")
+    private String password;
+
     @Bean
     public RedissonClient redissonClient(){
         Config config = new Config();
-        config.useSingleServer().setAddress("redis://" + host + ":" + port);
+
+        // 2. setPassword(password) 추가
+        config.useSingleServer()
+                .setAddress("redis://" + host + ":" + port)
+                .setPassword(password.isEmpty() ? null : password);
 
         config.setCodec(new org.redisson.codec.JsonJacksonCodec());
 
         return Redisson.create(config);
     }
-
 }
