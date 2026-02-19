@@ -2,11 +2,14 @@ package com.example.heartbit.engine.model;
 
 import com.example.heartbit.domain.Order;
 import com.example.heartbit.domain.OrderType;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 
 import java.math.BigDecimal;
 
 @Getter
+@Builder
 public class OrderCommand {
 
     private final Long orderId;

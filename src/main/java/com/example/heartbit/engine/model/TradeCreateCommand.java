@@ -1,7 +1,5 @@
 package com.example.heartbit.engine.model;
 
-import com.example.heartbit.domain.Category;
-import com.example.heartbit.dto.TradeResponse;
 import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;

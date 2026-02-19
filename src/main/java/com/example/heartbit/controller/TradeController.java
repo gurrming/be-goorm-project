@@ -1,6 +1,6 @@
 package com.example.heartbit.controller;
 
-import com.example.heartbit.dto.TradeResponse;
+import com.example.heartbit.dto.trade.TradeResponse;
 import com.example.heartbit.service.TradeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

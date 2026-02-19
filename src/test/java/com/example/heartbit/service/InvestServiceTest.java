@@ -3,8 +3,8 @@ package com.example.heartbit.service;
 import com.example.heartbit.domain.Category;
 import com.example.heartbit.domain.Invest;
 import com.example.heartbit.dto.InvestResponse;
-import com.example.heartbit.dto.PriceChangedEvent;
-import com.example.heartbit.dto.TradeResponse;
+import com.example.heartbit.dto.trade.PriceChangedEvent;
+import com.example.heartbit.dto.trade.TradeResponse;
 import com.example.heartbit.repository.InvestRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.*;

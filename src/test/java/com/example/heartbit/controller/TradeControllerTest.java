@@ -1,6 +1,6 @@
 package com.example.heartbit.controller;
 
-import com.example.heartbit.dto.TradeResponse;
+import com.example.heartbit.dto.trade.TradeResponse;
 import com.example.heartbit.service.TradeService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
