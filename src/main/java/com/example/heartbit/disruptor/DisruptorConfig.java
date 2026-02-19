@@ -22,7 +22,7 @@ public class DisruptorConfig {
     ) {
         OrderEventFactory factory = new OrderEventFactory();
 
-        int bufferSize = 1024;
+        int bufferSize = 4096;
 
         ThreadFactory threadFactory = DaemonThreadFactory.INSTANCE;
 
@@ -33,8 +33,8 @@ public class DisruptorConfig {
         );
 
         disruptor.handleEventsWith(matchingHandler)
-                .then(dbHandler)
-                .then(eventHandler);
+                .then(eventHandler, dbHandler);
+
 
         disruptor.start();
         return disruptor;

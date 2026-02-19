@@ -1,6 +1,5 @@
 package com.example.heartbit.service;
 
-import com.example.heartbit.disruptor.OrderCreatedEvent;
 import com.example.heartbit.disruptor.OrderEventProducer;
 import com.example.heartbit.domain.*;
 import com.example.heartbit.dto.order.*;
@@ -22,9 +21,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -39,7 +42,7 @@ public class OrderService {
     private final AssetService assetService;
     private final OrderBookService orderBookService;
     private final OrderBookCategory orderBookCategory;
-    private final ApplicationEventPublisher eventPublisher;
+    private final OrderEventProducer orderEventProducer;
 
 
     @EventListener(ApplicationReadyEvent.class)
@@ -61,23 +64,38 @@ public class OrderService {
         }
     }
 
-    public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType, int limit) {
-        OrderBook book = orderBookCategory.getOrderBook(categoryId);
-        return book.orderBookSnapshot(orderType, limit);
-    }
-
     @Transactional
     public OrderResponse createOrder(@Valid OrderRequest request) {
-        Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new EntityNotFoundException("카테고리를 찾을 수 없습니다."));
+        Category category = categoryRepository.findById(request.getCategoryId()).orElseThrow();
 
-        Order newOrder = buildOrder(request, category);
-        // 미체결 상태의 주문 저장
-        Order savedOrder = orderRepository.saveAndFlush(newOrder);
+        Order savedOrder = orderRepository.saveAndFlush(buildOrder(request, category));
 
-        eventPublisher.publishEvent(new OrderCreatedEvent(savedOrder));
+        // orderEventProducer.publishOrder(savedOrder);
+
+        /// API 스레드의 DB 커밋 완료 시점과 엔진 스레드의 조회 시점 차이로 인한 '가시성 에러' 방지.
+        /// 롤백 시 엔진에 이벤트가 발행되는 것을 막아 데이터 무결성 보장.
+        /// 트랜잭션 성공 시에만 엔진을 가동.
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    orderEventProducer.publishOrder(savedOrder);
+                }
+            });
+        } else {
+            orderEventProducer.publishOrder(savedOrder);
+        }
 
         return OrderResponse.from(savedOrder);
+    }
+
+    public List<OrderBookResponse> getOrderBook(Long categoryId, OrderType orderType, int limit) {
+        try {
+            return orderEventProducer.publishSnapshot(categoryId, orderType, limit)
+                    .get(500, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
     }
 
     @Transactional(readOnly = true)
