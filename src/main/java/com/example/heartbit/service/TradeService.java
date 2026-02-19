@@ -522,14 +522,9 @@ public class TradeService {
 
                     BigDecimal openPrice = openPrices.getOrDefault(id, BigDecimal.ZERO);
                     BigDecimal price = currentPrices.getOrDefault(id, BigDecimal.ZERO);
-                    BigDecimal changeAmount = price.subtract(openPrice);
-                    BigDecimal changeRate = BigDecimal.ZERO;
+                    BigDecimal changeAmount = changeAmounts.getOrDefault(id, BigDecimal.ZERO);
+                    BigDecimal changeRate = changeRates.getOrDefault(id, BigDecimal.ZERO);
 
-                    // 시가가 0보다 클 때만 변동률 계산 (0으로 나누는 에러 방지)
-                    if (openPrice.compareTo(BigDecimal.ZERO) > 0) {
-                        changeRate = changeAmount.divide(openPrice, 10, RoundingMode.HALF_UP)
-                                .multiply(new BigDecimal("100"));
-                    }
                     BigDecimal dailyHigh = dailyHighs.getOrDefault(id, BigDecimal.ZERO);
                     BigDecimal dailyLow = dailyLows.getOrDefault(id, BigDecimal.ZERO);
                     BigDecimal accVolume = accVolumes.getOrDefault(id, BigDecimal.ZERO);
