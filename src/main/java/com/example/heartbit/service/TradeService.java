@@ -3,6 +3,7 @@ package com.example.heartbit.service;
 import com.example.heartbit.domain.*;
 import com.example.heartbit.dto.CategoryDto;
 import com.example.heartbit.dto.trade.PriceChangedEvent;
+import com.example.heartbit.dto.trade.TradeNotificationEvent;
 import com.example.heartbit.dto.trade.TradeResponse;
 import com.example.heartbit.dto.trade.TradesCommitedEvent;
 import com.example.heartbit.repository.*;
@@ -242,6 +243,10 @@ public class TradeService {
                 }
             }
 
+        BigDecimal referencePrice = openPrices.getOrDefault(categoryId, tradeResults.get(0).getTradePrice());
+
+        // 알림용
+        eventPublisher.publishEvent(new TradeNotificationEvent(categoryId, tradeResults, referencePrice));
 
         eventPublisher.publishEvent(new TradesCommitedEvent(categoryId, tradeResults));
 
@@ -289,14 +294,20 @@ public class TradeService {
         Pageable pageable = PageRequest.of(page, size);
         List<Trade> rawTrades = tradeRepository.findTradeByMemberId(memberId, pageable).getContent();
 
-        Map<Long, List<Trade>> groupedByOrder = rawTrades.stream()
+        // [변경 포인트 1] Key를 Long(주문번호)에서 String(주문번호_체결가격)으로 변경합니다.
+        Map<String, List<Trade>> groupedByOrderAndPrice = rawTrades.stream()
                 .collect(Collectors.groupingBy(t -> {
                     boolean iAmBuyer = t.getBuyOrder().getMember() != null
                             && t.getBuyOrder().getMember().getMemberId().equals(memberId);
-                    return iAmBuyer ? t.getBuyOrder().getOrderId() : t.getSellOrder().getOrderId();
+
+                    Long myOrderId = iAmBuyer ? t.getBuyOrder().getOrderId() : t.getSellOrder().getOrderId();
+
+                    // 주문 번호와 체결 가격을 합쳐서 고유 키를 만듭니다 (예: "15_11.1")
+                    return myOrderId + "_" + t.getTradePrice().stripTrailingZeros().toPlainString();
                 }, LinkedHashMap::new, Collectors.toList()));
 
-        return groupedByOrder.values().stream()
+        // [변경 포인트 2] values()를 순회하여 응답 객체 생성
+        return groupedByOrderAndPrice.values().stream()
                 .map(trades -> {
                     Trade firstTrade = trades.get(0);
 
@@ -308,17 +319,17 @@ public class TradeService {
 
                     String symbol = myOrder.getCategory().getSymbol();
 
+                    // 묶인 데이터들의 수량을 모두 더해줍니다.
                     BigDecimal totalCount = trades.stream()
                             .map(Trade::getTradeCount)
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                    // 가격은 “첫 체결가 그대로”를 유지하려면 firstTrade 사용
                     return TradeResponse.builder()
                             .tradeId(firstTrade.getTradeId())
                             .categoryId(myOrder.getCategory().getCategoryId())
                             .symbol(symbol)
                             .tradePrice(firstTrade.getTradePrice())
-                            .tradeCount(totalCount)
+                            .tradeCount(totalCount) // 합산된 수량 (예: 16개 + 15개 ... = 300개)
                             .tradeTime(firstTrade.getTradeTime())
                             .myOrderType(mySide)
                             .build();
