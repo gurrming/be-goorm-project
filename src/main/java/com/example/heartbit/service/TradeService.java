@@ -1,8 +1,6 @@
 package com.example.heartbit.service;
 
-import com.example.heartbit.domain.Category;
-import com.example.heartbit.domain.Order;
-import com.example.heartbit.domain.Trade;
+import com.example.heartbit.domain.*;
 import com.example.heartbit.dto.CategoryDto;
 import com.example.heartbit.dto.PriceChangedEvent;
 import com.example.heartbit.dto.TradeRequest;
@@ -36,7 +34,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import com.example.heartbit.repository.CategoryRepository;
 import com.example.heartbit.repository.TradeRepository;
-import com.example.heartbit.domain.NotificationType;
 
 
 import java.util.*;
@@ -502,12 +499,51 @@ public class TradeService {
     public List<TradeResponse> getMyTrade(Long memberId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
 
-        return tradeRepository.findTradeByMemberId(memberId, pageable)
-                .getContent()
-                .stream()
-                // 각 체결건(t)에 대해 조회 주체(memberId)를 기준으로 BUY/SELL을 결정
-                .map(t -> TradeResponse.fromEntityWithOrderType(t, memberId))
-                .collect(Collectors.toList());
+        List<Trade> rawTrades = tradeRepository.findTradeByMemberId(memberId, pageable).getContent();
+
+        // 1. "주문번호_체결가격"을 기준으로 그룹핑 (순서 유지를 위해 LinkedHashMap 사용)
+        Map<String, List<Trade>> groupedByOrderAndPrice = rawTrades.stream()
+                .collect(Collectors.groupingBy(t -> {
+                    boolean iAmBuyer = t.getBuyOrder().getMember() != null
+                            && t.getBuyOrder().getMember().getMemberId().equals(memberId);
+
+                    Long myOrderId = iAmBuyer ? t.getBuyOrder().getOrderId() : t.getSellOrder().getOrderId();
+
+                    // 그룹핑 키 생성: 예) "15_1473" (15번 주문의 1473원 체결건들)
+                    return myOrderId + "_" + t.getTradePrice().stripTrailingZeros().toPlainString();
+                }, LinkedHashMap::new, Collectors.toList()));
+
+        // 2. 묶인 그룹들의 수량을 합산하여 하나의 DTO로 변환
+        return groupedByOrderAndPrice.values().stream()
+                .map(trades -> {
+                    Trade firstTrade = trades.get(0); // 대표 정보(시간, 가격 등) 추출용
+
+                    boolean iAmBuyer = firstTrade.getBuyOrder().getMember() != null
+                            && firstTrade.getBuyOrder().getMember().getMemberId().equals(memberId);
+
+                    OrderType mySide = iAmBuyer ? OrderType.BUY : OrderType.SELL;
+                    Order myOrder = iAmBuyer ? firstTrade.getBuyOrder() : firstTrade.getSellOrder();
+
+                    String symbol = myOrder.getCategory().getSymbol();
+
+                    // ★ 동일 가격 체결건들의 수량(TradeCount)을 하나로 합산
+                    BigDecimal totalCount = trades.stream()
+                            .map(Trade::getTradeCount)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                    // Builder를 통해 합산된 수량(totalCount)을 덮어씌워 반환
+                    return TradeResponse.builder()
+                            .tradeId(firstTrade.getTradeId())
+                            .categoryId(myOrder.getCategory().getCategoryId())
+                            .symbol(symbol)
+                            .tradePrice(firstTrade.getTradePrice())
+                            .tradeCount(totalCount) // 합산 수량 적용
+                            .tradeTime(firstTrade.getTradeTime())
+                            .myOrderType(mySide)
+                            // 필요한 다른 필드들이 있다면 여기에 추가
+                            .build();
+                })
+                .toList();
     }
 
     @Transactional(readOnly = true)
