@@ -3,6 +3,7 @@ package com.example.heartbit.service;
 import com.example.heartbit.domain.*;
 import com.example.heartbit.dto.CategoryDto;
 import com.example.heartbit.dto.trade.PriceChangedEvent;
+import com.example.heartbit.dto.trade.TradeNotificationEvent;
 import com.example.heartbit.dto.trade.TradeResponse;
 import com.example.heartbit.dto.trade.TradesCommitedEvent;
 import com.example.heartbit.repository.*;
@@ -242,6 +243,10 @@ public class TradeService {
                 }
             }
 
+        BigDecimal referencePrice = openPrices.getOrDefault(categoryId, tradeResults.get(0).getTradePrice());
+
+        // 알림용
+        eventPublisher.publishEvent(new TradeNotificationEvent(categoryId, tradeResults, referencePrice));
 
         eventPublisher.publishEvent(new TradesCommitedEvent(categoryId, tradeResults));
 
