@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -27,7 +29,12 @@ public class OrderDbHandler implements EventHandler<OrderEvent> {
         }
 
         if ((endOfBatch || batchList.size() >= 100) && !batchList.isEmpty()) {
-            tradeService.processTradeResults(event.getCategoryId(), new ArrayList<>(batchList));
+
+            Map<Long, List<TradeResponse>> groupedByCategoryId = batchList.stream()
+                    .collect(Collectors.groupingBy(TradeResponse::getCategoryId));
+
+            groupedByCategoryId.forEach(tradeService::processTradeResults);
+
             batchList.clear();
         }
     }
