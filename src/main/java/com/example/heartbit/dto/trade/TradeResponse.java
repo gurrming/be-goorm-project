@@ -1,6 +1,5 @@
-package com.example.heartbit.dto;
+package com.example.heartbit.dto.trade;
 
-import com.example.heartbit.domain.Order;
 import com.example.heartbit.domain.OrderType;
 import com.example.heartbit.domain.Trade;
 import lombok.Builder;
@@ -29,9 +28,6 @@ public class TradeResponse {
     private BigDecimal intensity;
     private BigDecimal totalBuyVolume;
     private BigDecimal totalSellVolume;
-
-    private Order buyOrderEntity;
-    private Order sellOrderEntity;
     // 추가
     private String takerType;
 
@@ -53,9 +49,7 @@ public class TradeResponse {
             Long buyOrderId,
             Long sellOrderId,
             String takerType,
-            OrderType myOrderType,
-            Order buyOrderEntity,
-            Order sellOrderEntity
+            OrderType myOrderType
     ) {
         this.tradeId = tradeId;
         this.categoryId = categoryId;
@@ -71,8 +65,6 @@ public class TradeResponse {
         this.sellOrderId = sellOrderId;
         this.takerType = takerType;
         this.myOrderType = myOrderType;
-        this.buyOrderEntity = buyOrderEntity;
-        this.sellOrderEntity = sellOrderEntity;
     }
 
 

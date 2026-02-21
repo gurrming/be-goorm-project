@@ -1,4 +1,4 @@
-package com.example.heartbit.config;
+package com.example.heartbit.config.Redis;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -55,7 +55,6 @@ public class RedisConfig {
         return template;
     }
 
-    // TradeService에서 사용하는 StringRedisTemplate도 이 연결 팩토리를 쓰도록 설정
     @Bean
     public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory connectionFactory) {
         return new StringRedisTemplate(connectionFactory);

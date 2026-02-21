@@ -35,19 +35,4 @@ public class OrderRequest {
     @NotNull(message = "주문 타입(BUY/SELL)은 필수입니다.")
     private OrderType orderType;
 
-
-
-    // DTO → Entity 변환
-    public Order toEntity(Member member, Category category, Bots bots) {
-        return Order.builder()
-                .orderPrice(this.orderPrice)
-                .orderCount(this.orderCount)
-                .remainingCount(this.orderCount)
-                .orderType(this.orderType)
-                .orderStatus(OrderStatus.OPEN)
-                .member(member)
-                .category(category)
-                .bots(bots)
-                .build();
-    }
 }

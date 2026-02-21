@@ -3,6 +3,7 @@ package com.example.heartbit.repository;
 import com.example.heartbit.domain.Order;
 import com.example.heartbit.domain.OrderStatus;
 import com.example.heartbit.domain.OrderType;
+import com.example.heartbit.engine.core.OrderBook;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -33,7 +34,5 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     // 체결되지 않은 주문들 시간 순으로 가져온 내역
     List<Order> findByOrderStatusInOrderByOrderTimeAsc(List<OrderStatus> statuses);
-
-
 }
 

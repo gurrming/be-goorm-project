@@ -2,7 +2,7 @@ package com.example.heartbit.service;
 
 import com.example.heartbit.domain.*;
 import com.example.heartbit.dto.CategoryDto;
-import com.example.heartbit.dto.TradeResponse;
+import com.example.heartbit.dto.trade.TradeResponse;
 import com.example.heartbit.repository.CategoryRepository;
 import com.example.heartbit.repository.OrderRepository;
 import com.example.heartbit.repository.TradeRepository;
@@ -14,7 +14,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -37,7 +36,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class TradeServiceTest {
+class TradeServiceTest{
 
     @InjectMocks
     private TradeService tradeService;
