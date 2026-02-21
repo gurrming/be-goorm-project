@@ -123,8 +123,8 @@ jobs:
           script: |
             set -euo pipefail
             cd "${{ env.APP_DIR }}"
-            # SHARD_ID를 1로 설정하여 실행
-            SHARD_ID=1 sudo -E docker compose up -d --build --force-recreate
+            sudo docker compose down || true
+            sudo SHARD_ID=1 docker compose up -d --build --force-recreate
             sudo docker image prune -f
 
       # 6) 서버 2로 JAR 업로드 (3.34.68.118)
@@ -149,5 +149,6 @@ jobs:
           script: |
             set -euo pipefail
             cd "${{ env.APP_DIR }}"
-            SHARD_ID=2 sudo -E docker compose up -d --build --force-recreate
+            sudo docker compose down || true
+            sudo SHARD_ID=2 docker compose up -d --build --force-recreate
             sudo docker image prune -f
