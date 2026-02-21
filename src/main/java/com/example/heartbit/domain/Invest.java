@@ -25,9 +25,8 @@ public class Invest {
     @Column(name = "invest_price", precision = 18, scale = 8)
     private BigDecimal investPrice;
 
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trade_id", nullable = false)
-    private Trade trade;
+    private Long tradeId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
