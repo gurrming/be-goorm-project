@@ -2,13 +2,16 @@ package com.example.heartbit.service;
 
 import com.example.heartbit.domain.*;
 import com.example.heartbit.dto.trade.PriceChangedEvent;
+import com.example.heartbit.dto.trade.TradesCompletedEvent;
 import com.example.heartbit.repository.*;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -21,6 +24,8 @@ import com.example.heartbit.domain.Invest;
 import com.example.heartbit.dto.InvestResponse;
 import com.example.heartbit.repository.InvestRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Slf4j
 @Service
@@ -158,10 +163,34 @@ public class InvestService {
      * TradeService에서 체결 시 호출됨.
      * 매수 시 평단가를 섞고, 매도 시 수량을 뺌
      */
-    @Transactional
-    public void saveOrUpdateInvest(Long memberId, Trade trade, Long categoryId, BigDecimal tradeCount, BigDecimal tradePrice, String type) {
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void handleTradesCompleted(TradesCompletedEvent event) {
+        Long categoryId = event.getCategoryId();
 
-        // 1. 내 투자 내역 조회 (없으면 0으로 초기화된 객체 생성)
+        // 넘어온 체결 데이터 리스트를 순회하며 매수/매도자의 자산을 업데이트합니다.
+        for (TradesCompletedEvent.TradeDetail detail : event.getTradeDetails()) {
+
+            // 1. 매수자 자산 업데이트 (평단가 계산 등)
+            if (detail.getBuyerId() != null) {
+                processInvestLogic(detail.getBuyerId(), categoryId, detail.getTradeCount(), detail.getTradePrice(), "BUY", detail.getTradeId());
+            }
+
+            // 2. 매도자 자산 업데이트 (수량 차감 등)
+            if (detail.getSellerId() != null) {
+                processInvestLogic(detail.getSellerId(), categoryId, detail.getTradeCount(), detail.getTradePrice(), "SELL", detail.getTradeId());
+            }
+        }
+    }
+
+    /**
+     * [핵심 자산 업데이트 로직]
+     * 기존 saveOrUpdateInvest의 비즈니스 로직(물타기, 차감, 삭제)을 그대로 가져왔습니다.
+     * 단, Trade 객체 대신 tradeId만 저장하여 영속성 문제를 해결했습니다.
+     */
+    private void processInvestLogic(Long memberId, Long categoryId, BigDecimal tradeCount, BigDecimal tradePrice, String type, Long tradeId) {
+
         Invest invest = investRepository.findByMember_MemberIdAndCategory_CategoryId(memberId, categoryId)
                 .orElseGet(() -> {
                     Member member = memberRepository.getReferenceById(memberId);
@@ -174,40 +203,36 @@ public class InvestService {
                             .build();
                 });
 
-        invest.setTrade(trade);
+        // 💡 핵심 변경 포인트: 객체 세팅 대신 ID만 세팅!
+        invest.setTradeId(tradeId);
 
-        // 2. Null 방어 로직
         BigDecimal currentCount = invest.getInvestCount() == null ? BigDecimal.ZERO : invest.getInvestCount();
         BigDecimal currentAvg = invest.getInvestPrice() == null ? BigDecimal.ZERO : invest.getInvestPrice();
 
         if ("BUY".equals(type)) {
             // [매수] 평단가 물타기 계산
-            BigDecimal oldTotal = currentCount.multiply(currentAvg); // 기존 총액
-            BigDecimal newTotal = tradeCount.multiply(tradePrice);   // 신규 매수 총액
-            BigDecimal totalCount = currentCount.add(tradeCount);    // 합친 수량
+            BigDecimal oldTotal = currentCount.multiply(currentAvg);
+            BigDecimal newTotal = tradeCount.multiply(tradePrice);
+            BigDecimal totalCount = currentCount.add(tradeCount);
 
-            // 0으로 나누기 에러 방지
             if (totalCount.compareTo(BigDecimal.ZERO) > 0) {
-                // 새로운 평단가 = (기존총액 + 신규총액) / 전체수량
                 BigDecimal newAvg = oldTotal.add(newTotal).divide(totalCount, 8, RoundingMode.HALF_UP);
                 invest.setInvestPrice(newAvg);
             }
             invest.setInvestCount(totalCount);
 
         } else {
-            // [매도] 수량만 빼기 (평단가는 변하지 않음)
+            // [매도] 수량 차감
             BigDecimal resultCount = currentCount.subtract(tradeCount);
             invest.setInvestCount(resultCount);
         }
 
-        // 3. 수량이 0 이하면 DB에서 삭제, 남았으면 저장
+        // 수량이 0 이하면 DB에서 삭제, 남았으면 저장 (더티 체킹 또는 save)
         if (invest.getInvestCount().compareTo(BigDecimal.ZERO) <= 0) {
             if (invest.getInvestId() != null) {
-                // 수량이 0이 되어 삭제할 때는 Trade 참조가 필요 없으므로 바로 삭제
                 investRepository.delete(invest);
             }
         } else {
-            // Trade가 set 되어 있으므로 정상적으로 저장됨
             investRepository.save(invest);
         }
     }

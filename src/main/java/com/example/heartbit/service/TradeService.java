@@ -2,10 +2,7 @@ package com.example.heartbit.service;
 
 import com.example.heartbit.domain.*;
 import com.example.heartbit.dto.CategoryDto;
-import com.example.heartbit.dto.trade.PriceChangedEvent;
-import com.example.heartbit.dto.trade.TradeNotificationEvent;
-import com.example.heartbit.dto.trade.TradeResponse;
-import com.example.heartbit.dto.trade.TradesCommitedEvent;
+import com.example.heartbit.dto.trade.*;
 import com.example.heartbit.repository.*;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +39,7 @@ public class TradeService {
 
     private final TradeRepository tradeRepository;
     private final CategoryRepository categoryRepository;
+    private final TradeJdbcRepository tradeJdbcRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     private final InvestService investService;
@@ -171,6 +169,7 @@ public class TradeService {
         if (tradeResults.isEmpty()) return;
 
         List<Trade> tradesToSave = new ArrayList<>();
+
         Map<Long, BigDecimal> executionAmounts = new HashMap<>();
         Map<Long, BigDecimal> executionCounts = new HashMap<>();
         Map<Long, BigDecimal> buyBlockedAmounts = new HashMap<>();
@@ -201,32 +200,47 @@ public class TradeService {
                     .tradeTime(response.getTradeTime())
                     .takerType(takerType)
                     .build();
-            Trade savedTrade = tradeRepository.save(trade);
-            // 3-2. 매수자 자산 업데이트 ("BUY")
+
+            tradesToSave.add(trade);
+
             if (buyOrder.getMember() != null) {
                 Long memberId = buyOrder.getMember().getMemberId();
-                // 보유 종목(Invest) 업데이트는 정합성을 위해 그대로 호출 (내부 save 로직 존재)
-                investService.saveOrUpdateInvest(memberId, trade, categoryId, response.getTradeCount(), response.getTradePrice(), "BUY");
-
                 executionAmounts.merge(memberId, tradeAmount, BigDecimal::add);
                 executionCounts.merge(memberId, response.getTradeCount(), BigDecimal::add);
                 buyBlockedAmounts.merge(memberId, buyOrder.getOrderPrice().multiply(response.getTradeCount()), BigDecimal::add);
                 memberMap.put(memberId, buyOrder.getMember());
                 lastOrderMap.put(memberId, buyOrder);
-
             }
 
-            // 3-2. 매도자 자산 업데이트 ("SELL")
+            // 매도자 Asset 정보 수집
             if (sellOrder.getMember() != null) {
                 Long memberId = sellOrder.getMember().getMemberId();
-                investService.saveOrUpdateInvest(memberId, trade, categoryId, response.getTradeCount(), response.getTradePrice(), "SELL");
-
                 executionAmounts.merge(memberId, tradeAmount, BigDecimal::add);
                 executionCounts.merge(memberId, response.getTradeCount(), BigDecimal::add);
                 memberMap.put(memberId, sellOrder.getMember());
                 lastOrderMap.put(memberId, sellOrder);
             }
         }
+
+        tradeJdbcRepository.bulkInsertWithKeys(tradesToSave);
+
+
+        List<TradesCompletedEvent.TradeDetail> eventDetails = new ArrayList<>();
+        for (Trade trade : tradesToSave) {
+            // Member가 null인지 먼저 확인하고, null이면 memberId도 null로 넘깁니다.
+            Long buyerId = trade.getBuyOrder().getMember() != null ? trade.getBuyOrder().getMember().getMemberId() : null;
+            Long sellerId = trade.getSellOrder().getMember() != null ? trade.getSellOrder().getMember().getMemberId() : null;
+
+            eventDetails.add(new TradesCompletedEvent.TradeDetail(
+                    buyerId,
+                    sellerId,
+                    trade.getTradePrice(),
+                    trade.getTradeCount(),
+                    trade.getTradeId()
+            ));
+        }
+
+
 
             //종목별 상태 업데이트 및 웹소켓 전송
 
@@ -246,6 +260,9 @@ public class TradeService {
         BigDecimal referencePrice = openPrices.getOrDefault(categoryId, tradeResults.get(0).getTradePrice());
 
         // 알림용
+
+        eventPublisher.publishEvent(new TradesCompletedEvent(categoryId, eventDetails));
+
         eventPublisher.publishEvent(new TradeNotificationEvent(categoryId, tradeResults, referencePrice));
 
         eventPublisher.publishEvent(new TradesCommitedEvent(categoryId, tradeResults));
