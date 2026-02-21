@@ -53,7 +53,8 @@ public class SecurityConfig {
             "/webjars/**",
             "/ws-heartbit/**",
             "/ws-heartbit/info/**",
-            "/actuator/**"
+            "/actuator/**",
+            "/health"
     };
 
 
