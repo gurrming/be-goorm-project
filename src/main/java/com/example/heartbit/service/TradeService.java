@@ -227,7 +227,12 @@ public class TradeService {
 
         List<TradesCompletedEvent.TradeDetail> eventDetails = new ArrayList<>();
         for (Trade trade : tradesToSave) {
+
             // Member가 null인지 먼저 확인하고, null이면 memberId도 null로 넘깁니다.
+            if (trade.getTradeId() == null || trade.getTradeId() == 0) {
+                log.error("❌ 체결 저장 후 ID가 생성되지 않았습니다! Trade 객체: {}", trade);
+                throw new IllegalStateException("Trade ID generation failed during bulk insert");
+            }
             Long buyerId = trade.getBuyOrder().getMember() != null ? trade.getBuyOrder().getMember().getMemberId() : null;
             Long sellerId = trade.getSellOrder().getMember() != null ? trade.getSellOrder().getMember().getMemberId() : null;
 

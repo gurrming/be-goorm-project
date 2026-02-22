@@ -24,7 +24,7 @@ public class TradeJdbcRepository {
                 "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         jdbcTemplate.execute((ConnectionCallback<Void>) connection -> {
-            try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            try (PreparedStatement ps = connection.prepareStatement(sql, new String[]{"trade_id"})) {
 
                 for (Trade trade : trades) {
                     ps.setBigDecimal(1, trade.getTradePrice());

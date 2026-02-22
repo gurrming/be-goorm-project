@@ -3,6 +3,7 @@ package com.example.heartbit.handler;
 import com.example.heartbit.dto.trade.TradeResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class TradeMarketBroadcaster {
 
-    private final SimpMessagingTemplate messagingTemplate;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     private final Map<Long, BigDecimal> openPrices = new ConcurrentHashMap<>();
     private final Map<Long, BigDecimal> currentPrices = new ConcurrentHashMap<>();
@@ -103,6 +104,7 @@ public class TradeMarketBroadcaster {
         BigDecimal dailyLow = dailyLows.getOrDefault(categoryId, price);
 
         Map<String, Object> ticker = new HashMap<>();
+        ticker.put("categoryId", categoryId);
         ticker.put("price", price.toPlainString());
         ticker.put("changeAmount", price.subtract(openPrice).toPlainString());
         ticker.put("changeRate", changeRates.getOrDefault(categoryId, BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP).toPlainString());
@@ -111,27 +113,30 @@ public class TradeMarketBroadcaster {
         ticker.put("volume", accVolumes.getOrDefault(categoryId, BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP).toPlainString());
         ticker.put("amount", accAmounts.getOrDefault(categoryId, BigDecimal.ZERO).setScale(0, RoundingMode.HALF_UP).toPlainString());
 
-        messagingTemplate.convertAndSend("/topic/ticker" + suffix, (Object)ticker);
+        redisTemplate.convertAndSend("ws-ticker-channel" + suffix, ticker);
 
         Map<String, Object> trades = new HashMap<>();
+        ticker.put("categoryId", categoryId);
         trades.put("price", price.toPlainString());
         trades.put("openPrice", openPrice.toPlainString());
         trades.put("count", response.getTradeCount().toPlainString());
         trades.put("type", response.getTakerType());
         trades.put("time", response.getTradeTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
         trades.put("intensity", intensity.setScale(2, RoundingMode.HALF_UP).toPlainString());
-        messagingTemplate.convertAndSend("/topic/trades" + suffix, (Object)trades);
+        redisTemplate.convertAndSend("ws-trades-channel" + suffix, trades);
 
-        Map<String, Object> candle = new HashMap<>();
-        candle.put("t", currentMinutes.get(categoryId).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
-        candle.put("o", candleOpens.get(categoryId).toPlainString());
-        candle.put("h", candleHighs.get(categoryId).toPlainString());
-        candle.put("l", candleLows.get(categoryId).toPlainString());
-        candle.put("c", price.toPlainString());
-        messagingTemplate.convertAndSend("/topic/charts" + suffix, (Object)candle);
+        Map<String, Object> charts = new HashMap<>();
+        ticker.put("categoryId", categoryId);
+        charts.put("t", currentMinutes.get(categoryId).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
+        charts.put("o", candleOpens.get(categoryId).toPlainString());
+        charts.put("h", candleHighs.get(categoryId).toPlainString());
+        charts.put("l", candleLows.get(categoryId).toPlainString());
+        charts.put("c", price.toPlainString());
+        redisTemplate.convertAndSend("ws-charts-channel" + suffix, charts);
 
         Map<String, Object> lastPrice = new HashMap<>();
+        ticker.put("categoryId", categoryId);
         lastPrice.put("price", price.toPlainString());
-        messagingTemplate.convertAndSend("/topic/orderbook/lastPrice/" + categoryId, (Object)lastPrice);
+        redisTemplate.convertAndSend("ws-orderbook-channel" + categoryId, lastPrice);
     }
 }

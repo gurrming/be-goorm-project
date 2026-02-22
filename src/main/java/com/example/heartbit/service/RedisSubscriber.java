@@ -8,14 +8,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class RedisSubscriber {
 
-//    private final ObjectMapper objectMapper;
-//    private final SimpMessagingTemplate messagingTemplate;
-//
+    private final ObjectMapper objectMapper;
+    private final SimpMessagingTemplate messagingTemplate;
+
 //    /**
 //     * Redis에서 채팅 메시지가 Publish되면 호출됨
 //     */
@@ -43,4 +45,49 @@ public class RedisSubscriber {
 //            log.error("알림 구독 처리 중 오류 발생: {}", e.getMessage());
 //        }
 //    }
+
+    public void sendTickerUpdate(String publishMessage) {
+        try {
+            Map<String, Object> ticker = objectMapper.readValue(publishMessage, Map.class);
+            Long categoryId = Long.valueOf(ticker.get("categoryId").toString());
+
+            messagingTemplate.convertAndSend("/topic/ticker/" + categoryId, (Object)ticker);
+        } catch (Exception e) {
+            log.error("Ticker 전송 오류", e);
+        }
+    }
+
+    public void sendTradesUpdate(String publishMessage) {
+        try {
+            Map<String, Object> trades = objectMapper.readValue(publishMessage, Map.class);
+            Long categoryId = Long.valueOf(trades.get("categoryId").toString());
+
+            messagingTemplate.convertAndSend("/topic/trades/" + categoryId, (Object)trades);
+        } catch (Exception e) {
+            log.error("Trades 전송 오류", e);
+        }
+    }
+
+    public void sendChartsUpdate(String publishMessage) {
+        try {
+            Map<String, Object> charts = objectMapper.readValue(publishMessage, Map.class);
+            Long categoryId = Long.valueOf(charts.get("categoryId").toString());
+
+            messagingTemplate.convertAndSend("/topic/charts/" + categoryId, (Object)charts);
+        } catch (Exception e) {
+            log.error("Charts 전송 오류", e);
+        }
+    }
+
+    public void sendOrderbookUpdate(String publishMessage) {
+        try {
+            Map<String, Object> lastPrice = objectMapper.readValue(publishMessage, Map.class);
+            Long categoryId = Long.valueOf(lastPrice.get("categoryId").toString());
+
+            messagingTemplate.convertAndSend("/topic/orderbook/lastPrice/" + categoryId, (Object)lastPrice);
+        } catch (Exception e) {
+            log.error("lastPrice 전송 오류", e);
+        }
+    }
+
 }
