@@ -101,7 +101,7 @@ public class RedisConfig {
     public MessageListenerAdapter tickerListenerAdapter(RedisSubscriber subscriber) {
         // RedisSubscriber 클래스의 "sendTickerUpdate" 메서드를 실행하라고 지정
         MessageListenerAdapter adapter = new MessageListenerAdapter(subscriber, "sendTickerUpdate");
-        adapter.setSerializer(RedisSerializer.json());
+        adapter.setSerializer(new StringRedisSerializer());
         return adapter;
     }
 
@@ -109,21 +109,21 @@ public class RedisConfig {
     public MessageListenerAdapter tradesListenerAdapter(RedisSubscriber subscriber) {
         // RedisSubscriber 클래스의 "sendTradesUpdate" 메서드를 실행하라고 지정
         MessageListenerAdapter adapter = new MessageListenerAdapter(subscriber, "sendTradesUpdate");
-        adapter.setSerializer(RedisSerializer.json());
+        adapter.setSerializer(new StringRedisSerializer());
         return adapter;
     }
 
     @Bean
     public MessageListenerAdapter chartsListenerAdapter(RedisSubscriber subscriber) {
         MessageListenerAdapter adapter = new MessageListenerAdapter(subscriber, "sendChartsUpdate");
-        adapter.setSerializer(RedisSerializer.json());
+        adapter.setSerializer(new StringRedisSerializer());
         return adapter;
     }
 
     @Bean
     public MessageListenerAdapter orderbookListenerAdapter(RedisSubscriber subscriber) {
         MessageListenerAdapter adapter = new MessageListenerAdapter(subscriber, "sendOrderbookUpdate");
-        adapter.setSerializer(RedisSerializer.json());
+        adapter.setSerializer(new StringRedisSerializer());
         return adapter;
     }
 }
