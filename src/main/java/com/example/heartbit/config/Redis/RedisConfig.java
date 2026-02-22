@@ -79,7 +79,8 @@ public class RedisConfig {
                                                    MessageListenerAdapter tickerListenerAdapter,
                                                    MessageListenerAdapter tradesListenerAdapter,
                                                    MessageListenerAdapter chartsListenerAdapter,
-                                                   MessageListenerAdapter orderbookListenerAdapter) {
+                                                   MessageListenerAdapter orderbookListenerAdapter,
+                                                   MessageListenerAdapter investListenerAdapter) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
         container.addMessageListener(orderListenerAdapter, new ChannelTopic("order-sharding-channel"));
@@ -87,6 +88,7 @@ public class RedisConfig {
         container.addMessageListener(tradesListenerAdapter, new ChannelTopic("ws-trades-channel"));
         container.addMessageListener(chartsListenerAdapter, new ChannelTopic("ws-charts-channel"));
         container.addMessageListener(orderbookListenerAdapter, new ChannelTopic("ws-orderbook-channel"));
+        container.addMessageListener(investListenerAdapter, new ChannelTopic("ws-invest-channel"));
         return container;
     }
 
@@ -123,6 +125,14 @@ public class RedisConfig {
     @Bean
     public MessageListenerAdapter orderbookListenerAdapter(RedisSubscriber subscriber) {
         MessageListenerAdapter adapter = new MessageListenerAdapter(subscriber, "sendOrderbookUpdate");
+        adapter.setSerializer(new StringRedisSerializer());
+        return adapter;
+    }
+
+    @Bean
+    public MessageListenerAdapter investListenerAdapter(RedisSubscriber subscriber) {
+        MessageListenerAdapter adapter = new MessageListenerAdapter(subscriber, "sendInvestUpdate");
+        // 앞서 고생해서 해결했던 직렬화 문제! 반드시 StringRedisSerializer로 세팅합니다.
         adapter.setSerializer(new StringRedisSerializer());
         return adapter;
     }

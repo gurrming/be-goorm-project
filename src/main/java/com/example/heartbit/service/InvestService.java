@@ -4,10 +4,12 @@ import com.example.heartbit.domain.*;
 import com.example.heartbit.dto.trade.PriceChangedEvent;
 import com.example.heartbit.dto.trade.TradesCompletedEvent;
 import com.example.heartbit.repository.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -16,7 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 
@@ -34,8 +38,9 @@ public class InvestService {
     private final InvestRepository investRepository;
     private final MemberRepository memberRepository;
     private final CategoryRepository categoryRepository;
-    private final SimpMessagingTemplate messagingTemplate;
     private final TradeService tradeService;
+    private final StringRedisTemplate stringRedisTemplate;
+    private final ObjectMapper objectMapper;
     private final AssetRepository assetRepository;
 
     public InvestService(InvestRepository investRepository,
@@ -43,11 +48,14 @@ public class InvestService {
                          CategoryRepository categoryRepository,
                          SimpMessagingTemplate messagingTemplate,
                          @Lazy TradeService tradeService,
+                            StringRedisTemplate stringRedisTemplate,
+                            ObjectMapper objectMapper,
                          AssetRepository assetRepository) {
         this.investRepository = investRepository;
         this.memberRepository = memberRepository;
         this.categoryRepository = categoryRepository;
-        this.messagingTemplate = messagingTemplate;
+        this.stringRedisTemplate = stringRedisTemplate;
+        this.objectMapper = objectMapper;
         this.tradeService = tradeService;
         this.assetRepository = assetRepository;
     }
@@ -186,8 +194,8 @@ public class InvestService {
 
     /**
      * [핵심 자산 업데이트 로직]
-     * 기존 saveOrUpdateInvest의 비즈니스 로직(물타기, 차감, 삭제)을 그대로 가져왔습니다.
-     * 단, Trade 객체 대신 tradeId만 저장하여 영속성 문제를 해결했습니다.
+     * 기존 saveOrUpdateInvest의 비즈니스 로직(물타기, 차감, 삭제)을 그대로
+     * 단, Trade 객체 대신 tradeId만 저장하여 영속성 문제를 해결
      */
     private void processInvestLogic(Long memberId, Long categoryId, BigDecimal tradeCount, BigDecimal tradePrice, String type, Long tradeId) {
 
@@ -252,7 +260,11 @@ public class InvestService {
             try {
                 InvestResponse totalSummary = getInvestSummary(memberId, Pageable.unpaged());
 
-                messagingTemplate.convertAndSend("/topic/invest/" + memberId, totalSummary);
+                Map<String, Object> messageMap = new HashMap<>();
+                messageMap.put("memberId", memberId);
+                messageMap.put("totalSummary", totalSummary);
+
+                stringRedisTemplate.convertAndSend("ws-invest-channel", objectMapper.writeValueAsString(messageMap));
 
                 log.debug("실시간 자산 업데이트 전송 - MemberID: {}, CategoryID: {}", memberId, categoryId);
             } catch (Exception e) {

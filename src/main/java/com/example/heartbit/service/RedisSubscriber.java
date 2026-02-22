@@ -2,6 +2,7 @@ package com.example.heartbit.service;
 
 import com.example.heartbit.dto.ChatResponseDto;
 import com.example.heartbit.dto.NotificationResponseDto;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -87,6 +88,20 @@ public class RedisSubscriber {
             messagingTemplate.convertAndSend("/topic/orderbook/lastPrice/" + categoryId, (Object)lastPrice);
         } catch (Exception e) {
             log.error("lastPrice 전송 오류", e);
+        }
+    }
+
+    public void sendInvestUpdate(String publishMessage) {
+        try {
+            JsonNode rootNode = objectMapper.readTree(publishMessage);
+
+            Long memberId = rootNode.get("memberId").asLong();
+            JsonNode totalSummary = rootNode.get("totalSummary");
+
+            messagingTemplate.convertAndSend("/topic/invest/" + memberId, totalSummary);
+
+        } catch (Exception e) {
+            log.error("Invest 웹소켓 전송 오류", e);
         }
     }
 
