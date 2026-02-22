@@ -1,6 +1,7 @@
 package com.example.heartbit.service;
 
 import com.example.heartbit.dto.ChatResponseDto;
+import com.example.heartbit.dto.InvestResponse;
 import com.example.heartbit.dto.NotificationResponseDto;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -96,10 +97,9 @@ public class RedisSubscriber {
             JsonNode rootNode = objectMapper.readTree(publishMessage);
 
             Long memberId = rootNode.get("memberId").asLong();
-            JsonNode totalSummary = rootNode.get("totalSummary");
+            InvestResponse data = objectMapper.treeToValue(rootNode.get("totalSummary"), InvestResponse.class);
 
-            messagingTemplate.convertAndSend("/topic/invest/" + memberId, totalSummary);
-
+            messagingTemplate.convertAndSend("/topic/invest/" + memberId, data);
         } catch (Exception e) {
             log.error("Invest 웹소켓 전송 오류", e);
         }
