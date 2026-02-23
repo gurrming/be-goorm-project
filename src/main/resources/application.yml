@@ -36,6 +36,16 @@ spring:
 springdoc:
   show-login-endpoint: true
 
+jwt:
+  secret-key: "c3ByaW5nLWJvb3Qtc2VjdXJpdHktand0LXR1dG9yaWFsLWppd29vbi1sprbmctYm9vdC1zZWN1cml0eS1qd3QtdHV0b3JpYWwK"
+  expiration-time: 1800000
+  refresh-token-expiration-time: 604800000
+
+
+server:
+  secret-token: "heartbit-internal-secret-token"
+  
+
 management:
   endpoints:
     web:
