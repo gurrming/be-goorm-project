@@ -1,6 +1,11 @@
+shard:
+  id: ${SHARD_ID:1}
+  channel: order-sharding-channel
+  top-categories: [1, 2, 3, 4, 5, 6, 8]
+
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:15432/app
+    url: jdbc:postgresql://localhost:15432/app?reWriteBatchedInserts=true
     username: postgres
     password: "0000"
     driver-class-name: org.postgresql.Driver
@@ -12,7 +17,7 @@ spring:
 
 jwt:
   secret-key: "c3ByaW5nLWJvb3Qtc2VjdXJpdHktand0LXR1dG9yaWFsLWppd29vbi1sprbmctYm9vdC1zZWN1cml0eS1qd3QtdHV0b3JpYWwK"
-  expiration-time: 1800000
+  expiration-time: 180000000
   refresh-token-expiration-time: 604800000
 
 server:

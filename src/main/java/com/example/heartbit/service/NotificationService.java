@@ -33,7 +33,6 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final SimpMessagingTemplate messagingTemplate;
-    private final TradeRepository tradeRepository;
     private final InterestRepository interestRepository;
     private final InvestRepository investRepository;
 
@@ -86,102 +85,58 @@ public class NotificationService {
 
     private final Map<String, Integer> lastNotifiedStep = new ConcurrentHashMap<>();
 
-//    @Async
-//    @Transactional(readOnly = true)
-//    public void checkAndSendPriceAlert(Long categoryId, BigDecimal currentPrice, String symbol) {
-//        try {
-//            log.info("시세 알림 체크 시작 - 종목: {}, 현재가: {}", symbol, currentPrice);
-//
-//            BigDecimal yesterdayClose = tradeRepository.findYesterdayClosePrice(categoryId).orElse(null);
-//            log.info("전일 종가 조회 결과: {}", yesterdayClose);
-//
-//            if (yesterdayClose == null || yesterdayClose.compareTo(BigDecimal.ZERO) <= 0) return;
-//            // 2. 변동률 계산
-//            BigDecimal rate = currentPrice.subtract(yesterdayClose)
-//                    .divide(yesterdayClose, 4, RoundingMode.HALF_UP)
-//                    .multiply(new BigDecimal("100"));
-//
-//            // 3. 5% 단위 구간 계산 (예: 5.3% -> 5, 11% -> 10)
-//            int currentStep = rate.divide(new BigDecimal("5"), 0, RoundingMode.FLOOR).intValue() * 5;
-//
-//            if (currentStep >= 5) {
-//                String key = categoryId + ":" + currentStep;
-//
-//                // 4. 해당 구간에 처음 진입했을 때만 실행
-//                if (lastNotifiedStep.putIfAbsent(key, currentStep) == null) {
-//                    // 관심 종목 사용자에게 기존 send 활용
-//                    interestRepository.findByCategory_CategoryId(categoryId).forEach(i ->
-//                            send(i.getMember(), String.format("관심 종목 [%s], 전일 대비 %d%% 돌파!", symbol, currentStep), NotificationType.INTEREST));
-//
-//                    // 보유 종목 사용자에게 기존 send 활용
-//                    investRepository.findByCategory_CategoryId(categoryId).forEach(inv ->
-//                            send(inv.getMember(), String.format("보유하신 [%s] %d%% 상승 중!", symbol, currentStep), NotificationType.TRADE));
-//                }
-//            }
-//        } catch (Exception e) {
-//
-//        }
-//    }
-
+    public void clearNotificationHistory() {
+        lastNotifiedStep.clear();
+    }
 
     @Async
-    @Transactional(readOnly = true)
-    public void checkAndSendPriceAlert(Long categoryId, BigDecimal currentPrice, String categoryName) {
-        log.info("[알림체크 시작] 종목ID: {}, 종목명: {}, 현재가: {}", categoryId, categoryName, currentPrice);
-        try {
-            // 1. 전일 종가 조회 로그
-            BigDecimal yesterdayClose = tradeRepository.findYesterdayClosePrice(categoryId).orElse(null);
-            log.info("[1. 전일종가조회] 결과: {}", yesterdayClose);
+    @Transactional
+    public void checkAndSendPriceAlert(Long categoryId, BigDecimal currentPrice, String categoryName, BigDecimal referencePrice) {
+        // 방어 로직
+        if (referencePrice == null || referencePrice.compareTo(BigDecimal.ZERO) <= 0 || currentPrice == null) {
+            return;
+        }
 
-            if (yesterdayClose == null || yesterdayClose.compareTo(BigDecimal.ZERO) <= 0) {
-                log.warn("[중단] 전일 종가가 없거나 0원입니다. (종목: {})", categoryName);
+        try {
+            // 1. 변동률 계산
+            BigDecimal rate = currentPrice.subtract(referencePrice)
+                    .divide(referencePrice, 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"));
+
+            double rawRate = rate.doubleValue();
+            int currentStep;
+
+            // 2. 5% 단위 구간 계산 (상승/하락 모두 포함)
+            if (Math.abs(rawRate) >= 5.0) {
+                // rawRate가 -7.5라면 (int)(-7.5/5)*5 = -5가 됨
+                currentStep = ((int) (rawRate / 5)) * 5;
+            } else {
                 return;
             }
 
-            // 2. 변동률 계산 로직
-            BigDecimal rate = currentPrice.subtract(yesterdayClose)
-                    .divide(yesterdayClose, 4, RoundingMode.HALF_UP)
-                    .multiply(new BigDecimal("100"));
+            // 3. 중복 체크 키 (종목ID:구간값)
+            String key = categoryId + ":" + currentStep;
 
-            // 3. 5% 단위 구간 계산
-            int currentStep = rate.divide(new BigDecimal("5"), 0, RoundingMode.FLOOR).intValue() * 5;
-            log.info("[2. 계산결과] 변동률: {}%, 판별된구간: {}%", rate, currentStep);
+            if (lastNotifiedStep.putIfAbsent(key, currentStep) == null) {
 
-            if (currentStep >= 5) {
-                String key = categoryId + ":" + currentStep;
+                // 상승/하락 문구 결정
+                String direction = currentStep > 0 ? "상승" : "하락";
+                int displayPercentage = Math.abs(currentStep);
 
-                if (lastNotifiedStep.putIfAbsent(key, currentStep) == null) {
-                    log.info("[3. 알림발송진입] 새로운 구간 {}% 진입 (Key: {})", currentStep, key);
+                String commonMsg = String.format("[%s] 전일 대비 %d%% %s 중", categoryName, displayPercentage, direction);
 
-                    // 4. 관심 종목 알림 루프
-                    interestRepository.findByCategory_CategoryId(categoryId).forEach(i -> {
-                        try {
-                            log.info("[관심알림 시도] 사용자ID: {}, 종목: {}", i.getMember().getMemberId(), categoryName);
-                            send(i.getMember(),
-                                    String.format("관심 종목 [%s], 전일 대비 %d%% 돌파!", categoryName, currentStep),
-                                    NotificationType.INTEREST);
-                        } catch (Exception e) {
-                            log.error("[관심알림 실패] 사용자ID: {}, 에러: {}", i.getMember().getMemberId(), e.getMessage());
-                        }
-                    });
+                // 관심 종목 알림
+                interestRepository.findByCategory_CategoryId(categoryId).forEach(i ->
+                        send(i.getMember(), commonMsg, NotificationType.INTEREST)
+                );
 
-                    // 5. 보유 종목 알림 루프
-                    investRepository.findByCategory_CategoryId(categoryId).forEach(inv -> {
-                        try {
-                            log.info("[보유알림 시도] 사용자ID: {}, 종목: {}", inv.getMember().getMemberId(), categoryName);
-                            send(inv.getMember(),
-                                    String.format("보유하신 [%s] %d%% 상승 중!", categoryName, currentStep),
-                                    NotificationType.TRADE);
-                        } catch (Exception e) {
-                            log.error("[보유알림 실패] 사용자ID: {}, 에러: {}", inv.getMember().getMemberId(), e.getMessage());
-                        }
-                    });
-                } else {
-                    log.info("[알림건너뜀] 이미 오늘 {}% 구간 알림을 보냈습니다.", currentStep);
-                }
+                // 보유 종목 알림 (ASSET 타입)
+                investRepository.findByCategory_CategoryId(categoryId).forEach(inv ->
+                        send(inv.getMember(), commonMsg, NotificationType.ASSET)
+                );
             }
         } catch (Exception e) {
-            log.error("[최종오류] checkAndSendPriceAlert 메서드 실행 중 예외 발생!", e);
+            // 비동기 에러 방어용 (로그 생략 요청 반영)
         }
     }
 

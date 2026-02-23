@@ -1,40 +1,35 @@
 package com.example.heartbit.service;
 
 import com.example.heartbit.domain.*;
-import com.example.heartbit.dto.*;
-import com.example.heartbit.repository.CategoryRepository;
-import com.example.heartbit.repository.InvestRepository;
-import com.example.heartbit.repository.MemberRepository;
-import lombok.RequiredArgsConstructor;
+import com.example.heartbit.dto.trade.PriceChangedEvent;
+import com.example.heartbit.dto.trade.TradesCompletedEvent;
+import com.example.heartbit.repository.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 
 import com.example.heartbit.domain.Invest;
 import com.example.heartbit.dto.InvestResponse;
-import com.example.heartbit.dto.TradeResponse;
 import com.example.heartbit.repository.InvestRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.List;
-import java.util.stream.Collectors;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Slf4j
 @Service
@@ -43,19 +38,26 @@ public class InvestService {
     private final InvestRepository investRepository;
     private final MemberRepository memberRepository;
     private final CategoryRepository categoryRepository;
-    private final SimpMessagingTemplate messagingTemplate;
     private final TradeService tradeService;
+    private final StringRedisTemplate stringRedisTemplate;
+    private final ObjectMapper objectMapper;
+    private final AssetRepository assetRepository;
 
     public InvestService(InvestRepository investRepository,
                          MemberRepository memberRepository,
                          CategoryRepository categoryRepository,
                          SimpMessagingTemplate messagingTemplate,
-                         @Lazy TradeService tradeService) { // ★ 여기에 @Lazy 추가 ★
+                         @Lazy TradeService tradeService,
+                            StringRedisTemplate stringRedisTemplate,
+                            ObjectMapper objectMapper,
+                         AssetRepository assetRepository) {
         this.investRepository = investRepository;
         this.memberRepository = memberRepository;
         this.categoryRepository = categoryRepository;
-        this.messagingTemplate = messagingTemplate;
+        this.stringRedisTemplate = stringRedisTemplate;
+        this.objectMapper = objectMapper;
         this.tradeService = tradeService;
+        this.assetRepository = assetRepository;
     }
 
     /**
@@ -89,7 +91,16 @@ public class InvestService {
 
             totalBuyAmount = totalBuyAmount.add(buyAmt);
             totalEvaluation = totalEvaluation.add(evalAmt);
+
+
         }
+
+        Asset asset = assetRepository.findByMember_MemberId(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("자산 정보를 찾을 수 없습니다."));
+
+        BigDecimal currentCash = asset.getAssetCash();
+        // 총 자산 = 현금 + 코인 총 평가금액
+        BigDecimal totalAsset = currentCash.add(totalEvaluation);
 
         // 전체 평가손익 = 총 평가금액 - 총 매수금액
         BigDecimal totalProfit = totalEvaluation.subtract(totalBuyAmount);
@@ -115,6 +126,8 @@ public class InvestService {
                     BigDecimal profitRate = (buyAmount.compareTo(BigDecimal.ZERO) == 0) ? BigDecimal.ZERO :
                             evaluationProfit.divide(buyAmount, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
 
+
+
                     // DTO 매핑
                     return InvestResponse.AssetDetailDto.builder()
                             .categoryId(invest.getCategory().getCategoryId())
@@ -138,7 +151,9 @@ public class InvestService {
                 .totalProfit(totalProfit)
                 .totalProfitRate(totalProfitRate)
                 .assetList(assetList)
-                .hasNext(pagedInvests.hasNext()) // 다음 페이지 존재 여부 (무한 스크롤용)
+                .hasNext(pagedInvests.hasNext())
+                .assetCash(currentCash)
+                .totalAsset(totalAsset)
                 .build();
     }
 
@@ -156,10 +171,34 @@ public class InvestService {
      * TradeService에서 체결 시 호출됨.
      * 매수 시 평단가를 섞고, 매도 시 수량을 뺌
      */
-    @Transactional
-    public void saveOrUpdateInvest(Long memberId, Trade trade, Long categoryId, BigDecimal tradeCount, BigDecimal tradePrice, String type) {
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void handleTradesCompleted(TradesCompletedEvent event) {
+        Long categoryId = event.getCategoryId();
 
-        // 1. 내 투자 내역 조회 (없으면 0으로 초기화된 객체 생성)
+        // 넘어온 체결 데이터 리스트를 순회하며 매수/매도자의 자산을 업데이트합니다.
+        for (TradesCompletedEvent.TradeDetail detail : event.getTradeDetails()) {
+
+            // 1. 매수자 자산 업데이트 (평단가 계산 등)
+            if (detail.getBuyerId() != null) {
+                processInvestLogic(detail.getBuyerId(), categoryId, detail.getTradeCount(), detail.getTradePrice(), "BUY", detail.getTradeId());
+            }
+
+            // 2. 매도자 자산 업데이트 (수량 차감 등)
+            if (detail.getSellerId() != null) {
+                processInvestLogic(detail.getSellerId(), categoryId, detail.getTradeCount(), detail.getTradePrice(), "SELL", detail.getTradeId());
+            }
+        }
+    }
+
+    /**
+     * [핵심 자산 업데이트 로직]
+     * 기존 saveOrUpdateInvest의 비즈니스 로직(물타기, 차감, 삭제)을 그대로
+     * 단, Trade 객체 대신 tradeId만 저장하여 영속성 문제를 해결
+     */
+    private void processInvestLogic(Long memberId, Long categoryId, BigDecimal tradeCount, BigDecimal tradePrice, String type, Long tradeId) {
+
         Invest invest = investRepository.findByMember_MemberIdAndCategory_CategoryId(memberId, categoryId)
                 .orElseGet(() -> {
                     Member member = memberRepository.getReferenceById(memberId);
@@ -172,41 +211,36 @@ public class InvestService {
                             .build();
                 });
 
-        // 엔티티에 nullable = false가 걸려있어서 이 줄이 없으면 에러가 납니다.
-        invest.setTrade(trade);
+        // 💡 핵심 변경 포인트: 객체 세팅 대신 ID만 세팅!
+        invest.setTradeId(tradeId);
 
-        // 2. Null 방어 로직
         BigDecimal currentCount = invest.getInvestCount() == null ? BigDecimal.ZERO : invest.getInvestCount();
         BigDecimal currentAvg = invest.getInvestPrice() == null ? BigDecimal.ZERO : invest.getInvestPrice();
 
         if ("BUY".equals(type)) {
             // [매수] 평단가 물타기 계산
-            BigDecimal oldTotal = currentCount.multiply(currentAvg); // 기존 총액
-            BigDecimal newTotal = tradeCount.multiply(tradePrice);   // 신규 매수 총액
-            BigDecimal totalCount = currentCount.add(tradeCount);    // 합친 수량
+            BigDecimal oldTotal = currentCount.multiply(currentAvg);
+            BigDecimal newTotal = tradeCount.multiply(tradePrice);
+            BigDecimal totalCount = currentCount.add(tradeCount);
 
-            // 0으로 나누기 에러 방지
             if (totalCount.compareTo(BigDecimal.ZERO) > 0) {
-                // 새로운 평단가 = (기존총액 + 신규총액) / 전체수량
                 BigDecimal newAvg = oldTotal.add(newTotal).divide(totalCount, 8, RoundingMode.HALF_UP);
                 invest.setInvestPrice(newAvg);
             }
             invest.setInvestCount(totalCount);
 
         } else {
-            // [매도] 수량만 빼기 (평단가는 변하지 않음)
+            // [매도] 수량 차감
             BigDecimal resultCount = currentCount.subtract(tradeCount);
             invest.setInvestCount(resultCount);
         }
 
-        // 3. 수량이 0 이하면 DB에서 삭제, 남았으면 저장
+        // 수량이 0 이하면 DB에서 삭제, 남았으면 저장 (더티 체킹 또는 save)
         if (invest.getInvestCount().compareTo(BigDecimal.ZERO) <= 0) {
             if (invest.getInvestId() != null) {
-                // 수량이 0이 되어 삭제할 때는 Trade 참조가 필요 없으므로 바로 삭제
                 investRepository.delete(invest);
             }
         } else {
-            // Trade가 set 되어 있으므로 정상적으로 저장됨
             investRepository.save(invest);
         }
     }
@@ -226,8 +260,11 @@ public class InvestService {
             try {
                 InvestResponse totalSummary = getInvestSummary(memberId, Pageable.unpaged());
 
-                // 개인용 채널로 전송 (/topic/asset/1, /topic/asset/2 ...)
-                messagingTemplate.convertAndSend("/topic/invest/" + memberId, totalSummary);
+                Map<String, Object> messageMap = new HashMap<>();
+                messageMap.put("memberId", memberId);
+                messageMap.put("totalSummary", totalSummary);
+
+                stringRedisTemplate.convertAndSend("ws-invest-channel", objectMapper.writeValueAsString(messageMap));
 
                 log.debug("실시간 자산 업데이트 전송 - MemberID: {}, CategoryID: {}", memberId, categoryId);
             } catch (Exception e) {
@@ -236,71 +273,8 @@ public class InvestService {
         }
     }
 
-    /**
-     * 개별 종목 계산 로직 (DTO 변환)
-     */
-    private InvestResponse.AssetDetailDto convertToAssetDetailDto(Invest invest) {
-        Long categoryId = invest.getCategory().getCategoryId();
 
-        // TradeService에서 최신가 가져오기
-        TradeResponse trade = (TradeResponse) tradeService.getCurrentTrade(categoryId);
-        BigDecimal currentPrice = (trade != null) ? trade.getTradePrice() : BigDecimal.ZERO;
 
-        BigDecimal quantity = invest.getInvestCount();
-        BigDecimal avgPrice = invest.getInvestPrice();
-
-        BigDecimal buyAmount = quantity.multiply(avgPrice);       // 매수금액
-        BigDecimal evalAmount = quantity.multiply(currentPrice); // 평가금액
-        BigDecimal profit = evalAmount.subtract(buyAmount);      // 평가손익
-        BigDecimal profitRate = calculateProfitRate(buyAmount, evalAmount); // 수익률
-
-        return InvestResponse.AssetDetailDto.builder()
-                .categoryName(invest.getCategory().getCategoryName())
-                .symbol(invest.getTrade().getSymbol())
-                .investCount(quantity)
-                .avgPrice(avgPrice)
-                .categoryId(categoryId)
-                .buyAmount(buyAmount)
-                .currentPrice(currentPrice)
-                .evaluationAmount(evalAmount)
-                .evaluationProfit(profit)
-                .profitRate(profitRate)
-                .build();
-    }
-
-    /**
-     * 전체 요약 정보 빌드(개별 종목 요약한거 합산)
-     */
-    private InvestResponse buildInvestResponse(List<InvestResponse.AssetDetailDto> assetList) {
-        BigDecimal totalBuy = assetList.stream()
-                .map(InvestResponse.AssetDetailDto::getBuyAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal totalEval = assetList.stream()
-                .map(InvestResponse.AssetDetailDto::getEvaluationAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal totalProfit = totalEval.subtract(totalBuy);
-        BigDecimal totalProfitRate = calculateProfitRate(totalBuy, totalEval);
-
-        return InvestResponse.builder()
-                .totalBuyAmount(totalBuy)
-                .totalEvaluation(totalEval)
-                .totalProfit(totalProfit)
-                .totalProfitRate(totalProfitRate)
-                .assetList(assetList)
-                .build();
-    }
-
-    /**
-     * 수익률 계산 (소수점 4자리 반올림)
-     */
-    private BigDecimal calculateProfitRate(BigDecimal buy, BigDecimal eval) {
-        if (buy == null || buy.compareTo(BigDecimal.ZERO) <= 0) return BigDecimal.ZERO;
-        return eval.subtract(buy)
-                .divide(buy, 4, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(100));
-    }
 
 
 }

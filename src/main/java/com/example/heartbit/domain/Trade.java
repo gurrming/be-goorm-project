@@ -80,4 +80,8 @@ public class Trade {
         return "UNKNOWN";
     }
 
+    public void assignIdAfterBulkInsert(Long generatedId) {
+        this.tradeId = generatedId;
+    }
+
 }

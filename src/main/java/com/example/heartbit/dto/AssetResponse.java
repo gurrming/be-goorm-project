@@ -10,14 +10,12 @@ import java.math.BigDecimal;
 @Builder
 public class AssetResponse {
     private BigDecimal assetCash;
-    private BigDecimal totalAsset;
     private BigDecimal assetCanOrder;
 
-    public static AssetResponse from(Asset asset, BigDecimal totalEvaluateAmount) {
+    public static AssetResponse from(Asset asset) {
         return AssetResponse.builder()
                 .assetCash(asset.getAssetCash())
                 .assetCanOrder(asset.getAssetCanOrder())
-                .totalAsset(asset.getAssetCash().add(totalEvaluateAmount))
                 .build();
     }
 

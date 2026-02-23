@@ -1,13 +1,17 @@
 package com.example.heartbit.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 @Getter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class InvestResponse {
 
     private BigDecimal totalBuyAmount;    // 총 매수
@@ -20,8 +24,13 @@ public class InvestResponse {
 
     private boolean hasNext;
 
+    private BigDecimal assetCash; //보유 잔액
+    private BigDecimal totalAsset; //총 보유 자산
+
     @Getter
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class AssetDetailDto {
 
         private String categoryName;

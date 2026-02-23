@@ -40,4 +40,5 @@ public interface ChatroomRepository extends JpaRepository<Chatroom, Long> {
             @Param("lastChatroomId") Long lastChatroomId,
             Pageable pageable
     );
+
 }
