@@ -22,3 +22,4 @@ jwt:
 
 server:
   secret-token: "heartbit-internal-secret-token"
+
