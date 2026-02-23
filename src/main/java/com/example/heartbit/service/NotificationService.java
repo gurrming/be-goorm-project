@@ -7,11 +7,10 @@ import com.example.heartbit.dto.NotificationResponseDto;
 import com.example.heartbit.repository.InterestRepository;
 import com.example.heartbit.repository.InvestRepository;
 import com.example.heartbit.repository.NotificationRepository;
-import com.example.heartbit.repository.TradeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest; // Pageable 구현체
-import org.springframework.data.domain.Pageable;    // Spring Data 용
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -21,8 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -36,6 +34,8 @@ public class NotificationService {
     private final InterestRepository interestRepository;
     private final InvestRepository investRepository;
 
+    private final Map<String, Integer> lastNotifiedStep = new ConcurrentHashMap<>();
+
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void send(Member member, String content, NotificationType type) {
@@ -46,98 +46,94 @@ public class NotificationService {
         messagingTemplate.convertAndSend("/topic/notification/" + member.getMemberId(), response);
     }
 
+    /**
+     * 시세 변동 알림 객체 생성 (Batch 처리용)
+     * 필터링: 동일 종목에 대해 보유(ASSET)와 관심(INTEREST)이 겹치면 ASSET 알림만 생성합니다.
+     */
     @Transactional(readOnly = true)
-    public List<NotificationResponseDto> getNotifications(Long memberId, Long lastNotiId, int size) {
+    public List<Notification> createPriceAlerts(Long categoryId, BigDecimal currentPrice, String categoryName, BigDecimal referencePrice) {
+        List<Notification> alerts = new ArrayList<>();
 
-        Pageable pageable = PageRequest.of(0, size);
+        log.info("[입력값 확인] 종목: {}, 현재가: {}, 기준가: {}", categoryName, currentPrice, referencePrice);
 
-        // 3일 전
-        LocalDateTime limitDate = LocalDateTime.now().minusDays(3);
-
-        List<Notification> notifications;
-
-        if (lastNotiId == null) {
-            // 처음 불러올 떄
-            notifications = notificationRepository.findLatestNotifications(memberId, limitDate, pageable);
-        } else {
-            // 다음거 가져오기
-            notifications = notificationRepository.findOlderNotifications(memberId, lastNotiId, limitDate, pageable);
-        }
-
-        return notifications.stream()
-                .map(NotificationResponseDto::from)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional
-    public void markAsRead(Long notificationId) {
-        Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 알림입니다."));
-        notification.read();
-    }
-
-    @Transactional
-    public void markAllAsRead(Long memberId) {
-        List<Notification> notifications =
-                notificationRepository.findAllByMember_MemberIdAndNotificationIsReadFalse(memberId);
-        notifications.forEach(Notification::read);
-    }
-
-    private final Map<String, Integer> lastNotifiedStep = new ConcurrentHashMap<>();
-
-    public void clearNotificationHistory() {
-        lastNotifiedStep.clear();
-    }
-
-    @Async
-    @Transactional
-    public void checkAndSendPriceAlert(Long categoryId, BigDecimal currentPrice, String categoryName, BigDecimal referencePrice) {
-        // 방어 로직
         if (referencePrice == null || referencePrice.compareTo(BigDecimal.ZERO) <= 0 || currentPrice == null) {
-            return;
+
+            log.warn("[시세체크 중단] 기준가 혹은 현재가가 유효하지 않음. 기준가: {}", referencePrice);
+            return alerts;
         }
 
         try {
-            // 1. 변동률 계산
+            // 1. 변동률 및 5% 구간 계산
             BigDecimal rate = currentPrice.subtract(referencePrice)
                     .divide(referencePrice, 4, RoundingMode.HALF_UP)
                     .multiply(new BigDecimal("100"));
 
+            log.info("[시세체크 A] 종목: {}, 변동률: {}%, 현재가: {}, 기준가: {}", categoryName, rate, currentPrice, referencePrice);
+
             double rawRate = rate.doubleValue();
-            int currentStep;
+            if (Math.abs(rawRate) < 5.0) return alerts;
 
-            // 2. 5% 단위 구간 계산 (상승/하락 모두 포함)
-            if (Math.abs(rawRate) >= 5.0) {
-                // rawRate가 -7.5라면 (int)(-7.5/5)*5 = -5가 됨
-                currentStep = ((int) (rawRate / 5)) * 5;
-            } else {
-                return;
-            }
+            log.info("[시세체크 B] 5% 조건 통과! rawRate: {}", rawRate);
 
-            // 3. 중복 체크 키 (종목ID:구간값)
+            int currentStep = ((int) (rawRate / 5)) * 5;
             String key = categoryId + ":" + currentStep;
 
+            // 2. 중복 알림 방지 체크 (동일 종목, 동일 구간)
             if (lastNotifiedStep.putIfAbsent(key, currentStep) == null) {
-
-                // 상승/하락 문구 결정
+                log.info("[시세체크 C] 중복 아님. 알림 생성 시작. 키: {}", key);
                 String direction = currentStep > 0 ? "상승" : "하락";
                 int displayPercentage = Math.abs(currentStep);
-
                 String commonMsg = String.format("[%s] 전일 대비 %d%% %s 중", categoryName, displayPercentage, direction);
 
-                // 관심 종목 알림
-                interestRepository.findByCategory_CategoryId(categoryId).forEach(i ->
-                        send(i.getMember(), commonMsg, NotificationType.INTEREST)
-                );
+                Set<Long> investedMemberIds = new HashSet<>();
 
-                // 보유 종목 알림 (ASSET 타입)
-                investRepository.findByCategory_CategoryId(categoryId).forEach(inv ->
-                        send(inv.getMember(), commonMsg, NotificationType.ASSET)
-                );
+                // 보유 종목 대상자 알림 생성
+                investRepository.findByCategory_CategoryId(categoryId).forEach(inv -> {
+                    if (inv.getMember() != null) {
+                        Long memberId = inv.getMember().getMemberId();
+                        investedMemberIds.add(memberId);
+                        alerts.add(new Notification(inv.getMember(), commonMsg, NotificationType.ASSET));
+                    }
+                });
+
+                // 보유 중이 아닌 경우
+                interestRepository.findByCategory_CategoryId(categoryId).forEach(i -> {
+                    if (i.getMember() != null) {
+                        Long memberId = i.getMember().getMemberId();
+                        if (!investedMemberIds.contains(memberId)) {
+                            alerts.add(new Notification(i.getMember(), commonMsg, NotificationType.INTEREST));
+                        }
+                    }
+                });
             }
         } catch (Exception e) {
-            // 비동기 에러 방어용 (로그 생략 요청 반영)
+            log.error("[시세 알림 생성 오류] categoryId: {}, 에러: {}", categoryId, e.getMessage());
         }
+        return alerts;
     }
 
+    @Transactional(readOnly = true)
+    public List<NotificationResponseDto> getNotifications(Long memberId, Long lastNotiId, int size) {
+        Pageable pageable = PageRequest.of(0, size);
+        LocalDateTime limitDate = LocalDateTime.now().minusDays(3);
+        List<Notification> notifications = (lastNotiId == null) ?
+                notificationRepository.findLatestNotifications(memberId, limitDate, pageable) :
+                notificationRepository.findOlderNotifications(memberId, lastNotiId, limitDate, pageable);
+
+        return notifications.stream().map(NotificationResponseDto::from).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void markAsRead(Long notificationId) {
+        notificationRepository.findById(notificationId).ifPresent(Notification::read);
+    }
+
+    @Transactional
+    public void markAllAsRead(Long memberId) {
+        notificationRepository.findAllByMember_MemberIdAndNotificationIsReadFalse(memberId).forEach(Notification::read);
+    }
+
+    public void clearNotificationHistory() {
+        lastNotifiedStep.clear();
+    }
 }
