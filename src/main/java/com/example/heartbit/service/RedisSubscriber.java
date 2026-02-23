@@ -81,7 +81,7 @@ public class RedisSubscriber {
         }
     }
 
-    public void sendOrderbookUpdate(String publishMessage) {
+    public void sendOrderbookPriceUpdate(String publishMessage) {
         try {
             Map<String, Object> lastPrice = objectMapper.readValue(publishMessage, Map.class);
             Long categoryId = Long.valueOf(lastPrice.get("categoryId").toString());
@@ -102,6 +102,17 @@ public class RedisSubscriber {
             messagingTemplate.convertAndSend("/topic/invest/" + memberId, data);
         } catch (Exception e) {
             log.error("Invest 웹소켓 전송 오류", e);
+        }
+    }
+
+    public void sendOrderbookUpdate(String publishMessage) {
+        try {
+            JsonNode rootNode = objectMapper.readTree(publishMessage);
+
+            Long categoryId = rootNode.get("categoryId").asLong();
+            messagingTemplate.convertAndSend("/topic/orderbook/" + categoryId, rootNode);
+        } catch (Exception e) {
+            log.error("Orderbook 웹소켓 전송 오류", e);
         }
     }
 
