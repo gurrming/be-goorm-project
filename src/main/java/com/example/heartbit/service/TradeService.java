@@ -79,7 +79,7 @@ public class TradeService {
         LocalDateTime today9AM = now.withHour(9).withMinute(0).withSecond(0).withNano(0);
         if (now.isBefore(today9AM)) today9AM = today9AM.minusDays(1);
 
-        List<Category> categories = categoryRepository.findAll();
+        List<Category> categories = categoryRepository.findByIsActiveTrue();
 
         for (Category category : categories) {
             Long id = category.getCategoryId();
@@ -544,7 +544,7 @@ public class TradeService {
     }
 
     public List<CategoryDto> getCategories() {
-        return categoryRepository.findAll()
+        return categoryRepository.findByIsActiveTrue()
                 .stream()
                 // 삭제되지 않은 종목만 필터링
                 .map(category -> {
