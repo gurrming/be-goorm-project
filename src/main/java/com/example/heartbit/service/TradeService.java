@@ -176,6 +176,8 @@ public class TradeService {
         Map<Long, Member> memberMap = new HashMap<>();
         Map<Long, Order> lastOrderMap = new HashMap<>();
 
+        List<TradeNotificationEvent.NotificationDetail> details = new ArrayList<>();
+
         for (TradeResponse response : tradeResults) {
             Order buyOrder = orderRepository.findById(response.getBuyOrderId())
                     .orElseThrow(() -> new NoSuchElementException("매수 주문을 찾을 수 없습니다."));
@@ -202,6 +204,25 @@ public class TradeService {
                     .build();
 
             tradesToSave.add(trade);
+
+            try {
+                if (buyOrder.getMember() != null) {
+                    details.add(new TradeNotificationEvent.NotificationDetail(
+                            buyOrder.getMember().getMemberId(),
+                            buyOrder.getCategory().getCategoryName(),
+                            "매수", response.getTradeCount(), buyOrder.getRemainingCount(), response.getTradePrice()
+                    ));
+                }
+                if (sellOrder.getMember() != null) {
+                    details.add(new TradeNotificationEvent.NotificationDetail(
+                            sellOrder.getMember().getMemberId(),
+                            sellOrder.getCategory().getCategoryName(),
+                            "매도", response.getTradeCount(), sellOrder.getRemainingCount(), response.getTradePrice()
+                    ));
+                }
+            } catch (Exception e) {
+                log.error("[알림 오류] 체결 로직은 유지: {}", e.getMessage());
+            }
 
             if (buyOrder.getMember() != null) {
                 Long memberId = buyOrder.getMember().getMemberId();
@@ -261,11 +282,10 @@ public class TradeService {
 
         BigDecimal referencePrice = openPrices.getOrDefault(categoryId, tradeResults.get(0).getTradePrice());
 
-        // 알림용
 
         eventPublisher.publishEvent(new TradesCompletedEvent(categoryId, eventDetails));
 
-        eventPublisher.publishEvent(new TradeNotificationEvent(categoryId, tradeResults, referencePrice));
+        eventPublisher.publishEvent(new TradeNotificationEvent(categoryId, tradeResults, referencePrice, details));
 
         eventPublisher.publishEvent(new TradesCommitedEvent(categoryId, tradeResults));
 
