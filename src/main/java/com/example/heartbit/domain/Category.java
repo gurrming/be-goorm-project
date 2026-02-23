@@ -25,7 +25,8 @@ public class Category {
     @Column(name = "symbol", length = 20)
     private String symbol;
 
-
+    @Column(name = "is_active")
+    private Boolean isActive;
 
 }
 
