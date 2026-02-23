@@ -90,7 +90,6 @@ public class OrderService {
         } else {
             orderRouter.route(request, savedOrder);
         }
-
         return OrderResponse.from(savedOrder);
     }
 

@@ -1,13 +1,28 @@
 services:
-
-  app:
-    container_name: app-api-1
+  app-1:
+    container_name: sharding-api-1
     build: .
     ports:
       - "8080:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - SHARD_ID=${SHARD_ID}
+      - SPRING_PROFILES_ACTIVE=local
+      - SHARD_ID=1
+    depends_on:
+      - redis
+      - postgres
+    restart: always
+
+  app-2:
+    container_name: sharding-api-2
+    build: .
+    ports:
+      - "8081:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - SHARD_ID=2
+    depends_on:
+      - redis
+      - postgres
     restart: always
 
   redis:
