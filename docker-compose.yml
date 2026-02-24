@@ -1,7 +1,15 @@
 services:
+
+  redis:
+    image: redis:7-alpine
+    container_name: local-redis
+    ports:
+      - "6379:6379"
+    restart: always
+
   postgres:
-    image: postgres:18
-    container_name: postgres
+    image: postgres:17
+    container_name: local-postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: "0000"
@@ -10,8 +18,30 @@ services:
     ports:
       - "15432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    restart: always
+
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    restart: always
 
 volumes:
   postgres_data:
-
+  grafana_data:

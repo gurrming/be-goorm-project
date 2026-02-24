@@ -1,0 +1,100 @@
+package com.example.heartbit.domain;
+
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Entity
+@Getter
+@Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Table(name = "orders")
+public class Order {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "order_id")
+    private Long orderId;
+
+    @Column(name = "order_price", precision = 18, scale = 8, nullable = false)
+    private BigDecimal orderPrice;
+
+    @Column(name = "order_count", precision = 18, scale = 8, nullable = false)
+    private BigDecimal orderCount;
+
+    @Column(name = "remaining_count", precision = 18, scale = 8, nullable = false)
+    private BigDecimal remainingCount;
+
+    @CreationTimestamp
+    @Column(name = "order_time", updatable = false)
+    private LocalDateTime orderTime;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "order_type", nullable = false, length = 10)
+    private OrderType orderType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "order_status", nullable = false, length = 10)
+    private OrderStatus orderStatus;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_id", nullable = true)
+    private Member member;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = false)
+    private Category category;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "bot_id", nullable = true)
+    private Bots bots;
+
+    @Builder
+    public Order(Long orderId,
+                 BigDecimal orderPrice,
+                 BigDecimal orderCount,
+                 BigDecimal remainingCount,
+                 LocalDateTime orderTime,
+                 OrderType orderType,
+                 OrderStatus orderStatus,
+                 Member member,
+                 Category category,
+                 Bots bots
+                ) {
+
+        this.orderId = orderId;
+        this.orderPrice = orderPrice;
+        this.orderCount = orderCount;
+        this.remainingCount = (remainingCount != null) ? remainingCount : orderCount;
+        this.orderType = orderType;
+        this.orderTime = orderTime;
+        this.orderStatus = (orderStatus != null) ? orderStatus : OrderStatus.OPEN;
+        this.member = member;
+        this.category = category;
+        this.bots = bots;
+    }
+
+    public void updateRemainingCount(BigDecimal executedCount) {
+        BigDecimal result = this.remainingCount.subtract(executedCount);
+        if (result.compareTo(BigDecimal.ZERO) < 0) {
+            result = BigDecimal.ZERO;
+        }
+        this.remainingCount = result;
+        if (this.remainingCount.compareTo(BigDecimal.ZERO) <= 0) {
+            this.orderStatus = OrderStatus.FILLED;
+        } else {
+            this.orderStatus = OrderStatus.PARTIAL;
+        }
+    }
+
+    public void cancel() {
+        if (this.orderStatus == OrderStatus.FILLED) {
+            throw new IllegalStateException("이미 체결된 주문은 취소할 수 없습니다.");
+        }
+        this.orderStatus = OrderStatus.CANCELLED;
+    }
+
+}
