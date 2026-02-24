@@ -2,7 +2,7 @@ name: Deploy Backend (Jar -> EC2 Docker)
 
 on:
   push:
-    branches: ["dev"]
+    branches: ["main"]
 
 permissions:
   contents: read
