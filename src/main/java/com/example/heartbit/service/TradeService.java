@@ -228,7 +228,7 @@ public class TradeService {
             }
         }
 
-            //종목별 상태 업데이트 및 웹소켓 전송
+            //종목별 상태 업데이트 및 웹소켓 전송.
 
             for (Long memberId : memberMap.keySet()) {
                 Member member = memberMap.get(memberId);
