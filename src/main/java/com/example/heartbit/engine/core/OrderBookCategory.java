@@ -20,7 +20,7 @@ public class OrderBookCategory {
             tempMap.put(id, new OrderBook());
         }
         // OrderBook 데이터를 unmodifiable 상태로 캡슐화
-        // 다른 스레드에서 수정할 수 없도록 보호해주는 역할
+        // 다른 스레드에서 수정할 수 없도록 보호해주는 역할 v
         this.orderBooks = Collections.unmodifiableMap(tempMap);
     }
 
