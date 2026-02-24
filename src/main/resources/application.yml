@@ -2,6 +2,14 @@ spring:
   application:
     name: heartbit
 
+server:
+  tomcat:
+    threads:
+      max: 200           # 최대 쓰레드 수
+      min-spare: 20      # 항상 유지할 최소 쓰레드 수
+    max-connections: 8192 # 동시에 유지할 최대 연결 수
+    accept-count: 200
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -21,7 +29,7 @@ spring:
 
   datasource:
     hikari:
-      maximum-pool-size: 20
+      maximum-pool-size: 50
       minimum-idle: 10
       connection-timeout: 30000
       idle-timeout: 600000
