@@ -3,7 +3,7 @@ package com.example.heartbit.integration;
 import com.example.heartbit.domain.*;
 import com.example.heartbit.repository.*;
 import com.example.heartbit.service.InvestService;
-import com.example.heartbit.service.TradeService;
+import com.example.heartbit.service.trade.TradeService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

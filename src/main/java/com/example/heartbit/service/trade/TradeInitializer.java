@@ -1,4 +1,4 @@
-package com.example.heartbit.service;
+package com.example.heartbit.service.trade;
 
 
 import lombok.RequiredArgsConstructor;

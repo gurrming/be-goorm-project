@@ -2,9 +2,7 @@ package com.example.heartbit.disruptor.handler;
 
 import com.example.heartbit.disruptor.OrderEvent;
 import com.example.heartbit.dto.trade.TradeResponse;
-import com.example.heartbit.engine.model.TradeCreateCommand;
-import com.example.heartbit.repository.OrderRepository;
-import com.example.heartbit.service.TradeService;
+import com.example.heartbit.service.trade.TradeService;
 import com.lmax.disruptor.EventHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

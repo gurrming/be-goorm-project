@@ -6,6 +6,7 @@ import com.example.heartbit.dto.InvestResponse;
 import com.example.heartbit.dto.trade.PriceChangedEvent;
 import com.example.heartbit.dto.trade.TradeResponse;
 import com.example.heartbit.repository.InvestRepository;
+import com.example.heartbit.service.trade.TradeService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

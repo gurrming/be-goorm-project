@@ -4,6 +4,7 @@ import com.example.heartbit.domain.*;
 import com.example.heartbit.dto.trade.PriceChangedEvent;
 import com.example.heartbit.dto.trade.TradesCompletedEvent;
 import com.example.heartbit.repository.*;
+import com.example.heartbit.service.trade.TradeService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
