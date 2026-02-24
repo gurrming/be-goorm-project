@@ -1,0 +1,15 @@
+package com.example.heartbit.repository;
+
+import com.example.heartbit.domain.Category;
+import lombok.NoArgsConstructor;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface CategoryRepository extends JpaRepository<Category, Long> {
+    // symbol 기준 대소문자 무시 조회
+    Optional<Category> findBySymbolIgnoreCase(String symbol);
+
+    Optional<Category> findBySymbol(String symbol);
+}

@@ -1,4 +1,11 @@
 package com.example.heartbit.global.exception;
 
-public class CustomerException {
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+@Getter
+@RequiredArgsConstructor
+public class CustomerException extends RuntimeException {
+    private final ErrorCode errorCode;
 }

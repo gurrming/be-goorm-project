@@ -2,6 +2,7 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '4.0.1'
 	id 'io.spring.dependency-management' version '1.1.7'
+    id 'jacoco'
 }
 
 group = 'com.example'
@@ -20,8 +21,8 @@ configurations {
 	}
 }
 
-repositories {
-	mavenCentral()
+jacoco {
+    toolVersion = "0.8.14"
 }
 
 dependencies {
@@ -29,23 +30,62 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-	implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:4.0.0'
-	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
-
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.3'
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 	implementation 'org.postgresql:postgresql:42.7.4'
-//	implementation 'org.flywaydb:flyway-core'
+
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	implementation 'org.redisson:redisson-spring-boot-starter:3.17.0'
+
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+	implementation 'com.lmax:disruptor:4.0.0'
+	implementation 'io.netty:netty-resolver-dns-native-macos:4.1.101.Final:osx-aarch_64'
+	implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
 
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.h2database:h2'
 	runtimeOnly 'org.postgresql:postgresql'
+    runtimeOnly 'io.netty:netty-resolver-dns-native-macos:4.2.9.Final:osx-aarch_64'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-	testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:4.0.0'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+    jvmArgs("-XX:+EnableDynamicAgentLoading", "-Djdk.instrument.traceUsage")
+
+    finalizedBy jacocoTestReport
 }
+
+jacocoTestReport {
+    dependsOn test // 테스트가 수행되어야 리포트 생성 가능
+
+    reports {
+        xml.required = true
+        csv.required = false
+        html.required = true // 브라우저에서 확인할 수 있는 HTML 리포트
+    }
+
+    // 측정에서 제외할 클래스들 (Querydsl, DTO, Config 등)
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    "**/dto/**",
+                    "**/config/**",
+                    "**/heartbit/domain/**" // 예: 단순 엔티티 제외
+            ])
+        }))
+    }
+}
+
+

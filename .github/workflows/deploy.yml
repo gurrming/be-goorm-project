@@ -1,0 +1,102 @@
+name: Deploy Backend (Jar -> EC2 Docker)
+
+on:
+  push:
+    branches: ["dev"]
+
+permissions:
+  contents: read
+
+env:
+  APP_DIR: /home/ubuntu/app
+  JAR_NAME: app.jar
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Checkout
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2) JDK
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Grant execute permission
+        run: chmod +x gradlew
+
+      # 3) Build JAR + normalize to deploy-artifacts/app.jar
+      - name: Build jar and normalize name
+        run: |
+          set -e
+          ./gradlew clean build -x test
+
+          echo "== Find jars =="
+          find . -maxdepth 6 -type f -name "*.jar" -print
+
+          JAR_PATH="$(find . -maxdepth 6 -type f -path "*/build/libs/*.jar" ! -name "*plain.jar" | head -n 1)"
+          if [ -z "$JAR_PATH" ]; then
+            echo "ERROR: Could not find jar under */build/libs/*.jar"
+            exit 1
+          fi
+
+          echo "Selected jar: $JAR_PATH"
+
+          mkdir -p deploy-artifacts
+          cp "$JAR_PATH" "deploy-artifacts/${{ env.JAR_NAME }}"
+
+          echo "== Artifact info =="
+          ls -al deploy-artifacts
+          sha256sum "deploy-artifacts/${{ env.JAR_NAME }}"
+
+      # 4) Upload JAR to EC2 as /home/ubuntu/app/app.jar (direct overwrite)
+      - name: Upload app.jar to EC2 (overwrite APP_DIR/app.jar)
+        uses: appleboy/scp-action@v0.1.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: deploy-artifacts/${{ env.JAR_NAME }}
+          target: ${{ env.APP_DIR }}
+          strip_components: 1
+          overwrite: true
+
+      # 5) Deploy on EC2
+      - name: Deploy on EC2 (docker compose rebuild)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -euo pipefail
+
+            cd "${{ env.APP_DIR }}"
+
+            echo "== EC2: current dir/files =="
+            pwd
+            ls -al
+
+            echo "== EC2: app.jar hash =="
+            test -f "app.jar"
+            sha256sum "app.jar"
+
+            echo "== EC2: docker compose down =="
+            sudo docker compose down --remove-orphans || true
+
+            echo "== EC2: docker compose up (rebuild) =="
+            sudo docker compose up -d --build --force-recreate
+
+            echo "== EC2: running containers =="
+            sudo docker ps
+
+            echo "== EC2: container jar hash check =="
+            sudo docker exec -it app-api-1 sha256sum /app/app.jar || true
+
+            echo "== EC2: image cleanup =="
+            sudo docker image prune -f
