@@ -94,6 +94,7 @@ public class RedisSubscriber {
             messagingTemplate.convertAndSend("/topic/invest/" + memberId, data);
         } catch (Exception e) {
             log.error("Invest 웹소켓 전송 오류", e);
+            //.
         }
     }
 
