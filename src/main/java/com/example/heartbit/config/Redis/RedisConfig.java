@@ -8,7 +8,6 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
@@ -82,7 +81,9 @@ public class RedisConfig {
                                                    MessageListenerAdapter chartsListenerAdapter,
                                                    MessageListenerAdapter orderbookPriceListenerAdapter,
                                                    MessageListenerAdapter investListenerAdapter,
-                                                   MessageListenerAdapter orderbookListenerAdapter) {
+                                                   MessageListenerAdapter orderbookListenerAdapter,
+                                                   MessageListenerAdapter chatListenerAdapter,
+                                                   MessageListenerAdapter notificationListenerAdapter) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
         container.addMessageListener(orderListenerAdapter, new ChannelTopic("order-sharding-channel"));
@@ -92,6 +93,8 @@ public class RedisConfig {
         container.addMessageListener(orderbookPriceListenerAdapter, new ChannelTopic("ws-orderbookPrice-channel"));
         container.addMessageListener(orderbookListenerAdapter, new ChannelTopic("ws-orderbook-channel"));
         container.addMessageListener(investListenerAdapter, new ChannelTopic("ws-invest-channel"));
+        container.addMessageListener(chatListenerAdapter, new ChannelTopic("ws-chat-channel"));
+        container.addMessageListener(notificationListenerAdapter, new ChannelTopic("ws-notification-channel"));
         return container;
     }
 
@@ -142,6 +145,20 @@ public class RedisConfig {
     @Bean
     public MessageListenerAdapter orderbookListenerAdapter(RedisSubscriber subscriber) {
         MessageListenerAdapter adapter = new MessageListenerAdapter(subscriber, "sendOrderbookUpdate");
+        adapter.setSerializer(new StringRedisSerializer());
+        return adapter;
+    }
+
+    @Bean
+    public MessageListenerAdapter chatListenerAdapter(RedisSubscriber subscriber) {
+        MessageListenerAdapter adapter = new MessageListenerAdapter(subscriber, "sendChatUpdate");
+        adapter.setSerializer(new StringRedisSerializer());
+        return adapter;
+    }
+
+    @Bean
+    public MessageListenerAdapter notificationListenerAdapter(RedisSubscriber subscriber) {
+        MessageListenerAdapter adapter = new MessageListenerAdapter(subscriber, "sendNotificationUpdate");
         adapter.setSerializer(new StringRedisSerializer());
         return adapter;
     }

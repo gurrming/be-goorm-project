@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -30,7 +31,7 @@ import java.util.stream.Collectors;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final RedisTemplate<String, Object> redisTemplate;
     private final InterestRepository interestRepository;
     private final InvestRepository investRepository;
 
@@ -43,7 +44,9 @@ public class NotificationService {
         notificationRepository.save(notification);
 
         NotificationResponseDto response = NotificationResponseDto.from(notification);
-        messagingTemplate.convertAndSend("/topic/notification/" + member.getMemberId(), response);
+        redisTemplate.convertAndSend("ws-notification-channel", response);
+
+        // messagingTemplate.convertAndSend("/topic/notification/" + member.getMemberId(), response);
     }
 
     /**
