@@ -13,10 +13,11 @@ public class OrderBook {
     private final NavigableMap<BigDecimal, Queue<OrderCommand>> sell = new TreeMap<>();
 
     public void add(OrderCommand order) {
+        if (order == null || order.getOrderPrice() == null) return;
 
         NavigableMap<BigDecimal, Queue<OrderCommand>> sideType = (order.getType() == OrderType.BUY) ? buy : sell;
-        sideType.computeIfAbsent(order.getOrderPrice(), q -> new ArrayDeque<OrderCommand>() {
-        }).add(order);
+
+        sideType.computeIfAbsent(order.getOrderPrice(), k -> new ArrayDeque<>()).add(order);
     }
 
     public List<OrderBookResponse> orderBookSnapshot(OrderType type, int limit) {
@@ -27,15 +28,15 @@ public class OrderBook {
         return sideType.entrySet().stream()
                 .map(entry -> {
                     BigDecimal totalRemaining = entry.getValue().stream()
-                            .map(OrderCommand::getRemainingCount)
-                            .filter(Objects::nonNull)
+                            .map(o -> o.getRemainingCount() != null ? o.getRemainingCount() : BigDecimal.ZERO)
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
+
                     return OrderBookResponse.builder()
                             .orderPrice(entry.getKey())
                             .totalRemainingCount(totalRemaining)
                             .build();
                 })
-                .filter(res -> res.getTotalRemainingCount().signum() > 0)
+                .filter(res -> res.getTotalRemainingCount().compareTo(BigDecimal.ZERO) > 0)
                 .limit(limit)
                 .collect(Collectors.toList());
     }

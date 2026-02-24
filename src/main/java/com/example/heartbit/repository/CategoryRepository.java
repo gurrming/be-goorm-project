@@ -12,4 +12,6 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     Optional<Category> findBySymbolIgnoreCase(String symbol);
 
     Optional<Category> findBySymbol(String symbol);
+
+    List<Category> findByIsActiveTrue();
 }

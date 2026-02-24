@@ -57,7 +57,7 @@ public class OrderConcurrencyServiceTest {
 
         orderBookCategory.init(java.util.List.of(categoryId));
 
-        BigDecimal initialCash = new BigDecimal("1000000.00000000");
+        BigDecimal initialCash = new BigDecimal("1000000000");
         assetRepository.save(new Asset(member, initialCash, initialCash));
 
         int threadCount = 100;

@@ -2,7 +2,7 @@ package com.example.heartbit.controller;
 
 import com.example.heartbit.dto.CategoryDto;
 import com.example.heartbit.service.CategoryService;
-import com.example.heartbit.service.TradeService;
+import com.example.heartbit.service.trade.TradeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

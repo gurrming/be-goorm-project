@@ -1,5 +1,6 @@
 package com.example.heartbit.service;
 
+import com.example.heartbit.controller.OrderRouter;
 import com.example.heartbit.disruptor.OrderEventProducer;
 import com.example.heartbit.domain.*;
 import com.example.heartbit.dto.order.*;
@@ -43,24 +44,30 @@ public class OrderService {
     private final OrderBookService orderBookService;
     private final OrderBookCategory orderBookCategory;
     private final OrderEventProducer orderEventProducer;
+    private final OrderRouter orderRouter;
 
 
     @EventListener(ApplicationReadyEvent.class)
-    @Transactional(readOnly = true)
     public void initOrderBook() {
-        List<Long> categoryIds = categoryRepository.findAll().stream()
-                .map(Category::getCategoryId).toList();
-        orderBookCategory.init(categoryIds);
+        List<Long> startCategoryIds = categoryRepository.findAll().stream()
+                .map(Category::getCategoryId)
+                .filter(orderRouter::isMyShard)
+                .toList();
 
-        List<Order> activeOrders = orderRepository.findByOrderStatusInOrderByOrderTimeAsc(
-                List.of(OrderStatus.OPEN, OrderStatus.PARTIAL));
+        if (startCategoryIds.isEmpty()) return;
+
+        orderBookCategory.init(startCategoryIds);
+
+        List<Order> categoryActiveOrders = orderRepository.findByCategory_CategoryIdInAndOrderStatusInOrderByOrderTimeAsc(
+                startCategoryIds, List.of(OrderStatus.OPEN, OrderStatus.PARTIAL));
 
         MatchingEngine matchingEngine = orderBookCategory.getMatchingEngine();
 
-        for (Order order : activeOrders) {
+        for (Order order : categoryActiveOrders) {
             OrderBook book = orderBookCategory.getOrderBook(order.getCategory().getCategoryId());
-
-            matchingEngine.match(book, OrderCommand.from(order));
+            if (book != null) {
+                matchingEngine.match(book, OrderCommand.from(order));
+            }
         }
     }
 
@@ -70,8 +77,6 @@ public class OrderService {
 
         Order savedOrder = orderRepository.saveAndFlush(buildOrder(request, category));
 
-        // orderEventProducer.publishOrder(savedOrder);
-
         /// API 스레드의 DB 커밋 완료 시점과 엔진 스레드의 조회 시점 차이로 인한 '가시성 에러' 방지.
         /// 롤백 시 엔진에 이벤트가 발행되는 것을 막아 데이터 무결성 보장.
         /// 트랜잭션 성공 시에만 엔진을 가동.
@@ -79,13 +84,12 @@ public class OrderService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    orderEventProducer.publishOrder(savedOrder);
+                    orderRouter.route(request, savedOrder);
                 }
             });
         } else {
-            orderEventProducer.publishOrder(savedOrder);
+            orderRouter.route(request, savedOrder);
         }
-
         return OrderResponse.from(savedOrder);
     }
 
