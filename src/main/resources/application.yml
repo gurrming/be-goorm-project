@@ -1,11 +1,14 @@
-shard:
-  id: ${SHARD_ID:1}
-  channel: order-sharding-channel
-  top-categories: [1, 2, 3, 4, 5, 6, 8]
-
 spring:
   application:
     name: heartbit
+
+server:
+  tomcat:
+    threads:
+      max: 200           # 최대 쓰레드 수
+      min-spare: 20      # 항상 유지할 최소 쓰레드 수
+    max-connections: 8192 # 동시에 유지할 최대 연결 수
+    accept-count: 200
 
   jpa:
     hibernate:
@@ -26,7 +29,7 @@ spring:
 
   datasource:
     hikari:
-      maximum-pool-size: 30
+      maximum-pool-size: 50
       minimum-idle: 10
       connection-timeout: 30000
       idle-timeout: 600000
@@ -35,16 +38,6 @@ spring:
 
 springdoc:
   show-login-endpoint: true
-
-jwt:
-  secret-key: "c3ByaW5nLWJvb3Qtc2VjdXJpdHktand0LXR1dG9yaWFsLWppd29vbi1sprbmctYm9vdC1zZWN1cml0eS1qd3QtdHV0b3JpYWwK"
-  expiration-time: 1800000
-  refresh-token-expiration-time: 604800000
-
-
-server:
-  secret-token: "heartbit-internal-secret-token"
-  
 
 management:
   endpoints:
