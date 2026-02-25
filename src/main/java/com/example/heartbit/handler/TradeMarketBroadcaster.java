@@ -102,6 +102,7 @@ public class TradeMarketBroadcaster {
         BigDecimal dailyHigh = dailyHighs.getOrDefault(categoryId, price);
         BigDecimal dailyLow = dailyLows.getOrDefault(categoryId, price);
 
+        //
         Map<String, Object> ticker = new HashMap<>();
         ticker.put("price", price.toPlainString());
         ticker.put("changeAmount", price.subtract(openPrice).toPlainString());
