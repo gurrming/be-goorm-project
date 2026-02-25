@@ -53,7 +53,8 @@ public class SecurityConfig {
             "/webjars/**",
             "/ws-heartbit/**",
             "/ws-heartbit/info/**",
-            "/actuator/**"
+            "/actuator/**",
+            "/health"
     };
 
 
@@ -98,6 +99,7 @@ public class SecurityConfig {
                         "https://d1z2afuae81hvp.cloudfront.net",
 //                        "http://172.16.24.109:8080",
                         "https://api.heartbit.site",
+                        "https://heartbitsite.link",
                         "https://54.79.24.150:8080",
                         "http://127.0.0.1:5173"
                 ));

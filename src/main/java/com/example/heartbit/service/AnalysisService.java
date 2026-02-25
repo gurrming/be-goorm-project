@@ -23,21 +23,21 @@ public class AnalysisService {
 
     @Transactional
     public List<AnalysisDTO> getSentimentData(Long categoryId) {
-        // 1. 분석 결과 조회
         Analysis analysis = analysisRepository.findByCategoryId(categoryId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 종목의 분석 결과가 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("분석 결과 없음"));
 
-        // 2. 카테고리 정보 조회
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 카테고리가 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("카테고리 없음"));
 
-        // 3. DTO 생성 후 리스트로 감싸서 반환
         AnalysisDTO dto = AnalysisDTO.builder()
                 .symbol(category.getSymbol())
                 .totalResult(analysis.getTotalScore())
                 .totalLabel(analysis.getTotalLabel())
-                .newsResult(analysis.getNewsScore())
-                .communityResult(analysis.getCommunityScore())
+                .newsResult(analysis.getNewsResult())       // 수정된 Getter
+                .communityResult(analysis.getCommunityResult()) // 수정된 Getter
+                .fullReport(analysis.getFullReport())   // ★ 상세 리포트 넣기
+                .summary(analysis.getSummary())             // [추가]
+                .rsi(analysis.getRsi())                     // [추가]
                 .build();
 
         return List.of(dto);

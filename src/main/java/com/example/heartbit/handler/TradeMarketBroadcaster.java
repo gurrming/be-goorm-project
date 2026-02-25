@@ -1,8 +1,11 @@
 package com.example.heartbit.handler;
 
 import com.example.heartbit.dto.trade.TradeResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +23,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class TradeMarketBroadcaster {
 
-    private final SimpMessagingTemplate messagingTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
+    private final ObjectMapper objectMapper;
 
     private final Map<Long, BigDecimal> openPrices = new ConcurrentHashMap<>();
     private final Map<Long, BigDecimal> currentPrices = new ConcurrentHashMap<>();
@@ -102,36 +106,48 @@ public class TradeMarketBroadcaster {
         BigDecimal dailyHigh = dailyHighs.getOrDefault(categoryId, price);
         BigDecimal dailyLow = dailyLows.getOrDefault(categoryId, price);
 
-        Map<String, Object> ticker = new HashMap<>();
-        ticker.put("price", price.toPlainString());
-        ticker.put("changeAmount", price.subtract(openPrice).toPlainString());
-        ticker.put("changeRate", changeRates.getOrDefault(categoryId, BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP).toPlainString());
-        ticker.put("high", dailyHigh.toPlainString());
-        ticker.put("low", dailyLow.toPlainString());
-        ticker.put("volume", accVolumes.getOrDefault(categoryId, BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP).toPlainString());
-        ticker.put("amount", accAmounts.getOrDefault(categoryId, BigDecimal.ZERO).setScale(0, RoundingMode.HALF_UP).toPlainString());
+        try {
+            Map<String, Object> ticker = new HashMap<>();
+            ticker.put("categoryId", categoryId);
+            ticker.put("price", price.toPlainString());
+            ticker.put("changeAmount", price.subtract(openPrice).toPlainString());
+            ticker.put("changeRate", changeRates.getOrDefault(categoryId, BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP).toPlainString());
+            ticker.put("high", dailyHigh.toPlainString());
+            ticker.put("low", dailyLow.toPlainString());
+            ticker.put("volume", accVolumes.getOrDefault(categoryId, BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP).toPlainString());
+            ticker.put("amount", accAmounts.getOrDefault(categoryId, BigDecimal.ZERO).setScale(0, RoundingMode.HALF_UP).toPlainString());
 
-        messagingTemplate.convertAndSend("/topic/ticker" + suffix, (Object)ticker);
+            stringRedisTemplate.convertAndSend("ws-ticker-channel", objectMapper.writeValueAsString(ticker));
 
-        Map<String, Object> trades = new HashMap<>();
-        trades.put("price", price.toPlainString());
-        trades.put("openPrice", openPrice.toPlainString());
-        trades.put("count", response.getTradeCount().toPlainString());
-        trades.put("type", response.getTakerType());
-        trades.put("time", response.getTradeTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
-        trades.put("intensity", intensity.setScale(2, RoundingMode.HALF_UP).toPlainString());
-        messagingTemplate.convertAndSend("/topic/trades" + suffix, (Object)trades);
+            Map<String, Object> trades = new HashMap<>();
+            trades.put("categoryId", categoryId);
+            trades.put("price", price.toPlainString());
+            trades.put("openPrice", openPrice.toPlainString());
+            trades.put("count", response.getTradeCount().toPlainString());
+            trades.put("type", response.getTakerType());
+            trades.put("time", response.getTradeTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
+            trades.put("intensity", intensity.setScale(2, RoundingMode.HALF_UP).toPlainString());
 
-        Map<String, Object> candle = new HashMap<>();
-        candle.put("t", currentMinutes.get(categoryId).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
-        candle.put("o", candleOpens.get(categoryId).toPlainString());
-        candle.put("h", candleHighs.get(categoryId).toPlainString());
-        candle.put("l", candleLows.get(categoryId).toPlainString());
-        candle.put("c", price.toPlainString());
-        messagingTemplate.convertAndSend("/topic/charts" + suffix, (Object)candle);
+            stringRedisTemplate.convertAndSend("ws-trades-channel", objectMapper.writeValueAsString(trades));
 
-        Map<String, Object> lastPrice = new HashMap<>();
-        lastPrice.put("price", price.toPlainString());
-        messagingTemplate.convertAndSend("/topic/orderbook/lastPrice/" + categoryId, (Object)lastPrice);
+            Map<String, Object> charts = new HashMap<>();
+            charts.put("categoryId", categoryId);
+            charts.put("t", currentMinutes.get(categoryId).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
+            charts.put("o", candleOpens.get(categoryId).toPlainString());
+            charts.put("h", candleHighs.get(categoryId).toPlainString());
+            charts.put("l", candleLows.get(categoryId).toPlainString());
+            charts.put("c", price.toPlainString());
+
+            stringRedisTemplate.convertAndSend("ws-charts-channel", objectMapper.writeValueAsString(charts));
+
+            Map<String, Object> lastPrice = new HashMap<>();
+            lastPrice.put("categoryId", categoryId);
+            lastPrice.put("price", price.toPlainString());
+
+            stringRedisTemplate.convertAndSend("ws-orderbook-channel", objectMapper.writeValueAsString(lastPrice));
+
+        } catch (Exception e) {
+            log.error("웹소켓 레디스 전송 중 JSON 직렬화 에러 발생", e);
+        }
     }
 }

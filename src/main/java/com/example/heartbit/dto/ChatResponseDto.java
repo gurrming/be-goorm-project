@@ -1,6 +1,7 @@
 package com.example.heartbit.dto;
 
 import com.example.heartbit.domain.Chatroom;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ChatResponseDto {
     private Long chatId;
     private Long categoryId;
