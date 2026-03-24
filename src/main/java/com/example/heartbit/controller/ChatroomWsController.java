@@ -4,7 +4,6 @@ import com.example.heartbit.dto.ChatRequestDto;
 import com.example.heartbit.dto.ChatResponseDto;
 import com.example.heartbit.service.ChatroomService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -15,7 +14,7 @@ import org.springframework.stereotype.Controller;
 public class ChatroomWsController {
 
     private final ChatroomService chatroomService;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final SimpMessagingTemplate messagingTemplate;
 
     // 채팅 보내기
     // 클라이언트 -> 서버: /app/chat/{categoryId}
@@ -40,10 +39,8 @@ public class ChatroomWsController {
 
         ChatResponseDto saved = chatroomService.writeChat(requestDto);
 
-        redisTemplate.convertAndSend("ws-chat-channel", saved);
-
         // 서버 -> 클라이언트 : /topic/chat/{categoryId}
-        // messagingTemplate.convertAndSend("/topic/chat/" + categoryId, saved);
+        messagingTemplate.convertAndSend("/topic/chat/" + categoryId, saved);
     }
 
     // 채팅 수신 (DTO)
